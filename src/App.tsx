@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "@/components/layouts/AppLayout";
 import Dashboard from "./pages/Dashboard";
+import Employees from "./pages/Employees";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -19,7 +20,7 @@ const App = () => (
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Dashboard />} />
             {/* HRM Module Routes - Will be implemented */}
-            <Route path="/employees" element={<div className="p-8 text-center text-muted-foreground">Employees Module - Coming Soon</div>} />
+            <Route path="/employees" element={<Employees />} />
             <Route path="/attendance" element={<div className="p-8 text-center text-muted-foreground">Attendance Module - Coming Soon</div>} />
             <Route path="/leave" element={<div className="p-8 text-center text-muted-foreground">Leave Management - Coming Soon</div>} />
             <Route path="/expenses" element={<div className="p-8 text-center text-muted-foreground">Expenses Module - Coming Soon</div>} />
