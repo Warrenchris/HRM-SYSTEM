@@ -14,6 +14,7 @@ import Payroll from "./pages/Payroll";
 import Loans from "./pages/Loans";
 import Timesheets from "./pages/Timesheets";
 import Performance from "./pages/Performance";
+import Recruitment from "./pages/Recruitment";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,8 +38,7 @@ const App = () => (
             <Route path="/loans" element={<Loans />} />
             <Route path="/timesheets" element={<Timesheets />} />
             <Route path="/performance" element={<Performance />} />
-            
-            <Route path="/recruitment" element={<div className="p-8 text-center text-muted-foreground">Recruitment Module - Coming Soon</div>} />
+            <Route path="/recruitment" element={<Recruitment />} />
             <Route path="/reports" element={<div className="p-8 text-center text-muted-foreground">Reports & Analytics - Coming Soon</div>} />
             <Route path="/users" element={<div className="p-8 text-center text-muted-foreground">User Management - Coming Soon</div>} />
             <Route path="/company" element={<div className="p-8 text-center text-muted-foreground">Company Setup - Coming Soon</div>} />
