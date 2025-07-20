@@ -13,7 +13,8 @@ import {
   Shield,
   Building,
   Home,
-  Settings
+  Settings,
+  ShoppingCart
 } from "lucide-react";
 
 import {
@@ -35,6 +36,7 @@ const mainModules = [
   { title: "Attendance", url: "/attendance", icon: Clock },
   { title: "Leave Management", url: "/leave", icon: Calendar },
   { title: "Asset Management", url: "/assets", icon: Package },
+  { title: "Procurement", url: "/procurement", icon: ShoppingCart },
   { title: "Expenses", url: "/expenses", icon: CreditCard },
   { title: "Payroll", url: "/payroll", icon: DollarSign },
   { title: "Loans", url: "/loans", icon: FileText },
