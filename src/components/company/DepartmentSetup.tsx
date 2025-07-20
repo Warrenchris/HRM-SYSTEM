@@ -213,7 +213,7 @@ export function DepartmentSetup() {
         id: `D${(departments.length + 1).toString().padStart(3, '0')}`,
         ...formData,
         budget: formData.budget ? parseFloat(formData.budget) : undefined,
-        parentId: formData.parentId || undefined,
+        parentId: formData.parentId === "none" ? undefined : formData.parentId || undefined,
         employeeCount: 0,
         status: "active",
       };
@@ -381,7 +381,7 @@ export function DepartmentSetup() {
                           <SelectValue placeholder="Select parent department" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">None (Top Level)</SelectItem>
+                          <SelectItem value="none">None (Top Level)</SelectItem>
                           {parentDepartments.map((dept) => (
                             <SelectItem key={dept.id} value={dept.id}>
                               {dept.name}
