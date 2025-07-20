@@ -95,10 +95,107 @@ export function AttendanceReports() {
     }
   };
 
+  const generateCSV = (data: any[], filename: string) => {
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+      headers.join(','),
+      ...data.map(row => headers.map(header => `"${row[header]}"`).join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${filename}.csv`;
+    link.click();
+  };
+
+  const generateExcel = (data: any[], filename: string) => {
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+      headers.join('\t'),
+      ...data.map(row => headers.map(header => `${row[header]}`).join('\t'))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${filename}.xls`;
+    link.click();
+  };
+
+  const generatePDF = (data: any[], filename: string) => {
+    const headers = Object.keys(data[0]);
+    let htmlContent = `
+      <html>
+        <head>
+          <title>Attendance Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            h1 { color: #333; }
+          </style>
+        </head>
+        <body>
+          <h1>Attendance Report - ${new Date().toLocaleDateString()}</h1>
+          <table>
+            <thead>
+              <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+            </thead>
+            <tbody>
+              ${data.map(row => `<tr>${headers.map(h => `<td>${row[h]}</td>`).join('')}</tr>`).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+    
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${filename}.html`;
+    link.click();
+  };
+
+  const getFilteredData = () => {
+    let data = [...employeeData];
+    
+    if (selectedDepartment !== "all") {
+      data = data.filter(emp => emp.department.toLowerCase() === selectedDepartment.toLowerCase());
+    }
+    
+    if (selectedEmployee !== "all") {
+      data = data.filter(emp => emp.name.toLowerCase().replace(/\s+/g, '-') === selectedEmployee);
+    }
+    
+    return data;
+  };
+
   const handleExport = (type: string) => {
+    const filteredData = getFilteredData();
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `attendance-report-${reportType}-${timestamp}`;
+    
+    console.log(`Exporting ${type.toLowerCase()} for department: ${selectedDepartment}`);
+    
+    switch (type.toLowerCase()) {
+      case 'excel':
+        generateExcel(filteredData, filename);
+        break;
+      case 'csv':
+        generateCSV(filteredData, filename);
+        break;
+      case 'pdf':
+        generatePDF(filteredData, filename);
+        break;
+      default:
+        generateExcel(filteredData, filename);
+    }
+    
     toast({
-      title: "Export Started",
-      description: `Your ${type} report is being prepared for download.`,
+      title: "Export Complete",
+      description: `${type} report downloaded successfully with ${filteredData.length} records.`,
     });
   };
 
@@ -231,6 +328,10 @@ export function AttendanceReports() {
             <Button variant="outline" onClick={() => handleExport("Excel")} className="flex items-center gap-2">
               <Download className="h-4 w-4" />
               Export Excel
+            </Button>
+            <Button variant="outline" onClick={() => handleExport("CSV")} className="flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              Export CSV
             </Button>
             <Button variant="outline" onClick={() => handleExport("PDF")} className="flex items-center gap-2">
               <Download className="h-4 w-4" />
