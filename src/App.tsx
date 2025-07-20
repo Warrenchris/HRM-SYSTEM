@@ -10,6 +10,7 @@ import Attendance from "./pages/Attendance";
 import Leave from "./pages/Leave";
 import Assets from "./pages/Assets";
 import Expenses from "./pages/Expenses";
+import Payroll from "./pages/Payroll";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,7 +30,7 @@ const App = () => (
             <Route path="/leave" element={<Leave />} />
             <Route path="/assets" element={<Assets />} />
             <Route path="/expenses" element={<Expenses />} />
-            <Route path="/payroll" element={<div className="p-8 text-center text-muted-foreground">Payroll Module - Coming Soon</div>} />
+            <Route path="/payroll" element={<Payroll />} />
             <Route path="/loans" element={<div className="p-8 text-center text-muted-foreground">Loan Management - Coming Soon</div>} />
             <Route path="/timesheets" element={<div className="p-8 text-center text-muted-foreground">Timesheets Module - Coming Soon</div>} />
             <Route path="/performance" element={<div className="p-8 text-center text-muted-foreground">Performance Management - Coming Soon</div>} />
