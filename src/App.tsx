@@ -17,6 +17,7 @@ import Performance from "./pages/Performance";
 import Recruitment from "./pages/Recruitment";
 import Reports from "./pages/Reports";
 import Users from "./pages/Users";
+import Company from "./pages/Company";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,7 +44,7 @@ const App = () => (
             <Route path="/recruitment" element={<Recruitment />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/users" element={<Users />} />
-            <Route path="/company" element={<div className="p-8 text-center text-muted-foreground">Company Setup - Coming Soon</div>} />
+            <Route path="/company" element={<Company />} />
             <Route path="/settings" element={<div className="p-8 text-center text-muted-foreground">Settings - Coming Soon</div>} />
           </Route>
           <Route path="*" element={<NotFound />} />
