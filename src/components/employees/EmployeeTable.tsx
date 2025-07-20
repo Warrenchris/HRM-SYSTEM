@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MoreHorizontal, Eye, Edit, Trash2, Mail, Phone } from "lucide-react";
+import { EditEmployeeDialog } from "./EditEmployeeDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -92,6 +93,8 @@ const mockEmployees = [
 
 export function EmployeeTable({ searchTerm, selectedDepartment }: EmployeeTableProps) {
   const { toast } = useToast();
+  const [editEmployee, setEditEmployee] = useState<any>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const filteredEmployees = mockEmployees.filter(employee => {
     const matchesSearch = 
@@ -114,10 +117,24 @@ export function EmployeeTable({ searchTerm, selectedDepartment }: EmployeeTableP
   }, {} as Record<string, number>);
 
   const handleAction = (action: string, employee: any) => {
+    if (action === "Edit") {
+      setEditEmployee(employee);
+      setIsEditDialogOpen(true);
+    } else {
+      toast({
+        title: `${action} Employee`,
+        description: `${action} action for ${employee.firstName} ${employee.lastName}`,
+      });
+    }
+  };
+
+  const handleEditEmployee = (employeeData: any) => {
     toast({
-      title: `${action} Employee`,
-      description: `${action} action for ${employee.firstName} ${employee.lastName}`,
+      title: "Employee Updated",
+      description: `Successfully updated ${employeeData.firstName} ${employeeData.lastName}`,
     });
+    setIsEditDialogOpen(false);
+    setEditEmployee(null);
   };
 
   const getStatusBadge = (status: string) => {
@@ -257,6 +274,17 @@ export function EmployeeTable({ searchTerm, selectedDepartment }: EmployeeTableP
         </div>
       )}
     </div>
+    
+    {/* Edit Employee Dialog */}
+    <EditEmployeeDialog
+      isOpen={isEditDialogOpen}
+      onClose={() => {
+        setIsEditDialogOpen(false);
+        setEditEmployee(null);
+      }}
+      onSubmit={handleEditEmployee}
+      employee={editEmployee}
+    />
     </div>
   );
 }
