@@ -12,6 +12,7 @@ import Assets from "./pages/Assets";
 import Expenses from "./pages/Expenses";
 import Payroll from "./pages/Payroll";
 import Loans from "./pages/Loans";
+import Timesheets from "./pages/Timesheets";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,7 +34,7 @@ const App = () => (
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/payroll" element={<Payroll />} />
             <Route path="/loans" element={<Loans />} />
-            <Route path="/timesheets" element={<div className="p-8 text-center text-muted-foreground">Timesheets Module - Coming Soon</div>} />
+            <Route path="/timesheets" element={<Timesheets />} />
             <Route path="/performance" element={<div className="p-8 text-center text-muted-foreground">Performance Management - Coming Soon</div>} />
             <Route path="/recruitment" element={<div className="p-8 text-center text-muted-foreground">Recruitment Module - Coming Soon</div>} />
             <Route path="/reports" element={<div className="p-8 text-center text-muted-foreground">Reports & Analytics - Coming Soon</div>} />
