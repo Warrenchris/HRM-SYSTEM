@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, MapPin, Wifi, WifiOff, CheckCircle } from "lucide-react";
+import { Clock, MapPin, Wifi, WifiOff, CheckCircle, Satellite } from "lucide-react";
 
 interface ClockInOutProps {
   isCheckedIn: boolean;
@@ -17,7 +17,28 @@ export function ClockInOut({ isCheckedIn, setIsCheckedIn, checkInTime, setCheckI
   const [isLoading, setIsLoading] = useState(false);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [gpsActivated, setGpsActivated] = useState(false);
   const { toast } = useToast();
+
+  // Activate GPS on component mount
+  useEffect(() => {
+    const activateGPS = async () => {
+      try {
+        const userLocation = await getCurrentLocation();
+        setLocation(userLocation);
+        setGpsActivated(true);
+        toast({
+          title: "GPS Activated",
+          description: "Location services are now active for attendance tracking.",
+        });
+      } catch (error) {
+        setLocationError("GPS activation failed. Please enable location access.");
+        setGpsActivated(false);
+      }
+    };
+
+    activateGPS();
+  }, []);
 
   const getCurrentLocation = (): Promise<{ lat: number; lng: number }> => {
     return new Promise((resolve, reject) => {
@@ -174,17 +195,34 @@ export function ClockInOut({ isCheckedIn, setIsCheckedIn, checkInTime, setCheckI
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">GPS</span>
+              <span className="text-sm font-medium">GPS Status</span>
+              <div className="flex items-center gap-2">
+                {gpsActivated ? (
+                  <>
+                    <Satellite className="h-4 w-4 text-success" />
+                    <span className="text-sm text-success">Active</span>
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="h-4 w-4 text-destructive" />
+                    <span className="text-sm text-destructive">Inactive</span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Location</span>
               <div className="flex items-center gap-2">
                 {location ? (
                   <>
                     <Wifi className="h-4 w-4 text-success" />
-                    <span className="text-sm text-success">Connected</span>
+                    <span className="text-sm text-success">Acquired</span>
                   </>
                 ) : (
                   <>
                     <WifiOff className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Disconnected</span>
+                    <span className="text-sm text-muted-foreground">Searching...</span>
                   </>
                 )}
               </div>
