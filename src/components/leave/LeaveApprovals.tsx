@@ -25,6 +25,18 @@ interface PendingLeaveRequest {
   emergencyContact?: string;
   handoverNotes?: string;
   remainingBalance: number;
+  lineManager: string;
+  approvalStatus: "pending_manager" | "pending_hr" | "approved" | "rejected";
+  managerApproval?: {
+    approvedBy: string;
+    approvedDate: Date;
+    comments?: string;
+  };
+  hrApproval?: {
+    approvedBy: string;
+    approvedDate: Date;
+    comments?: string;
+  };
 }
 
 const mockPendingRequests: PendingLeaveRequest[] = [
@@ -41,7 +53,9 @@ const mockPendingRequests: PendingLeaveRequest[] = [
     appliedDate: new Date("2025-01-10"),
     emergencyContact: "+1 234-567-8900",
     handoverNotes: "All current projects are on track. Jane will cover my meetings and urgent issues.",
-    remainingBalance: 18
+    remainingBalance: 18,
+    lineManager: "John Smith",
+    approvalStatus: "pending_manager"
   },
   {
     id: "LR006",
@@ -55,7 +69,14 @@ const mockPendingRequests: PendingLeaveRequest[] = [
     reason: "Medical procedure scheduled. Doctor recommended 2 days rest.",
     appliedDate: new Date("2025-01-20"),
     emergencyContact: "+1 234-567-8901",
-    remainingBalance: 8
+    remainingBalance: 8,
+    lineManager: "Sarah Johnson",
+    approvalStatus: "pending_hr",
+    managerApproval: {
+      approvedBy: "Sarah Johnson",
+      approvedDate: new Date("2025-01-22"),
+      comments: "Approved. Hope you recover quickly."
+    }
   },
   {
     id: "LR007",
@@ -69,7 +90,30 @@ const mockPendingRequests: PendingLeaveRequest[] = [
     reason: "Moving to new apartment. Need to coordinate with movers and utilities.",
     appliedDate: new Date("2025-01-15"),
     handoverNotes: "Sarah will handle any urgent HR matters. All interviews are rescheduled.",
-    remainingBalance: 4
+    remainingBalance: 4,
+    lineManager: "Mike Brown",
+    approvalStatus: "pending_manager"
+  },
+  {
+    id: "LR008",
+    employeeName: "David Lee",
+    employeeId: "EMP008",
+    department: "Sales",
+    leaveType: "Annual Leave",
+    startDate: new Date("2025-02-10"),
+    endDate: new Date("2025-02-14"),
+    days: 5,
+    reason: "Wedding anniversary celebration with spouse.",
+    appliedDate: new Date("2025-01-12"),
+    emergencyContact: "+1 234-567-8902",
+    remainingBalance: 15,
+    lineManager: "Lisa Wang",
+    approvalStatus: "pending_hr",
+    managerApproval: {
+      approvedBy: "Lisa Wang",
+      approvedDate: new Date("2025-01-18"),
+      comments: "Approved. Congratulations on your anniversary!"
+    }
   }
 ];
 
@@ -77,16 +121,28 @@ export function LeaveApprovals() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [selectedRequest, setSelectedRequest] = useState<PendingLeaveRequest | null>(null);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  const [approvalComments, setApprovalComments] = useState("");
+  const [userRole] = useState<"manager" | "hr">("manager"); // In real app, get from auth context
 
   const filteredRequests = mockPendingRequests.filter((request) => {
     const matchesSearch = request.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          request.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          request.leaveType.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDepartment = departmentFilter === "all" || request.department === departmentFilter;
+    const matchesStatus = statusFilter === "all" || request.approvalStatus === statusFilter;
     
-    return matchesSearch && matchesDepartment;
+    // Filter based on user role
+    let matchesRole = true;
+    if (userRole === "manager") {
+      matchesRole = request.approvalStatus === "pending_manager";
+    } else if (userRole === "hr") {
+      matchesRole = request.approvalStatus === "pending_hr";
+    }
+    
+    return matchesSearch && matchesDepartment && matchesStatus && matchesRole;
   });
 
   const handleApproval = async (requestId: string, action: "approve" | "reject", comments?: string) => {
@@ -95,13 +151,31 @@ export function LeaveApprovals() {
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    toast({
-      title: action === "approve" ? "Leave Request Approved" : "Leave Request Rejected",
-      description: `Request ${requestId} has been ${action}d successfully.`,
-    });
+    const request = mockPendingRequests.find(r => r.id === requestId);
+    if (!request) return;
+    
+    if (userRole === "manager") {
+      if (action === "approve") {
+        toast({
+          title: "Leave Request Approved by Manager",
+          description: `Request ${requestId} has been forwarded to HR for final approval.`,
+        });
+      } else {
+        toast({
+          title: "Leave Request Rejected",
+          description: `Request ${requestId} has been rejected by line manager.`,
+        });
+      }
+    } else if (userRole === "hr") {
+      toast({
+        title: action === "approve" ? "Leave Request Approved by HR" : "Leave Request Rejected by HR",
+        description: `Request ${requestId} has been ${action}d successfully. Employee will be notified.`,
+      });
+    }
     
     setIsProcessing(null);
     setSelectedRequest(null);
+    setApprovalComments("");
   };
 
   const getUrgencyBadge = (appliedDate: Date, startDate: Date) => {
@@ -116,17 +190,49 @@ export function LeaveApprovals() {
     return null;
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending_manager":
+        return <Badge variant="outline" className="text-orange-600 border-orange-200">Pending Manager</Badge>;
+      case "pending_hr":
+        return <Badge variant="outline" className="text-blue-600 border-blue-200">Pending HR</Badge>;
+      case "approved":
+        return <Badge variant="default" className="bg-green-600">Approved</Badge>;
+      case "rejected":
+        return <Badge variant="destructive">Rejected</Badge>;
+      default:
+        return <Badge variant="outline">Unknown</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Role Indicator */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            <span className="font-medium">
+              Viewing as: {userRole === "manager" ? "Line Manager" : "HR Personnel"}
+            </span>
+            <Badge variant="outline">
+              {userRole === "manager" ? "Manager Approvals" : "HR Approvals"}
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {userRole === "manager" ? "Pending Manager Review" : "Pending HR Review"}
+            </CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockPendingRequests.length}</div>
+            <div className="text-2xl font-bold">{filteredRequests.length}</div>
             <p className="text-xs text-muted-foreground">
               Awaiting your approval
             </p>
@@ -140,7 +246,7 @@ export function LeaveApprovals() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-destructive">
-              {mockPendingRequests.filter(r => differenceInDays(r.startDate, new Date()) <= 3).length}
+              {filteredRequests.filter(r => differenceInDays(r.startDate, new Date()) <= 3).length}
             </div>
             <p className="text-xs text-muted-foreground">
               Starting in ≤3 days
@@ -166,10 +272,13 @@ export function LeaveApprovals() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            Pending Leave Approvals
+            {userRole === "manager" ? "Manager Leave Approvals" : "HR Leave Approvals"}
           </CardTitle>
           <CardDescription>
-            Review and approve leave requests from your team members
+            {userRole === "manager" 
+              ? "Review and approve leave requests from your team members. Approved requests will be forwarded to HR."
+              : "Review leave requests that have been approved by line managers for final approval."
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -198,6 +307,18 @@ export function LeaveApprovals() {
                 <SelectItem value="Sales">Sales</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full md:w-[180px]">
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="pending_manager">Pending Manager</SelectItem>
+                <SelectItem value="pending_hr">Pending HR</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Results Summary */}
@@ -215,7 +336,8 @@ export function LeaveApprovals() {
                   <TableHead>Duration</TableHead>
                   <TableHead>Dates</TableHead>
                   <TableHead>Applied</TableHead>
-                  <TableHead>Balance</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Line Manager</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -245,9 +367,10 @@ export function LeaveApprovals() {
                     </TableCell>
                     <TableCell>{format(request.appliedDate, "MMM dd")}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-xs">
-                        {request.remainingBalance} days
-                      </Badge>
+                      {getStatusBadge(request.approvalStatus)}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm">{request.lineManager}</span>
                     </TableCell>
                     <TableCell>
                       {getUrgencyBadge(request.appliedDate, request.startDate)}
@@ -285,14 +408,16 @@ export function LeaveApprovals() {
                                     </div>
                                   </div>
                                   
-                                  <div>
-                                    <h4 className="text-sm font-medium mb-2">Leave Details</h4>
-                                    <div className="space-y-1 text-sm">
-                                      <div><span className="text-muted-foreground">Type:</span> {selectedRequest.leaveType}</div>
-                                      <div><span className="text-muted-foreground">Duration:</span> {selectedRequest.days} days</div>
-                                      <div><span className="text-muted-foreground">Remaining Balance:</span> {selectedRequest.remainingBalance} days</div>
-                                    </div>
-                                  </div>
+                                   <div>
+                                     <h4 className="text-sm font-medium mb-2">Leave Details</h4>
+                                     <div className="space-y-1 text-sm">
+                                       <div><span className="text-muted-foreground">Type:</span> {selectedRequest.leaveType}</div>
+                                       <div><span className="text-muted-foreground">Duration:</span> {selectedRequest.days} days</div>
+                                       <div><span className="text-muted-foreground">Remaining Balance:</span> {selectedRequest.remainingBalance} days</div>
+                                       <div><span className="text-muted-foreground">Line Manager:</span> {selectedRequest.lineManager}</div>
+                                       <div><span className="text-muted-foreground">Status:</span> {getStatusBadge(selectedRequest.approvalStatus)}</div>
+                                     </div>
+                                   </div>
                                 </div>
 
                                 <div>
@@ -311,31 +436,57 @@ export function LeaveApprovals() {
                                   </div>
                                 )}
 
-                                {selectedRequest.emergencyContact && (
-                                  <div>
-                                    <h4 className="text-sm font-medium mb-2">Emergency Contact</h4>
-                                    <p className="text-sm">{selectedRequest.emergencyContact}</p>
-                                  </div>
-                                )}
+                                 {selectedRequest.emergencyContact && (
+                                   <div>
+                                     <h4 className="text-sm font-medium mb-2">Emergency Contact</h4>
+                                     <p className="text-sm">{selectedRequest.emergencyContact}</p>
+                                   </div>
+                                 )}
 
-                                <div className="flex gap-3 pt-4">
-                                  <Button
-                                    onClick={() => handleApproval(selectedRequest.id, "approve")}
-                                    disabled={isProcessing === selectedRequest.id}
-                                    className="flex-1"
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-2" />
-                                    {isProcessing === selectedRequest.id ? "Processing..." : "Approve"}
-                                  </Button>
-                                  <Button
-                                    variant="destructive"
-                                    onClick={() => handleApproval(selectedRequest.id, "reject")}
-                                    disabled={isProcessing === selectedRequest.id}
-                                    className="flex-1"
-                                  >
-                                    <XCircle className="h-4 w-4 mr-2" />
-                                    Reject
-                                  </Button>
+                                 {selectedRequest.managerApproval && (
+                                   <div>
+                                     <h4 className="text-sm font-medium mb-2">Manager Approval</h4>
+                                     <div className="bg-green-50 border border-green-200 p-3 rounded text-sm">
+                                       <div><span className="font-medium">Approved by:</span> {selectedRequest.managerApproval.approvedBy}</div>
+                                       <div><span className="font-medium">Date:</span> {format(selectedRequest.managerApproval.approvedDate, "MMM dd, yyyy")}</div>
+                                       {selectedRequest.managerApproval.comments && (
+                                         <div><span className="font-medium">Comments:</span> {selectedRequest.managerApproval.comments}</div>
+                                       )}
+                                     </div>
+                                   </div>
+                                 )}
+
+                                 <div>
+                                   <h4 className="text-sm font-medium mb-2">
+                                     {userRole === "manager" ? "Manager" : "HR"} Comments (Optional)
+                                   </h4>
+                                   <Textarea
+                                     placeholder={`Add comments for your ${userRole === "manager" ? "approval" : "decision"}...`}
+                                     value={approvalComments}
+                                     onChange={(e) => setApprovalComments(e.target.value)}
+                                     className="min-h-[80px]"
+                                   />
+                                 </div>
+
+                                 <div className="flex gap-3 pt-4">
+                                   <Button
+                                     onClick={() => handleApproval(selectedRequest.id, "approve", approvalComments)}
+                                     disabled={isProcessing === selectedRequest.id}
+                                     className="flex-1"
+                                   >
+                                     <CheckCircle className="h-4 w-4 mr-2" />
+                                     {isProcessing === selectedRequest.id ? "Processing..." : 
+                                      userRole === "manager" ? "Approve & Forward to HR" : "Final Approval"}
+                                   </Button>
+                                   <Button
+                                     variant="destructive"
+                                     onClick={() => handleApproval(selectedRequest.id, "reject", approvalComments)}
+                                     disabled={isProcessing === selectedRequest.id}
+                                     className="flex-1"
+                                   >
+                                     <XCircle className="h-4 w-4 mr-2" />
+                                     Reject
+                                   </Button>
                                 </div>
                               </div>
                             )}
@@ -349,7 +500,7 @@ export function LeaveApprovals() {
                           className="h-8"
                         >
                           <CheckCircle className="h-4 w-4 mr-1" />
-                          Approve
+                          {userRole === "manager" ? "Approve" : "Final Approve"}
                         </Button>
                         <Button
                           size="sm"
