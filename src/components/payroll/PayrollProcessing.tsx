@@ -25,7 +25,7 @@ const payrollSummary = {
   totalGross: 2850000,
   totalPaye: 456000,
   totalNssf: 142500,
-  totalNhif: 76800,
+  totalShif: 76800,
   totalHousingLevy: 42750,
   totalOtherDeductions: 96250,
   totalNet: 2035750
@@ -184,9 +184,9 @@ export function PayrollProcessing() {
             
             <div className="p-4 border rounded-lg">
               <div className="flex items-center space-x-2 mb-2">
-                <span className="text-sm font-medium">NSSF + NHIF</span>
+                <span className="text-sm font-medium">NSSF + SHIF</span>
               </div>
-              <p className="text-2xl font-bold text-red-600">KSh {(payrollSummary.totalNssf + payrollSummary.totalNhif).toLocaleString()}</p>
+              <p className="text-2xl font-bold text-red-600">KSh {(payrollSummary.totalNssf + payrollSummary.totalShif).toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">Statutory contributions</p>
             </div>
             

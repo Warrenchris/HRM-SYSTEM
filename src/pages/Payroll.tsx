@@ -80,7 +80,7 @@ export default function Payroll() {
                     <p className="text-sm text-muted-foreground">6% of pensionable pay (max KSh 2,160)</p>
                   </div>
                   <div className="p-4 border rounded-lg">
-                    <h4 className="font-medium">NHIF Rates</h4>
+                    <h4 className="font-medium">SHIF Rates</h4>
                     <p className="text-sm text-muted-foreground">Graduated scale (KSh 150 - KSh 1,700)</p>
                   </div>
                   <div className="p-4 border rounded-lg">

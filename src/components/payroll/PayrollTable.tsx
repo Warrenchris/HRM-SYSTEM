@@ -24,8 +24,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Eye, Download, Search, Calculator } from "lucide-react";
 
-// Kenyan NHIF rates based on gross salary
-const getNhifRate = (grossSalary: number): number => {
+// Kenyan SHIF rates based on gross salary
+const getShifRate = (grossSalary: number): number => {
   if (grossSalary <= 5999) return 150;
   if (grossSalary <= 7999) return 300;
   if (grossSalary <= 11999) return 400;
@@ -121,16 +121,16 @@ export function PayrollTable() {
   const calculatePayroll = (employee: any) => {
     const grossSalary = employee.basicSalary + employee.allowances + employee.overtime;
     const nssf = Math.min(grossSalary * 0.06, 2160); // 6% or max 2160
-    const nhif = getNhifRate(grossSalary);
+    const shif = getShifRate(grossSalary);
     const housingLevy = grossSalary * 0.015; // 1.5%
     const paye = calculatePaye(grossSalary - nssf);
-    const totalDeductions = nssf + nhif + housingLevy + paye;
+    const totalDeductions = nssf + shif + housingLevy + paye;
     const netSalary = grossSalary - totalDeductions;
 
     return {
       grossSalary,
       nssf,
-      nhif,
+      shif,
       housingLevy,
       paye,
       totalDeductions,
@@ -187,7 +187,7 @@ export function PayrollTable() {
                 <TableHead className="text-right">Gross Salary</TableHead>
                 <TableHead className="text-right">PAYE</TableHead>
                 <TableHead className="text-right">NSSF</TableHead>
-                <TableHead className="text-right">NHIF</TableHead>
+                <TableHead className="text-right">SHIF</TableHead>
                 <TableHead className="text-right">Net Salary</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -219,7 +219,7 @@ export function PayrollTable() {
                       KSh {Math.round(payroll.nssf).toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right text-red-600">
-                      KSh {payroll.nhif.toLocaleString()}
+                      KSh {payroll.shif.toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right font-medium text-green-600">
                       KSh {Math.round(payroll.netSalary).toLocaleString()}
@@ -280,8 +280,8 @@ export function PayrollTable() {
                                         <span className="text-red-600">KSh {Math.round(calculatePayroll(selectedEmployee).nssf).toLocaleString()}</span>
                                       </div>
                                       <div className="flex justify-between">
-                                        <span>NHIF:</span>
-                                        <span className="text-red-600">KSh {calculatePayroll(selectedEmployee).nhif.toLocaleString()}</span>
+                                        <span>SHIF:</span>
+                                        <span className="text-red-600">KSh {calculatePayroll(selectedEmployee).shif.toLocaleString()}</span>
                                       </div>
                                       <div className="flex justify-between">
                                         <span>Housing Levy (1.5%):</span>

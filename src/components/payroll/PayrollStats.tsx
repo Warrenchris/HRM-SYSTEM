@@ -40,7 +40,7 @@ const stats = [
 const deductionBreakdown = [
   { name: "PAYE", amount: "KSh 456,000", percentage: "16.0%" },
   { name: "NSSF", amount: "KSh 142,500", percentage: "5.0%" },
-  { name: "NHIF", amount: "KSh 76,800", percentage: "2.7%" },
+  { name: "SHIF", amount: "KSh 76,800", percentage: "2.7%" },
   { name: "Housing Levy", amount: "KSh 42,750", percentage: "1.5%" },
   { name: "Other Deductions", amount: "KSh 96,250", percentage: "3.4%" }
 ];
