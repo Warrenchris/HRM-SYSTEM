@@ -11,7 +11,8 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
-  FileText
+  FileText,
+  AlertTriangle
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -74,6 +75,41 @@ export default function Dashboard() {
       status: "review",
       amount: "$5,000",
       date: "Dec 8, 2024"
+    }
+  ];
+
+  const contractsExpiring = [
+    {
+      employee: "Sarah Johnson",
+      position: "Marketing Manager",
+      department: "Marketing",
+      expiryDate: "Jan 15, 2025",
+      daysRemaining: 26,
+      contractType: "Fixed Term"
+    },
+    {
+      employee: "Mike Chen",
+      position: "Sales Executive",
+      department: "Sales",
+      expiryDate: "Feb 2, 2025",
+      daysRemaining: 44,
+      contractType: "Probation"
+    },
+    {
+      employee: "Emma Wilson",
+      position: "IT Specialist",
+      department: "IT",
+      expiryDate: "Feb 10, 2025",
+      daysRemaining: 52,
+      contractType: "Fixed Term"
+    },
+    {
+      employee: "John Martinez",
+      position: "Operations Lead",
+      department: "Operations",
+      expiryDate: "Jan 28, 2025",
+      daysRemaining: 39,
+      contractType: "Fixed Term"
     }
   ];
 
@@ -149,6 +185,51 @@ export default function Dashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Contract Expiry Alert */}
+      <Card className="shadow-soft border-orange-200 bg-orange-50/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-orange-600" />
+            Contracts Expiring Soon
+          </CardTitle>
+          <CardDescription>
+            Contracts expiring within 60 days requiring renewal action
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {contractsExpiring.map((contract, index) => (
+              <div key={index} className="flex items-center justify-between p-4 bg-white border border-orange-200 rounded-lg">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge 
+                      variant={contract.daysRemaining <= 30 ? 'destructive' : 'secondary'}
+                      className="text-xs"
+                    >
+                      {contract.daysRemaining} days left
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {contract.contractType}
+                    </Badge>
+                  </div>
+                  <p className="font-medium text-sm">{contract.employee}</p>
+                  <p className="text-xs text-muted-foreground">{contract.position}</p>
+                  <p className="text-xs text-muted-foreground">{contract.department} • Expires: {contract.expiryDate}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline">
+                    View Contract
+                  </Button>
+                  <Button size="sm" className="bg-orange-600 hover:bg-orange-700">
+                    Renew
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Pending Actions */}
