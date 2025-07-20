@@ -3,6 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "@/components/layouts/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
@@ -20,9 +22,7 @@ import Reports from "./pages/Reports";
 import Users from "./pages/Users";
 import Company from "./pages/Company";
 import Settings from "./pages/Settings";
-import LoginPortal from "./pages/LoginPortal";
-import EmployeeLogin from "./pages/EmployeeLogin";
-import AdminLogin from "./pages/AdminLogin";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,33 +33,40 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          {/* Login Routes */}
-          <Route path="/login" element={<LoginPortal />} />
-          <Route path="/employee-login" element={<EmployeeLogin />} />
-          <Route path="/admin-login" element={<AdminLogin />} />
-          
-          {/* Protected App Routes */}
-          <Route path="/" element={<AppLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="/employees" element={<Employees />} />
-            <Route path="/attendance" element={<Attendance />} />
-            <Route path="/leave" element={<Leave />} />
-            <Route path="/assets" element={<Assets />} />
-            <Route path="/procurement" element={<Procurement />} />
-            <Route path="/expenses" element={<Expenses />} />
-            <Route path="/payroll" element={<Payroll />} />
-            <Route path="/loans" element={<Loans />} />
-            <Route path="/timesheets" element={<Timesheets />} />
-            <Route path="/performance" element={<Performance />} />
-            <Route path="/recruitment" element={<Recruitment />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/users" element={<Users />} />
-            <Route path="/company" element={<Company />} />
-            <Route path="/settings" element={<Settings />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            {/* Authentication Route */}
+            <Route path="/auth" element={<Auth />} />
+            
+            {/* Protected App Routes */}
+            <Route path="/*" element={
+              <ProtectedRoute>
+                <Routes>
+                  <Route path="/" element={<AppLayout />}>
+                    <Route index element={<Dashboard />} />
+                    <Route path="dashboard" element={<Dashboard />} />
+                    <Route path="employees" element={<Employees />} />
+                    <Route path="attendance" element={<Attendance />} />
+                    <Route path="leave" element={<Leave />} />
+                    <Route path="assets" element={<Assets />} />
+                    <Route path="procurement" element={<Procurement />} />
+                    <Route path="expenses" element={<Expenses />} />
+                    <Route path="payroll" element={<Payroll />} />
+                    <Route path="loans" element={<Loans />} />
+                    <Route path="timesheets" element={<Timesheets />} />
+                    <Route path="performance" element={<Performance />} />
+                    <Route path="recruitment" element={<Recruitment />} />
+                    <Route path="reports" element={<Reports />} />
+                    <Route path="users" element={<Users />} />
+                    <Route path="company" element={<Company />} />
+                    <Route path="settings" element={<Settings />} />
+                  </Route>
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </ProtectedRoute>
+            } />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

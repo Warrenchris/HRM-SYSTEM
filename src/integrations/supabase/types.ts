@@ -17,6 +17,7 @@ export type Database = {
       employees: {
         Row: {
           address: string | null
+          auth_email: string | null
           created_at: string
           department: string
           email: string
@@ -35,6 +36,7 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          auth_email?: string | null
           created_at?: string
           department: string
           email: string
@@ -53,6 +55,7 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          auth_email?: string | null
           created_at?: string
           department?: string
           email?: string
@@ -70,6 +73,44 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          employee_id: string | null
+          id: string
+          is_active: boolean
+          role: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          is_active?: boolean
+          role?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string | null
+          id?: string
+          is_active?: boolean
+          role?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
