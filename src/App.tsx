@@ -19,6 +19,9 @@ import Reports from "./pages/Reports";
 import Users from "./pages/Users";
 import Company from "./pages/Company";
 import Settings from "./pages/Settings";
+import LoginPortal from "./pages/LoginPortal";
+import EmployeeLogin from "./pages/EmployeeLogin";
+import AdminLogin from "./pages/AdminLogin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,9 +33,14 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          {/* Login Routes */}
+          <Route path="/login" element={<LoginPortal />} />
+          <Route path="/employee-login" element={<EmployeeLogin />} />
+          <Route path="/admin-login" element={<AdminLogin />} />
+          
+          {/* Protected App Routes */}
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Dashboard />} />
-            {/* HRM Module Routes - Will be implemented */}
             <Route path="/employees" element={<Employees />} />
             <Route path="/attendance" element={<Attendance />} />
             <Route path="/leave" element={<Leave />} />
