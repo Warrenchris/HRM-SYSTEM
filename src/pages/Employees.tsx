@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Plus, Search, Filter, Download, Upload, FileSpreadsheet, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,20 +10,52 @@ import { EmployeeTable } from "@/components/employees/EmployeeTable";
 import { EmployeeStats } from "@/components/employees/EmployeeStats";
 import { AddEmployeeDialog } from "@/components/employees/AddEmployeeDialog";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Employees() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { toast } = useToast();
 
-  const handleAddEmployee = (employeeData: any) => {
-    // This would integrate with Supabase in a real implementation
-    toast({
-      title: "Employee Added",
-      description: `${employeeData.firstName} ${employeeData.lastName} has been added successfully.`,
-    });
-    setIsAddDialogOpen(false);
+  const handleAddEmployee = async (employeeData: any) => {
+    try {
+      const { error } = await supabase
+        .from('employees')
+        .insert({
+          employee_id: employeeData.employeeId,
+          first_name: employeeData.firstName,
+          last_name: employeeData.lastName,
+          email: employeeData.email,
+          phone: employeeData.phone,
+          department: employeeData.department,
+          position: employeeData.position,
+          join_date: employeeData.joinDate,
+          salary: parseFloat(employeeData.salary),
+          status: 'active',
+          address: employeeData.address,
+          emergency_contact: employeeData.emergencyContact,
+          emergency_phone: employeeData.emergencyPhone,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Employee Added",
+        description: `${employeeData.firstName} ${employeeData.lastName} has been added successfully.`,
+      });
+      
+      setIsAddDialogOpen(false);
+      setRefreshTrigger(prev => prev + 1); // Trigger refresh
+    } catch (error) {
+      console.error('Error adding employee:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add employee. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleImportEmployees = () => {
@@ -178,6 +210,7 @@ export default function Employees() {
           <EmployeeTable 
             searchTerm={searchTerm}
             selectedDepartment={selectedDepartment}
+            refreshTrigger={refreshTrigger}
           />
         </CardContent>
       </Card>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MoreHorizontal, Eye, Edit, Trash2, Mail, Phone } from "lucide-react";
 import { EditEmployeeDialog } from "./EditEmployeeDialog";
 import { Button } from "@/components/ui/button";
@@ -21,87 +21,60 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface EmployeeTableProps {
   searchTerm: string;
   selectedDepartment: string;
+  refreshTrigger?: number;
 }
 
-// Mock data - In real implementation, this would come from Supabase
-const mockEmployees = [
-  {
-    id: "EMP001",
-    firstName: "John",
-    lastName: "Doe",
-    email: "john.doe@company.com",
-    phone: "+1 (555) 123-4567",
-    department: "Engineering",
-    position: "Senior Software Engineer",
-    status: "Active",
-    joinDate: "2022-01-15",
-    avatar: ""
-  },
-  {
-    id: "EMP002",
-    firstName: "Jane",
-    lastName: "Smith",
-    email: "jane.smith@company.com",
-    phone: "+1 (555) 234-5678",
-    department: "Marketing",
-    position: "Marketing Manager",
-    status: "Active",
-    joinDate: "2021-08-20",
-    avatar: ""
-  },
-  {
-    id: "EMP003",
-    firstName: "Mike",
-    lastName: "Johnson",
-    email: "mike.johnson@company.com",
-    phone: "+1 (555) 345-6789",
-    department: "Sales",
-    position: "Sales Representative",
-    status: "On Leave",
-    joinDate: "2023-03-10",
-    avatar: ""
-  },
-  {
-    id: "EMP004",
-    firstName: "Sarah",
-    lastName: "Wilson",
-    email: "sarah.wilson@company.com",
-    phone: "+1 (555) 456-7890",
-    department: "HR",
-    position: "HR Specialist",
-    status: "Active",
-    joinDate: "2020-11-05",
-    avatar: ""
-  },
-  {
-    id: "EMP005",
-    firstName: "David",
-    lastName: "Brown",
-    email: "david.brown@company.com",
-    phone: "+1 (555) 567-8901",
-    department: "Finance",
-    position: "Financial Analyst",
-    status: "Active",
-    joinDate: "2022-06-12",
-    avatar: ""
-  }
-];
-
-export function EmployeeTable({ searchTerm, selectedDepartment }: EmployeeTableProps) {
+export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger }: EmployeeTableProps) {
   const { toast } = useToast();
   const [editEmployee, setEditEmployee] = useState<any>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredEmployees = mockEmployees.filter(employee => {
+  // Fetch employees from Supabase
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  // Refetch when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger && refreshTrigger > 0) {
+      fetchEmployees();
+    }
+  }, [refreshTrigger]);
+
+  const fetchEmployees = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setEmployees(data || []);
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch employees",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredEmployees = employees.filter(employee => {
     const matchesSearch = 
-      employee.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.id.toLowerCase().includes(searchTerm.toLowerCase());
+      employee.employee_id.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesDepartment = 
       selectedDepartment === "all" || 
@@ -120,21 +93,81 @@ export function EmployeeTable({ searchTerm, selectedDepartment }: EmployeeTableP
     if (action === "Edit") {
       setEditEmployee(employee);
       setIsEditDialogOpen(true);
+    } else if (action === "Delete") {
+      handleDeleteEmployee(employee);
     } else {
       toast({
         title: `${action} Employee`,
-        description: `${action} action for ${employee.firstName} ${employee.lastName}`,
+        description: `${action} action for ${employee.first_name} ${employee.last_name}`,
       });
     }
   };
 
-  const handleEditEmployee = (employeeData: any) => {
-    toast({
-      title: "Employee Updated",
-      description: `Successfully updated ${employeeData.firstName} ${employeeData.lastName}`,
-    });
-    setIsEditDialogOpen(false);
-    setEditEmployee(null);
+  const handleEditEmployee = async (employeeData: any) => {
+    try {
+      const { error } = await supabase
+        .from('employees')
+        .update({
+          first_name: employeeData.firstName,
+          last_name: employeeData.lastName,
+          email: employeeData.email,
+          phone: employeeData.phone,
+          department: employeeData.department,
+          position: employeeData.position,
+          salary: employeeData.salary,
+          status: employeeData.status,
+          address: employeeData.address,
+          emergency_contact: employeeData.emergencyContact,
+          emergency_phone: employeeData.emergencyPhone,
+        })
+        .eq('id', editEmployee.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Employee Updated",
+        description: `Successfully updated ${employeeData.firstName} ${employeeData.lastName}`,
+      });
+      
+      // Refresh the employee list
+      await fetchEmployees();
+    } catch (error) {
+      console.error('Error updating employee:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update employee",
+        variant: "destructive",
+      });
+    } finally {
+      setIsEditDialogOpen(false);
+      setEditEmployee(null);
+    }
+  };
+
+  const handleDeleteEmployee = async (employee: any) => {
+    try {
+      const { error } = await supabase
+        .from('employees')
+        .delete()
+        .eq('id', employee.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Employee Deleted",
+        description: `Successfully deleted ${employee.first_name} ${employee.last_name}`,
+      });
+      
+      // Refresh the employee list
+      await fetchEmployees();
+    } catch (error) {
+      console.error('Error deleting employee:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete employee",
+        variant: "destructive",
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -166,11 +199,11 @@ export function EmployeeTable({ searchTerm, selectedDepartment }: EmployeeTableP
         </div>
         {Object.keys(departmentStats).length > 1 && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {Object.entries(departmentStats).map(([dept, count]) => (
-              <span key={dept}>
-                {dept}: {count}
-              </span>
-            ))}
+             {Object.entries(departmentStats).map(([dept, count]) => (
+               <span key={dept}>
+                 {dept}: {String(count)}
+               </span>
+             ))}
           </div>
         )}
       </div>
@@ -193,20 +226,20 @@ export function EmployeeTable({ searchTerm, selectedDepartment }: EmployeeTableP
             <TableRow key={employee.id} className="hover:bg-muted/50">
               <TableCell>
                 <div className="flex items-center gap-3">
-                  <Avatar className="w-10 h-10">
-                    <AvatarImage src={employee.avatar} />
-                    <AvatarFallback className="bg-primary/10 text-primary">
-                      {employee.firstName[0]}{employee.lastName[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="font-medium text-foreground">
-                      {employee.firstName} {employee.lastName}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      ID: {employee.id}
-                    </div>
-                  </div>
+                   <Avatar className="w-10 h-10">
+                     <AvatarImage src="" />
+                     <AvatarFallback className="bg-primary/10 text-primary">
+                       {employee.first_name[0]}{employee.last_name[0]}
+                     </AvatarFallback>
+                   </Avatar>
+                   <div>
+                     <div className="font-medium text-foreground">
+                       {employee.first_name} {employee.last_name}
+                     </div>
+                     <div className="text-sm text-muted-foreground">
+                       ID: {employee.employee_id}
+                     </div>
+                   </div>
                 </div>
               </TableCell>
               <TableCell>
@@ -230,11 +263,11 @@ export function EmployeeTable({ searchTerm, selectedDepartment }: EmployeeTableP
               <TableCell>
                 {getStatusBadge(employee.status)}
               </TableCell>
-              <TableCell>
-                <span className="text-muted-foreground">
-                  {new Date(employee.joinDate).toLocaleDateString()}
-                </span>
-              </TableCell>
+               <TableCell>
+                 <span className="text-muted-foreground">
+                   {new Date(employee.join_date).toLocaleDateString()}
+                 </span>
+               </TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
