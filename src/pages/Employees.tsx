@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Plus, Search, Filter, Download, Upload } from "lucide-react";
+import { Plus, Search, Filter, Download, Upload, FileSpreadsheet, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { EmployeeTable } from "@/components/employees/EmployeeTable";
 import { EmployeeStats } from "@/components/employees/EmployeeStats";
 import { AddEmployeeDialog } from "@/components/employees/AddEmployeeDialog";
@@ -31,11 +33,17 @@ export default function Employees() {
     });
   };
 
-  const handleExportEmployees = () => {
+  const handleExportEmployees = (format: string) => {
+    const departmentText = selectedDepartment === "all" ? "All Departments" : 
+      selectedDepartment.charAt(0).toUpperCase() + selectedDepartment.slice(1);
+    
     toast({
-      title: "Export Started",
-      description: "Employee data export has been initiated.",
+      title: `${format.toUpperCase()} Export Started`,
+      description: `Exporting employees from ${departmentText}`,
     });
+    
+    // In a real implementation, this would call an API to generate the export
+    console.log(`Exporting ${format} for department: ${selectedDepartment}`);
   };
 
   return (
@@ -51,10 +59,33 @@ export default function Employees() {
             <Upload className="w-4 h-4 mr-2" />
             Import
           </Button>
-          <Button variant="outline" onClick={handleExportEmployees}>
-            <Download className="w-4 h-4 mr-2" />
-            Export
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExportEmployees("excel")}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Export to Excel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportEmployees("csv")}>
+                <FileText className="w-4 h-4 mr-2" />
+                Export to CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportEmployees("pdf")}>
+                <FileText className="w-4 h-4 mr-2" />
+                Export to PDF
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleExportEmployees("template")}>
+                <Download className="w-4 h-4 mr-2" />
+                Download Template
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button onClick={() => setIsAddDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Add Employee
@@ -82,24 +113,67 @@ export default function Employees() {
               />
             </div>
             <div className="flex gap-2">
-              <select
-                value={selectedDepartment}
-                onChange={(e) => setSelectedDepartment(e.target.value)}
-                className="px-3 py-2 border border-input rounded-md bg-background text-foreground"
-              >
-                <option value="all">All Departments</option>
-                <option value="engineering">Engineering</option>
-                <option value="marketing">Marketing</option>
-                <option value="sales">Sales</option>
-                <option value="hr">Human Resources</option>
-                <option value="finance">Finance</option>
-              </select>
+              <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Select Department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  <SelectItem value="engineering">Engineering</SelectItem>
+                  <SelectItem value="marketing">Marketing</SelectItem>
+                  <SelectItem value="sales">Sales</SelectItem>
+                  <SelectItem value="hr">Human Resources</SelectItem>
+                  <SelectItem value="finance">Finance</SelectItem>
+                  <SelectItem value="operations">Operations</SelectItem>
+                  <SelectItem value="it">IT Support</SelectItem>
+                </SelectContent>
+              </Select>
               <Button variant="outline">
                 <Filter className="w-4 h-4 mr-2" />
                 More Filters
               </Button>
             </div>
           </div>
+
+          {/* Filter Summary */}
+          {(selectedDepartment !== "all" || searchTerm) && (
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-sm text-muted-foreground">Active filters:</span>
+              {selectedDepartment !== "all" && (
+                <Badge variant="secondary" className="gap-1">
+                  Department: {selectedDepartment.charAt(0).toUpperCase() + selectedDepartment.slice(1)}
+                  <button 
+                    onClick={() => setSelectedDepartment("all")}
+                    className="ml-1 hover:bg-destructive hover:text-destructive-foreground rounded-full"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              )}
+              {searchTerm && (
+                <Badge variant="secondary" className="gap-1">
+                  Search: "{searchTerm}"
+                  <button 
+                    onClick={() => setSearchTerm("")}
+                    className="ml-1 hover:bg-destructive hover:text-destructive-foreground rounded-full"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              )}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => {
+                  setSelectedDepartment("all");
+                  setSearchTerm("");
+                }}
+                className="text-xs"
+              >
+                Clear all
+              </Button>
+            </div>
+          )}
 
           <EmployeeTable 
             searchTerm={searchTerm}

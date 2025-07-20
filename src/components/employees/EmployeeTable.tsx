@@ -107,6 +107,12 @@ export function EmployeeTable({ searchTerm, selectedDepartment }: EmployeeTableP
     return matchesSearch && matchesDepartment;
   });
 
+  // Calculate department statistics for filtered employees
+  const departmentStats = filteredEmployees.reduce((acc, employee) => {
+    acc[employee.department] = (acc[employee.department] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   const handleAction = (action: string, employee: any) => {
     toast({
       title: `${action} Employee`,
@@ -128,7 +134,31 @@ export function EmployeeTable({ searchTerm, selectedDepartment }: EmployeeTableP
   };
 
   return (
-    <div className="border rounded-lg">
+    <div className="space-y-4">
+      {/* Results Summary */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <span className="text-sm font-medium">
+            {filteredEmployees.length} employee{filteredEmployees.length !== 1 ? 's' : ''} found
+          </span>
+          {selectedDepartment !== "all" && (
+            <Badge variant="outline" className="text-xs">
+              {selectedDepartment.charAt(0).toUpperCase() + selectedDepartment.slice(1)} Department
+            </Badge>
+          )}
+        </div>
+        {Object.keys(departmentStats).length > 1 && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {Object.entries(departmentStats).map(([dept, count]) => (
+              <span key={dept}>
+                {dept}: {count}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="border rounded-lg">
       <Table>
         <TableHeader>
           <TableRow>
@@ -226,6 +256,7 @@ export function EmployeeTable({ searchTerm, selectedDepartment }: EmployeeTableP
           No employees found matching your criteria.
         </div>
       )}
+    </div>
     </div>
   );
 }
