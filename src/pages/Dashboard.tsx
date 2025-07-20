@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 import { 
   Users, 
   Clock, 
@@ -149,13 +150,17 @@ export default function Dashboard() {
           <p className="text-muted-foreground">Welcome back! Here's what's happening in your organization.</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline">
-            <Calendar className="w-4 h-4 mr-2" />
-            View Calendar
+          <Button asChild variant="outline" className="hover-scale">
+            <Link to="/attendance">
+              <Calendar className="w-4 h-4 mr-2" />
+              View Calendar
+            </Link>
           </Button>
-          <Button>
-            <Users className="w-4 h-4 mr-2" />
-            Add Employee
+          <Button asChild className="hover-scale">
+            <Link to="/employees">
+              <Users className="w-4 h-4 mr-2" />
+              Add Employee
+            </Link>
           </Button>
         </div>
       </div>
@@ -218,11 +223,15 @@ export default function Dashboard() {
                   <p className="text-xs text-muted-foreground">{contract.department} • Expires: {contract.expiryDate}</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline">
-                    View Contract
+                  <Button asChild size="sm" variant="outline" className="hover-scale">
+                    <Link to="/employees">
+                      View Contract
+                    </Link>
                   </Button>
-                  <Button size="sm" className="bg-orange-600 hover:bg-orange-700">
-                    Renew
+                  <Button asChild size="sm" className="bg-orange-600 hover:bg-orange-700 hover-scale">
+                    <Link to="/employees">
+                      Renew
+                    </Link>
                   </Button>
                 </div>
               </div>
@@ -259,8 +268,24 @@ export default function Dashboard() {
                   {action.amount && <p className="text-xs text-muted-foreground">{action.amount}</p>}
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline">Review</Button>
-                  <Button size="sm">Approve</Button>
+                  <Button asChild size="sm" variant="outline" className="hover-scale">
+                    <Link to={
+                      action.type === "Leave Request" ? "/leave" :
+                      action.type === "Expense Claim" ? "/expenses" :
+                      action.type === "Loan Application" ? "/loans" : "/employees"
+                    }>
+                      Review
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" className="hover-scale">
+                    <Link to={
+                      action.type === "Leave Request" ? "/leave" :
+                      action.type === "Expense Claim" ? "/expenses" :
+                      action.type === "Loan Application" ? "/loans" : "/employees"
+                    }>
+                      Approve
+                    </Link>
+                  </Button>
                 </div>
               </div>
             ))}
@@ -315,11 +340,15 @@ export default function Dashboard() {
             ].map((action, index) => (
               <Button
                 key={index}
+                asChild
                 variant="outline"
-                className="h-20 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/20"
+                className="h-20 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/20 hover-scale animate-fade-in transition-all duration-300"
+                style={{ animationDelay: `${index * 100}ms` }}
               >
-                <action.icon className="w-6 h-6" />
-                <span className="text-xs">{action.label}</span>
+                <Link to={action.href}>
+                  <action.icon className="w-6 h-6" />
+                  <span className="text-xs">{action.label}</span>
+                </Link>
               </Button>
             ))}
           </div>
