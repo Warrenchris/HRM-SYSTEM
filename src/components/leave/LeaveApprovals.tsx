@@ -16,6 +16,7 @@ interface PendingLeaveRequest {
   employeeName: string;
   employeeId: string;
   department: string;
+  position: string;
   leaveType: string;
   startDate: Date;
   endDate: Date;
@@ -26,13 +27,19 @@ interface PendingLeaveRequest {
   handoverNotes?: string;
   remainingBalance: number;
   lineManager: string;
-  approvalStatus: "pending_manager" | "pending_hr" | "approved" | "rejected";
+  isManager: boolean;
+  approvalStatus: "pending_manager" | "pending_hr" | "pending_ceo" | "approved" | "rejected";
   managerApproval?: {
     approvedBy: string;
     approvedDate: Date;
     comments?: string;
   };
   hrApproval?: {
+    approvedBy: string;
+    approvedDate: Date;
+    comments?: string;
+  };
+  ceoApproval?: {
     approvedBy: string;
     approvedDate: Date;
     comments?: string;
@@ -45,6 +52,7 @@ const mockPendingRequests: PendingLeaveRequest[] = [
     employeeName: "Alice Johnson",
     employeeId: "EMP005",
     department: "Engineering",
+    position: "Software Engineer",
     leaveType: "Annual Leave",
     startDate: new Date("2025-02-15"),
     endDate: new Date("2025-02-20"),
@@ -55,6 +63,7 @@ const mockPendingRequests: PendingLeaveRequest[] = [
     handoverNotes: "All current projects are on track. Jane will cover my meetings and urgent issues.",
     remainingBalance: 18,
     lineManager: "John Smith",
+    isManager: false,
     approvalStatus: "pending_manager"
   },
   {
@@ -62,6 +71,7 @@ const mockPendingRequests: PendingLeaveRequest[] = [
     employeeName: "Bob Wilson",
     employeeId: "EMP006",
     department: "Marketing",
+    position: "Marketing Specialist",
     leaveType: "Sick Leave",
     startDate: new Date("2025-01-25"),
     endDate: new Date("2025-01-26"),
@@ -71,6 +81,7 @@ const mockPendingRequests: PendingLeaveRequest[] = [
     emergencyContact: "+1 234-567-8901",
     remainingBalance: 8,
     lineManager: "Sarah Johnson",
+    isManager: false,
     approvalStatus: "pending_hr",
     managerApproval: {
       approvedBy: "Sarah Johnson",
@@ -80,25 +91,28 @@ const mockPendingRequests: PendingLeaveRequest[] = [
   },
   {
     id: "LR007",
-    employeeName: "Carol Davis",
+    employeeName: "Sarah Johnson",
     employeeId: "EMP007",
-    department: "HR",
-    leaveType: "Personal Leave",
+    department: "Marketing",
+    position: "Marketing Manager",
+    leaveType: "Annual Leave",
     startDate: new Date("2025-02-01"),
-    endDate: new Date("2025-02-01"),
-    days: 1,
-    reason: "Moving to new apartment. Need to coordinate with movers and utilities.",
+    endDate: new Date("2025-02-05"),
+    days: 5,
+    reason: "Family wedding abroad. Important family event that requires travel.",
     appliedDate: new Date("2025-01-15"),
-    handoverNotes: "Sarah will handle any urgent HR matters. All interviews are rescheduled.",
-    remainingBalance: 4,
-    lineManager: "Mike Brown",
-    approvalStatus: "pending_manager"
+    handoverNotes: "Bob and team will handle ongoing campaigns. All meetings rescheduled.",
+    remainingBalance: 12,
+    lineManager: "N/A",
+    isManager: true,
+    approvalStatus: "pending_hr"
   },
   {
     id: "LR008",
     employeeName: "David Lee",
     employeeId: "EMP008",
     department: "Sales",
+    position: "Sales Representative",
     leaveType: "Annual Leave",
     startDate: new Date("2025-02-10"),
     endDate: new Date("2025-02-14"),
@@ -108,11 +122,36 @@ const mockPendingRequests: PendingLeaveRequest[] = [
     emergencyContact: "+1 234-567-8902",
     remainingBalance: 15,
     lineManager: "Lisa Wang",
+    isManager: false,
     approvalStatus: "pending_hr",
     managerApproval: {
       approvedBy: "Lisa Wang",
       approvedDate: new Date("2025-01-18"),
       comments: "Approved. Congratulations on your anniversary!"
+    }
+  },
+  {
+    id: "LR009",
+    employeeName: "John Smith",
+    employeeId: "EMP009",
+    department: "Engineering",
+    position: "Engineering Manager",
+    leaveType: "Personal Leave",
+    startDate: new Date("2025-02-20"),
+    endDate: new Date("2025-02-22"),
+    days: 3,
+    reason: "Family emergency - need to travel to support elderly parent.",
+    appliedDate: new Date("2025-01-18"),
+    emergencyContact: "+1 234-567-8903",
+    handoverNotes: "Alice will lead team meetings. All critical decisions can wait until return.",
+    remainingBalance: 8,
+    lineManager: "N/A",
+    isManager: true,
+    approvalStatus: "pending_ceo",
+    hrApproval: {
+      approvedBy: "Carol Davis",
+      approvedDate: new Date("2025-01-20"),
+      comments: "HR approved. Forwarding to CEO for final approval."
     }
   }
 ];
@@ -125,7 +164,7 @@ export function LeaveApprovals() {
   const [selectedRequest, setSelectedRequest] = useState<PendingLeaveRequest | null>(null);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [approvalComments, setApprovalComments] = useState("");
-  const [userRole] = useState<"manager" | "hr">("manager"); // In real app, get from auth context
+  const [userRole] = useState<"manager" | "hr" | "ceo">("hr"); // In real app, get from auth context
 
   const filteredRequests = mockPendingRequests.filter((request) => {
     const matchesSearch = request.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -140,6 +179,8 @@ export function LeaveApprovals() {
       matchesRole = request.approvalStatus === "pending_manager";
     } else if (userRole === "hr") {
       matchesRole = request.approvalStatus === "pending_hr";
+    } else if (userRole === "ceo") {
+      matchesRole = request.approvalStatus === "pending_ceo";
     }
     
     return matchesSearch && matchesDepartment && matchesStatus && matchesRole;
@@ -167,9 +208,28 @@ export function LeaveApprovals() {
         });
       }
     } else if (userRole === "hr") {
+      if (action === "approve") {
+        if (request.isManager) {
+          toast({
+            title: "Manager Leave Request Approved by HR",
+            description: `Request ${requestId} has been forwarded to CEO for final approval.`,
+          });
+        } else {
+          toast({
+            title: "Leave Request Approved by HR",
+            description: `Request ${requestId} has been approved successfully. Employee will be notified.`,
+          });
+        }
+      } else {
+        toast({
+          title: "Leave Request Rejected by HR",
+          description: `Request ${requestId} has been rejected. Employee will be notified.`,
+        });
+      }
+    } else if (userRole === "ceo") {
       toast({
-        title: action === "approve" ? "Leave Request Approved by HR" : "Leave Request Rejected by HR",
-        description: `Request ${requestId} has been ${action}d successfully. Employee will be notified.`,
+        title: action === "approve" ? "Manager Leave Request Approved by CEO" : "Manager Leave Request Rejected by CEO",
+        description: `Request ${requestId} has been ${action}d successfully. Manager will be notified.`,
       });
     }
     
@@ -196,6 +256,8 @@ export function LeaveApprovals() {
         return <Badge variant="outline" className="text-orange-600 border-orange-200">Pending Manager</Badge>;
       case "pending_hr":
         return <Badge variant="outline" className="text-blue-600 border-blue-200">Pending HR</Badge>;
+      case "pending_ceo":
+        return <Badge variant="outline" className="text-purple-600 border-purple-200">Pending CEO</Badge>;
       case "approved":
         return <Badge variant="default" className="bg-green-600">Approved</Badge>;
       case "rejected":
@@ -213,10 +275,10 @@ export function LeaveApprovals() {
           <div className="flex items-center gap-2">
             <User className="h-5 w-5" />
             <span className="font-medium">
-              Viewing as: {userRole === "manager" ? "Line Manager" : "HR Personnel"}
+              Viewing as: {userRole === "manager" ? "Line Manager" : userRole === "hr" ? "HR Personnel" : "CEO"}
             </span>
             <Badge variant="outline">
-              {userRole === "manager" ? "Manager Approvals" : "HR Approvals"}
+              {userRole === "manager" ? "Manager Approvals" : userRole === "hr" ? "HR Approvals" : "CEO Approvals"}
             </Badge>
           </div>
         </CardContent>
@@ -227,7 +289,7 @@ export function LeaveApprovals() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              {userRole === "manager" ? "Pending Manager Review" : "Pending HR Review"}
+              {userRole === "manager" ? "Pending Manager Review" : userRole === "hr" ? "Pending HR Review" : "Pending CEO Review"}
             </CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -272,12 +334,14 @@ export function LeaveApprovals() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            {userRole === "manager" ? "Manager Leave Approvals" : "HR Leave Approvals"}
+            {userRole === "manager" ? "Manager Leave Approvals" : userRole === "hr" ? "HR Leave Approvals" : "CEO Leave Approvals"}
           </CardTitle>
           <CardDescription>
             {userRole === "manager" 
               ? "Review and approve leave requests from your team members. Approved requests will be forwarded to HR."
-              : "Review leave requests that have been approved by line managers for final approval."
+              : userRole === "hr"
+              ? "Review leave requests from employees and managers. Manager requests approved here are forwarded to CEO for final approval."
+              : "Review leave requests from managers that have been approved by HR for final CEO approval."
             }
           </CardDescription>
         </CardHeader>
@@ -317,6 +381,7 @@ export function LeaveApprovals() {
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="pending_manager">Pending Manager</SelectItem>
                 <SelectItem value="pending_hr">Pending HR</SelectItem>
+                <SelectItem value="pending_ceo">Pending CEO</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -350,6 +415,7 @@ export function LeaveApprovals() {
                         <div className="font-medium">{request.employeeName}</div>
                         <div className="text-sm text-muted-foreground">
                           {request.employeeId} • {request.department}
+                          {request.isManager && <Badge variant="outline" className="ml-2 text-xs">Manager</Badge>}
                         </div>
                       </div>
                     </TableCell>
