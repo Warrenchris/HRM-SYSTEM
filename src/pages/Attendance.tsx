@@ -7,7 +7,8 @@ import { AttendanceStats } from "@/components/attendance/AttendanceStats";
 import { ClockInOut } from "@/components/attendance/ClockInOut";
 import { AttendanceHistory } from "@/components/attendance/AttendanceHistory";
 import { AttendanceCalendar } from "@/components/attendance/AttendanceCalendar";
-import { Clock, MapPin, Calendar, History } from "lucide-react";
+import { AttendanceReports } from "@/components/attendance/AttendanceReports";
+import { Clock, MapPin, Calendar, History, BarChart3 } from "lucide-react";
 
 export default function Attendance() {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -98,7 +99,7 @@ export default function Attendance() {
             Calendar
           </TabsTrigger>
           <TabsTrigger value="reports" className="flex items-center gap-2">
-            <MapPin className="h-4 w-4" />
+            <BarChart3 className="h-4 w-4" />
             Reports
           </TabsTrigger>
         </TabsList>
@@ -121,19 +122,7 @@ export default function Attendance() {
         </TabsContent>
 
         <TabsContent value="reports">
-          <Card>
-            <CardHeader>
-              <CardTitle>Attendance Reports</CardTitle>
-              <CardDescription>
-                Generate and view detailed attendance reports
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                Reports feature coming soon
-              </div>
-            </CardContent>
-          </Card>
+          <AttendanceReports />
         </TabsContent>
       </Tabs>
     </div>
