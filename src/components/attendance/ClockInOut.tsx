@@ -1,257 +1,397 @@
 import { useState, useEffect } from "react";
+import { Clock, MapPin, Coffee, LogOut } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Clock, MapPin, Wifi, WifiOff, CheckCircle, Satellite } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
-interface ClockInOutProps {
-  isCheckedIn: boolean;
-  setIsCheckedIn: (checked: boolean) => void;
-  checkInTime: Date | null;
-  setCheckInTime: (time: Date | null) => void;
+interface AttendanceRecord {
+  id: string;
+  employee_id: string;
+  clock_in_time: string;
+  clock_out_time: string | null;
+  break_start_time: string | null;
+  break_end_time: string | null;
+  status: string; // Allow any string from database
+  location?: string;
+  notes?: string;
+  total_hours?: number;
+  break_duration?: number;
+  ip_address?: string;
+  approved_by?: string;
+  is_approved?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
-export function ClockInOut({ isCheckedIn, setIsCheckedIn, checkInTime, setCheckInTime }: ClockInOutProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const [gpsActivated, setGpsActivated] = useState(false);
+export function ClockInOut() {
+  const { user } = useAuth();
   const { toast } = useToast();
+  const [currentRecord, setCurrentRecord] = useState<AttendanceRecord | null>(null);
+  const [notes, setNotes] = useState("");
+  const [location, setLocation] = useState("");
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [employeeId, setEmployeeId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  // Activate GPS on component mount
+  // Update current time every second
   useEffect(() => {
-    const activateGPS = async () => {
-      try {
-        const userLocation = await getCurrentLocation();
-        setLocation(userLocation);
-        setGpsActivated(true);
-        toast({
-          title: "GPS Activated",
-          description: "Location services are now active for attendance tracking.",
-        });
-      } catch (error) {
-        setLocationError("GPS activation failed. Please enable location access.");
-        setGpsActivated(false);
-      }
-    };
-
-    activateGPS();
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
-  const getCurrentLocation = (): Promise<{ lat: number; lng: number }> => {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error("Geolocation is not supported by this browser."));
+  // Get current user's employee ID
+  useEffect(() => {
+    const fetchEmployeeId = async () => {
+      if (!user) return;
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('employee_id')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (profile?.employee_id) {
+        setEmployeeId(profile.employee_id);
+      }
+    };
+    
+    fetchEmployeeId();
+  }, [user]);
+
+  // Fetch current attendance record
+  useEffect(() => {
+    const fetchCurrentRecord = async () => {
+      if (!employeeId) return;
+
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .select('*')
+        .eq('employee_id', employeeId)
+        .gte('clock_in_time', `${today}T00:00:00Z`)
+        .lt('clock_in_time', `${today}T23:59:59Z`)
+        .order('clock_in_time', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        console.error('Error fetching attendance record:', error);
         return;
       }
 
+      if (data && data.length > 0) {
+        setCurrentRecord(data[0] as AttendanceRecord);
+      }
+    };
+
+    if (employeeId) {
+      fetchCurrentRecord();
+    }
+  }, [employeeId]);
+
+  // Get current location
+  useEffect(() => {
+    if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          resolve({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
+          setLocation(`${position.coords.latitude}, ${position.coords.longitude}`);
         },
         (error) => {
-          reject(error);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0,
+          console.log('Location access denied');
         }
       );
-    });
-  };
+    }
+  }, []);
 
-  const handleClockAction = async () => {
-    setIsLoading(true);
-    setLocationError(null);
-
-    try {
-      const userLocation = await getCurrentLocation();
-      setLocation(userLocation);
-
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const now = new Date();
-      
-      if (!isCheckedIn) {
-        setIsCheckedIn(true);
-        setCheckInTime(now);
-        toast({
-          title: "Clocked In Successfully",
-          description: `Checked in at ${now.toLocaleTimeString()}`,
-        });
-      } else {
-        setIsCheckedIn(false);
-        const duration = checkInTime ? now.getTime() - checkInTime.getTime() : 0;
-        const hours = Math.floor(duration / (1000 * 60 * 60));
-        const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
-        
-        toast({
-          title: "Clocked Out Successfully",
-          description: `Total time: ${hours}h ${minutes}m`,
-        });
-      }
-    } catch (error) {
-      setLocationError("Unable to get your location. Please enable GPS and try again.");
+  const handleClockIn = async () => {
+    if (!employeeId) {
       toast({
-        title: "Location Error",
-        description: "Please enable location access to clock in/out.",
+        title: "Error",
+        description: "Employee profile not found",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('attendance_records')
+        .insert({
+          employee_id: employeeId,
+          clock_in_time: new Date().toISOString(),
+          status: 'clocked_in',
+          location: location,
+          ip_address: await fetch('https://api.ipify.org').then(r => r.text()).catch(() => null),
+          notes: notes || null
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setCurrentRecord(data as AttendanceRecord);
+      setNotes("");
+      
+      toast({
+        title: "Clocked In",
+        description: `Successfully clocked in at ${currentTime.toLocaleTimeString()}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to clock in",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const formatDuration = (startTime: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - startTime.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+  const handleClockOut = async () => {
+    if (!currentRecord) return;
+
+    setLoading(true);
     
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    try {
+      const { error } = await supabase
+        .from('attendance_records')
+        .update({
+          clock_out_time: new Date().toISOString(),
+          notes: notes || currentRecord.notes
+        })
+        .eq('id', currentRecord.id);
+
+      if (error) throw error;
+
+      setCurrentRecord(null);
+      setNotes("");
+      
+      toast({
+        title: "Clocked Out",
+        description: `Successfully clocked out at ${currentTime.toLocaleTimeString()}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to clock out",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBreakStart = async () => {
+    if (!currentRecord) return;
+
+    setLoading(true);
+    
+    try {
+      const { error } = await supabase
+        .from('attendance_records')
+        .update({
+          break_start_time: new Date().toISOString(),
+          status: 'on_break'
+        })
+        .eq('id', currentRecord.id);
+
+      if (error) throw error;
+
+      setCurrentRecord({
+        ...currentRecord,
+        break_start_time: new Date().toISOString(),
+        status: 'on_break'
+      });
+      
+      toast({
+        title: "Break Started",
+        description: "Break time started",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to start break",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBreakEnd = async () => {
+    if (!currentRecord) return;
+
+    setLoading(true);
+    
+    try {
+      const { error } = await supabase
+        .from('attendance_records')
+        .update({
+          break_end_time: new Date().toISOString(),
+          status: 'clocked_in'
+        })
+        .eq('id', currentRecord.id);
+
+      if (error) throw error;
+
+      setCurrentRecord({
+        ...currentRecord,
+        break_end_time: new Date().toISOString(),
+        status: 'clocked_in'
+      });
+      
+      toast({
+        title: "Break Ended",
+        description: "Welcome back from break",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to end break",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = () => {
+    if (!currentRecord) return "text-muted-foreground";
+    
+    switch (currentRecord.status) {
+      case 'clocked_in':
+        return "text-green-600";
+      case 'on_break':
+        return "text-yellow-600";
+      case 'clocked_out':
+        return "text-red-600";
+      default:
+        return "text-muted-foreground";
+    }
+  };
+
+  const getStatusText = () => {
+    if (!currentRecord) return "Not clocked in";
+    
+    switch (currentRecord.status) {
+      case 'clocked_in':
+        return "Clocked In";
+      case 'on_break':
+        return "On Break";
+      case 'clocked_out':
+        return "Clocked Out";
+      default:
+        return "Unknown";
+    }
   };
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      {/* Clock In/Out Card */}
-      <Card className="border-l-4 border-l-primary">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            {isCheckedIn ? "Clock Out" : "Clock In"}
-          </CardTitle>
-          <CardDescription>
-            {isCheckedIn 
-              ? "End your work day and clock out" 
-              : "Start your work day with GPS verification"
-            }
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {isCheckedIn && checkInTime && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-success" />
-                <span className="text-sm">Checked in at {checkInTime.toLocaleTimeString()}</span>
-              </div>
-              <div className="text-2xl font-mono font-bold text-primary">
-                {formatDuration(checkInTime)}
-              </div>
-              <p className="text-xs text-muted-foreground">Current session duration</p>
-            </div>
-          )}
-
-          <Button
-            onClick={handleClockAction}
-            disabled={isLoading}
-            size="lg"
-            className="w-full"
-            variant={isCheckedIn ? "destructive" : "default"}
-          >
-            {isLoading ? (
-              "Getting Location..."
-            ) : isCheckedIn ? (
-              "Clock Out"
-            ) : (
-              "Clock In"
-            )}
-          </Button>
-
-          {locationError && (
-            <Alert variant="destructive">
-              <WifiOff className="h-4 w-4" />
-              <AlertDescription>{locationError}</AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Location & Status Card */}
+    <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5" />
-            Location & Status
+            <Clock className="h-5 w-5" />
+            Time Clock
           </CardTitle>
           <CardDescription>
-            Your current location and work status
+            Current time: {currentTime.toLocaleString()}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Status</span>
-              <Badge variant={isCheckedIn ? "default" : "secondary"}>
-                {isCheckedIn ? "Working" : "Not Working"}
-              </Badge>
+        <CardContent className="space-y-6">
+          {/* Current Status */}
+          <div className="text-center p-6 border rounded-lg">
+            <div className={`text-2xl font-bold ${getStatusColor()}`}>
+              {getStatusText()}
             </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">GPS Status</span>
-              <div className="flex items-center gap-2">
-                {gpsActivated ? (
-                  <>
-                    <Satellite className="h-4 w-4 text-success" />
-                    <span className="text-sm text-success">Active</span>
-                  </>
-                ) : (
-                  <>
-                    <WifiOff className="h-4 w-4 text-destructive" />
-                    <span className="text-sm text-destructive">Inactive</span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Location</span>
-              <div className="flex items-center gap-2">
-                {location ? (
-                  <>
-                    <Wifi className="h-4 w-4 text-success" />
-                    <span className="text-sm text-success">Acquired</span>
-                  </>
-                ) : (
-                  <>
-                    <WifiOff className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Searching...</span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {location && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Office</span>
-                  <Badge variant="outline" className="text-success border-success">
-                    Verified
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Main Office Building<br />
-                  123 Business District, City
-                </p>
+            {currentRecord && (
+              <div className="text-sm text-muted-foreground mt-2">
+                Clocked in at: {new Date(currentRecord.clock_in_time).toLocaleTimeString()}
               </div>
             )}
           </div>
 
-          {isCheckedIn && (
-            <Alert>
-              <CheckCircle className="h-4 w-4" />
-              <AlertDescription>
-                You are currently clocked in. Don't forget to clock out when leaving.
-              </AlertDescription>
-            </Alert>
+          {/* Location */}
+          {location && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <MapPin className="h-4 w-4" />
+              Location detected
+            </div>
           )}
+
+          {/* Notes */}
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Input
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add any notes about your work day..."
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="grid grid-cols-2 gap-4">
+            {!currentRecord ? (
+              <Button 
+                onClick={handleClockIn} 
+                disabled={loading}
+                className="col-span-2"
+                size="lg"
+              >
+                <Clock className="mr-2 h-4 w-4" />
+                Clock In
+              </Button>
+            ) : currentRecord.status === 'clocked_out' ? (
+              <Button 
+                onClick={handleClockIn} 
+                disabled={loading}
+                className="col-span-2"
+                size="lg"
+              >
+                <Clock className="mr-2 h-4 w-4" />
+                Clock In Again
+              </Button>
+            ) : (
+              <>
+                {currentRecord.status === 'clocked_in' && (
+                  <Button 
+                    onClick={handleBreakStart} 
+                    disabled={loading}
+                    variant="outline"
+                  >
+                    <Coffee className="mr-2 h-4 w-4" />
+                    Start Break
+                  </Button>
+                )}
+                
+                {currentRecord.status === 'on_break' && (
+                  <Button 
+                    onClick={handleBreakEnd} 
+                    disabled={loading}
+                    variant="outline"
+                  >
+                    <Coffee className="mr-2 h-4 w-4" />
+                    End Break
+                  </Button>
+                )}
+                
+                <Button 
+                  onClick={handleClockOut} 
+                  disabled={loading}
+                  variant="destructive"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Clock Out
+                </Button>
+              </>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

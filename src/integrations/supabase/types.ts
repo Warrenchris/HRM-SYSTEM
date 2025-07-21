@@ -138,6 +138,111 @@ export type Database = {
           },
         ]
       }
+      attendance_records: {
+        Row: {
+          approved_by: string | null
+          break_duration: number | null
+          break_end_time: string | null
+          break_start_time: string | null
+          clock_in_time: string
+          clock_out_time: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          ip_address: unknown | null
+          is_approved: boolean | null
+          location: string | null
+          notes: string | null
+          status: string
+          total_hours: number | null
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          break_duration?: number | null
+          break_end_time?: string | null
+          break_start_time?: string | null
+          clock_in_time: string
+          clock_out_time?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          ip_address?: unknown | null
+          is_approved?: boolean | null
+          location?: string | null
+          notes?: string | null
+          status?: string
+          total_hours?: number | null
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          break_duration?: number | null
+          break_end_time?: string | null
+          break_start_time?: string | null
+          clock_in_time?: string
+          clock_out_time?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          ip_address?: unknown | null
+          is_approved?: boolean | null
+          location?: string | null
+          notes?: string | null
+          status?: string
+          total_hours?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      attendance_settings: {
+        Row: {
+          allowed_ip_addresses: string[] | null
+          break_duration_minutes: number | null
+          company_name: string | null
+          created_at: string
+          id: string
+          ip_restriction_enabled: boolean | null
+          late_threshold_minutes: number | null
+          location_tracking_enabled: boolean | null
+          overtime_threshold_hours: number | null
+          updated_at: string
+          weekend_work_allowed: boolean | null
+          work_end_time: string
+          work_start_time: string
+        }
+        Insert: {
+          allowed_ip_addresses?: string[] | null
+          break_duration_minutes?: number | null
+          company_name?: string | null
+          created_at?: string
+          id?: string
+          ip_restriction_enabled?: boolean | null
+          late_threshold_minutes?: number | null
+          location_tracking_enabled?: boolean | null
+          overtime_threshold_hours?: number | null
+          updated_at?: string
+          weekend_work_allowed?: boolean | null
+          work_end_time?: string
+          work_start_time?: string
+        }
+        Update: {
+          allowed_ip_addresses?: string[] | null
+          break_duration_minutes?: number | null
+          company_name?: string | null
+          created_at?: string
+          id?: string
+          ip_restriction_enabled?: boolean | null
+          late_threshold_minutes?: number | null
+          location_tracking_enabled?: boolean | null
+          overtime_threshold_hours?: number | null
+          updated_at?: string
+          weekend_work_allowed?: boolean | null
+          work_end_time?: string
+          work_start_time?: string
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           achievements: Json | null

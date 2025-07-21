@@ -105,12 +105,7 @@ export default function Attendance() {
         </TabsList>
 
         <TabsContent value="clock">
-          <ClockInOut 
-            isCheckedIn={isCheckedIn}
-            setIsCheckedIn={setIsCheckedIn}
-            checkInTime={checkInTime}
-            setCheckInTime={setCheckInTime}
-          />
+          <ClockInOut />
         </TabsContent>
 
         <TabsContent value="history">
