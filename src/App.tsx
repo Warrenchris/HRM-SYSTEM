@@ -24,7 +24,7 @@ import Tickets from "./pages/Tickets";
 import Tasks from "./pages/Tasks";
 import Company from "./pages/Company";
 import Settings from "./pages/Settings";
-import Auth from "./pages/Auth";
+import LandingLogin from "./pages/LandingLogin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,7 +38,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             {/* Authentication Route */}
-            <Route path="/auth" element={<Auth />} />
+            <Route path="/auth" element={<LandingLogin />} />
             
             {/* Protected App Routes */}
             <Route path="/*" element={
