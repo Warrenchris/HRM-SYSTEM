@@ -138,6 +138,145 @@ export type Database = {
           },
         ]
       }
+      asset_transfers: {
+        Row: {
+          asset_id: string
+          created_at: string
+          from_employee_id: string | null
+          id: string
+          previous_status: string | null
+          to_employee_id: string | null
+          transfer_date: string
+          transfer_notes: string | null
+          transfer_reason: string | null
+          transfer_status: string
+          transferred_by: string
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string
+          from_employee_id?: string | null
+          id?: string
+          previous_status?: string | null
+          to_employee_id?: string | null
+          transfer_date?: string
+          transfer_notes?: string | null
+          transfer_reason?: string | null
+          transfer_status: string
+          transferred_by: string
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string
+          from_employee_id?: string | null
+          id?: string
+          previous_status?: string | null
+          to_employee_id?: string | null
+          transfer_date?: string
+          transfer_notes?: string | null
+          transfer_reason?: string | null
+          transfer_status?: string
+          transferred_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_transfers_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_transfers_from_employee_id_fkey"
+            columns: ["from_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_transfers_to_employee_id_fkey"
+            columns: ["to_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asset_transfers_transferred_by_fkey"
+            columns: ["transferred_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assets: {
+        Row: {
+          asset_tag: string
+          category: string
+          condition: string
+          created_at: string
+          current_employee_id: string | null
+          current_value: number | null
+          description: string | null
+          id: string
+          location: string
+          name: string
+          purchase_date: string
+          purchase_value: number
+          serial_number: string | null
+          status: string
+          updated_at: string
+          vendor: string | null
+          warranty_date: string | null
+        }
+        Insert: {
+          asset_tag: string
+          category: string
+          condition?: string
+          created_at?: string
+          current_employee_id?: string | null
+          current_value?: number | null
+          description?: string | null
+          id?: string
+          location: string
+          name: string
+          purchase_date: string
+          purchase_value?: number
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+          vendor?: string | null
+          warranty_date?: string | null
+        }
+        Update: {
+          asset_tag?: string
+          category?: string
+          condition?: string
+          created_at?: string
+          current_employee_id?: string | null
+          current_value?: number | null
+          description?: string | null
+          id?: string
+          location?: string
+          name?: string
+          purchase_date?: string
+          purchase_value?: number
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+          vendor?: string | null
+          warranty_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assets_current_employee_id_fkey"
+            columns: ["current_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_records: {
         Row: {
           approved_by: string | null
