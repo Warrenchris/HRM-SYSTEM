@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { MoreHorizontal, Eye, Edit, Trash2, Mail, Phone } from "lucide-react";
 import { EditEmployeeDialog } from "./EditEmployeeDialog";
+import { ViewEmployeeDialog } from "./ViewEmployeeDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -32,7 +33,9 @@ interface EmployeeTableProps {
 export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger }: EmployeeTableProps) {
   const { toast } = useToast();
   const [editEmployee, setEditEmployee] = useState<any>(null);
+  const [viewEmployee, setViewEmployee] = useState<any>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -90,7 +93,10 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger }
   }, {} as Record<string, number>);
 
   const handleAction = (action: string, employee: any) => {
-    if (action === "Edit") {
+    if (action === "View") {
+      setViewEmployee(employee);
+      setIsViewDialogOpen(true);
+    } else if (action === "Edit") {
       setEditEmployee(employee);
       setIsEditDialogOpen(true);
     } else if (action === "Delete") {
@@ -307,6 +313,16 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger }
         </div>
       )}
     </div>
+    
+    {/* View Employee Dialog */}
+    <ViewEmployeeDialog
+      isOpen={isViewDialogOpen}
+      onClose={() => {
+        setIsViewDialogOpen(false);
+        setViewEmployee(null);
+      }}
+      employee={viewEmployee}
+    />
     
     {/* Edit Employee Dialog */}
     <EditEmployeeDialog
