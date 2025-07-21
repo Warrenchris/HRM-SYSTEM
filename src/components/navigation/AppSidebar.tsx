@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Users,
+  User,
   Clock,
   Calendar,
   Package,
@@ -34,6 +35,7 @@ import {
 
 const mainModules = [
   { title: "Dashboard", url: "/", icon: Home },
+  { title: "My Dashboard", url: "/employee-dashboard", icon: User },
   { title: "Employees", url: "/employees", icon: Users },
   { title: "Attendance", url: "/attendance", icon: Clock },
   { title: "Leave Management", url: "/leave", icon: Calendar },

@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "@/components/layouts/AppLayout";
 import Dashboard from "./pages/Dashboard";
+import EmployeeDashboard from "./pages/EmployeeDashboard";
 import Employees from "./pages/Employees";
 import Attendance from "./pages/Attendance";
 import Leave from "./pages/Leave";
@@ -47,6 +48,7 @@ const App = () => (
                   <Route path="/" element={<AppLayout />}>
                     <Route index element={<Dashboard />} />
                     <Route path="dashboard" element={<Dashboard />} />
+                    <Route path="employee-dashboard" element={<EmployeeDashboard />} />
                     <Route path="employees" element={<Employees />} />
                     <Route path="attendance" element={<Attendance />} />
                     <Route path="leave" element={<Leave />} />
