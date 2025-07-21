@@ -20,7 +20,7 @@ export type Database = {
           auth_email: string | null
           created_at: string
           department: string
-          email: string
+          email: string | null
           emergency_contact: string | null
           emergency_phone: string | null
           employee_id: string
@@ -39,7 +39,7 @@ export type Database = {
           auth_email?: string | null
           created_at?: string
           department: string
-          email: string
+          email?: string | null
           emergency_contact?: string | null
           emergency_phone?: string | null
           employee_id: string
@@ -58,7 +58,7 @@ export type Database = {
           auth_email?: string | null
           created_at?: string
           department?: string
-          email?: string
+          email?: string | null
           emergency_contact?: string | null
           emergency_phone?: string | null
           employee_id?: string
@@ -117,7 +117,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
