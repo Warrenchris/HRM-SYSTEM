@@ -124,17 +124,68 @@ export default function Employees() {
     });
   };
 
-  const handleExportEmployees = (format: string) => {
-    const departmentText = selectedDepartment === "all" ? "All Departments" : 
-      selectedDepartment.charAt(0).toUpperCase() + selectedDepartment.slice(1);
-    
-    toast({
-      title: `${format.toUpperCase()} Export Started`,
-      description: `Exporting employees from ${departmentText}`,
-    });
-    
-    // In a real implementation, this would call an API to generate the export
-    console.log(`Exporting ${format} for department: ${selectedDepartment}`);
+  const handleExportEmployees = async (format: string) => {
+    try {
+      // Fetch only active employees for export
+      const { data: activeEmployees, error } = await supabase
+        .from('employees')
+        .select('*')
+        .is('exit_date', null)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Apply current filters to export data
+      const filteredForExport = activeEmployees?.filter(employee => {
+        const matchesSearch = searchTerm === "" || (
+          employee.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          employee.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          employee.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          employee.employee_id?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        
+        const matchesDepartment = 
+          selectedDepartment === "all" || 
+          employee.department?.toLowerCase() === selectedDepartment.toLowerCase();
+
+        return matchesSearch && matchesDepartment;
+      }) || [];
+
+      const departmentText = selectedDepartment === "all" ? "All Departments" : 
+        selectedDepartment.charAt(0).toUpperCase() + selectedDepartment.slice(1);
+      
+      toast({
+        title: `${format.toUpperCase()} Export Started`,
+        description: `Exporting ${filteredForExport.length} active employees from ${departmentText}`,
+      });
+      
+      // In a real implementation, this would generate the actual file
+      console.log(`Exporting ${format} for department: ${selectedDepartment}`, {
+        format,
+        department: selectedDepartment,
+        employeeCount: filteredForExport.length,
+        employees: filteredForExport,
+        note: "Only active employees (no exit date, status = active)"
+      });
+
+      // Simulate file download
+      if (format === 'template') {
+        // Generate template for employee import
+        console.log('Generating employee import template...');
+      } else {
+        // Generate actual export with employee data
+        console.log(`Generating ${format} file with ${filteredForExport.length} active employees...`);
+      }
+      
+    } catch (error) {
+      console.error('Error exporting employees:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export employee data. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -160,20 +211,20 @@ export default function Employees() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => handleExportEmployees("excel")}>
                 <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Export to Excel
+                Export Active Employees to Excel
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExportEmployees("csv")}>
                 <FileText className="w-4 h-4 mr-2" />
-                Export to CSV
+                Export Active Employees to CSV
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExportEmployees("pdf")}>
                 <FileText className="w-4 h-4 mr-2" />
-                Export to PDF
+                Export Active Employees to PDF
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => handleExportEmployees("template")}>
                 <Download className="w-4 h-4 mr-2" />
-                Download Template
+                Download Import Template
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
