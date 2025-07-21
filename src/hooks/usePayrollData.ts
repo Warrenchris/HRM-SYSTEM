@@ -14,6 +14,7 @@ export interface PayrollEmployee {
   salary: number;
   hourly_rate?: number;
   status: string;
+  bank_account_number?: string;
 }
 
 export interface PayrollRecord {
