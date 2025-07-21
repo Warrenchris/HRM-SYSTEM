@@ -13,6 +13,13 @@ const themes = [
     className: "",
   },
   {
+    id: "dark-blue",
+    name: "Dark Blue Corporate",
+    description: "Deep corporate blue theme",
+    primary: "hsl(221 83% 53%)",
+    className: "theme-dark-blue",
+  },
+  {
     id: "green",
     name: "Green Corporate",
     description: "Nature-inspired professional theme",
@@ -62,20 +69,24 @@ export function ThemeSelector() {
     const theme = themes.find(t => t.id === themeId);
     if (!theme) return;
 
-    // Remove all theme classes
+    // Remove all theme classes from document root
     themes.forEach(t => {
       if (t.className) {
         document.documentElement.classList.remove(t.className);
       }
     });
 
-    // Apply new theme class
+    // Apply new theme class if it exists
     if (theme.className) {
       document.documentElement.classList.add(theme.className);
     }
 
+    // Save to localStorage and update state
     localStorage.setItem("hrm-theme", themeId);
     setCurrentTheme(themeId);
+    
+    // Force a re-render of CSS variables
+    document.documentElement.style.setProperty('--theme-applied', Date.now().toString());
   };
 
   return (
@@ -87,7 +98,7 @@ export function ThemeSelector() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {themes.map((theme) => (
             <div
               key={theme.id}
@@ -123,12 +134,25 @@ export function ThemeSelector() {
         </div>
         
         <div className="mt-6 p-4 bg-muted/30 rounded-lg">
-          <h4 className="font-medium mb-2">Preview</h4>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button size="sm">Primary Button</Button>
-            <Button variant="secondary" size="sm">Secondary</Button>
-            <Button variant="outline" size="sm">Outline</Button>
-            <Badge>Sample Badge</Badge>
+          <h4 className="font-medium mb-3">Theme Preview</h4>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button size="sm">Primary Button</Button>
+              <Button variant="secondary" size="sm">Secondary</Button>
+              <Button variant="outline" size="sm">Outline</Button>
+              <Button variant="destructive" size="sm">Delete</Button>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge>Default Badge</Badge>
+              <Badge variant="secondary">Secondary</Badge>
+              <Badge variant="outline">Outline</Badge>
+              <Badge variant="destructive">Error</Badge>
+            </div>
+            <div className="p-3 bg-card border rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                Sample card with current theme applied
+              </p>
+            </div>
           </div>
         </div>
       </CardContent>

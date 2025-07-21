@@ -123,6 +123,20 @@
     --shadow-strong: 0 8px 32px hsl(173 80% 40% / 0.2);
   }
 
+  /* Dark Blue Corporate Theme */
+  .theme-dark-blue {
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 221 83% 45%;
+    --primary-light: 221 83% 85%;
+    --ring: 221 83% 53%;
+    --gradient-primary: linear-gradient(135deg, hsl(221 83% 53%), hsl(221 83% 63%));
+    --gradient-hero: linear-gradient(135deg, hsl(221 83% 53%), hsl(231 83% 57%));
+    --shadow-soft: 0 2px 8px hsl(221 83% 53% / 0.1);
+    --shadow-medium: 0 4px 16px hsl(221 83% 53% / 0.15);
+    --shadow-strong: 0 8px 32px hsl(221 83% 53% / 0.2);
+  }
+
   /* Red Corporate Theme */
   .theme-red {
     --primary: 0 72% 51%;
