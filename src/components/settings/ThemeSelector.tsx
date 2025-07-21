@@ -48,6 +48,13 @@ const themes = [
     className: "theme-teal",
   },
   {
+    id: "dark-grey-blue",
+    name: "Dark Grey Blue",
+    description: "Professional dark theme with blue accents",
+    primary: "hsl(217 91% 60%)",
+    className: "theme-dark-grey-blue",
+  },
+  {
     id: "red",
     name: "Red Corporate",
     description: "Bold and confident theme",
