@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Star, Plus, Eye, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Appraisal {
   id: string;
@@ -31,53 +32,192 @@ export function PerformanceAppraisals() {
   const [selectedAppraisal, setSelectedAppraisal] = useState<Appraisal | null>(null);
   const [appraisalComment, setAppraisalComment] = useState("");
   const [selectedRating, setSelectedRating] = useState<number>(0);
+  const [appraisals, setAppraisals] = useState<Appraisal[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Sample data - replace with actual data from your backend
-  const appraisals: Appraisal[] = [
-    {
-      id: "1",
-      employeeName: "John Doe",
-      employeeId: "EMP001",
-      department: "Engineering",
-      position: "Senior Developer",
-      appraisalPeriod: "Q4 2024",
-      status: "pending",
-      dueDate: "2024-12-31",
-      appraiser: "Jane Smith",
-      selfAppraisalCompleted: false,
-      managerAppraisalCompleted: false,
-      lastUpdated: "2024-12-01"
-    },
-    {
-      id: "2",
-      employeeName: "Sarah Wilson",
-      employeeId: "EMP002",
-      department: "Marketing",
-      position: "Marketing Manager",
-      appraisalPeriod: "Q4 2024",
-      status: "in-progress",
-      dueDate: "2024-12-31",
-      appraiser: "Mike Johnson",
-      selfAppraisalCompleted: true,
-      managerAppraisalCompleted: false,
-      lastUpdated: "2024-12-15"
-    },
-    {
-      id: "3",
-      employeeName: "Mike Chen",
-      employeeId: "EMP003",
-      department: "Sales",
-      position: "Sales Representative",
-      appraisalPeriod: "Q3 2024",
-      status: "completed",
-      dueDate: "2024-09-30",
-      overallRating: 4,
-      appraiser: "Lisa Brown",
-      selfAppraisalCompleted: true,
-      managerAppraisalCompleted: true,
-      lastUpdated: "2024-09-28"
+  // Fetch appraisals from database
+  useEffect(() => {
+    fetchAppraisals();
+  }, []);
+
+  const fetchAppraisals = async () => {
+    try {
+      setLoading(true);
+      // Fetch appraisals with basic data first
+      const { data, error } = await supabase
+        .from('appraisals')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // For now, use mock data since we don't have employees data yet
+      const mockAppraisals: Appraisal[] = [
+        {
+          id: "1",
+          employeeName: "John Doe",
+          employeeId: "EMP001",
+          department: "Engineering",
+          position: "Senior Developer",
+          appraisalPeriod: "Q4 2024",
+          status: "pending",
+          dueDate: "2024-12-31",
+          appraiser: "Jane Smith",
+          selfAppraisalCompleted: false,
+          managerAppraisalCompleted: false,
+          lastUpdated: "2024-12-01"
+        },
+        {
+          id: "2",
+          employeeName: "Sarah Wilson",
+          employeeId: "EMP002",
+          department: "Marketing",
+          position: "Marketing Manager",
+          appraisalPeriod: "Q4 2024",
+          status: "in-progress",
+          dueDate: "2024-12-31",
+          appraiser: "Mike Johnson",
+          selfAppraisalCompleted: true,
+          managerAppraisalCompleted: false,
+          lastUpdated: "2024-12-15"
+        },
+        {
+          id: "3",
+          employeeName: "Mike Chen",
+          employeeId: "EMP003",
+          department: "Sales",
+          position: "Sales Representative",
+          appraisalPeriod: "Q3 2024",
+          status: "completed",
+          dueDate: "2024-09-30",
+          overallRating: 4,
+          appraiser: "Lisa Brown",
+          selfAppraisalCompleted: true,
+          managerAppraisalCompleted: true,
+          lastUpdated: "2024-09-28"
+        }
+      ];
+
+      setAppraisals(mockAppraisals);
+    } catch (error) {
+      console.error('Error fetching appraisals:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch appraisals. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const handleStartAppraisal = async (appraisalId: string, employeeName: string) => {
+    try {
+      const { error } = await supabase
+        .from('appraisals')
+        .update({ 
+          status: 'in-progress',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', appraisalId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Appraisal Started",
+        description: `Performance appraisal for ${employeeName} has been initiated.`,
+      });
+
+      // Refresh the data
+      fetchAppraisals();
+    } catch (error) {
+      console.error('Error starting appraisal:', error);
+      toast({
+        title: "Error",
+        description: "Failed to start appraisal. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleCompleteAppraisal = async () => {
+    if (!selectedAppraisal) return;
+    
+    if (selectedRating === 0) {
+      toast({
+        title: "Rating Required",
+        description: "Please provide an overall rating before completing the appraisal.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('appraisals')
+        .update({ 
+          status: 'completed',
+          overall_rating: selectedRating,
+          manager_appraisal_comments: appraisalComment,
+          manager_appraisal_completed: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedAppraisal.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Appraisal Completed",
+        description: `Performance appraisal has been completed with a rating of ${selectedRating} stars.`,
+      });
+      
+      setSelectedRating(0);
+      setAppraisalComment("");
+      setSelectedAppraisal(null);
+      
+      // Refresh the data
+      fetchAppraisals();
+    } catch (error) {
+      console.error('Error completing appraisal:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete appraisal. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (!selectedAppraisal) return;
+
+    try {
+      const { error } = await supabase
+        .from('appraisals')
+        .update({ 
+          manager_appraisal_comments: appraisalComment,
+          overall_rating: selectedRating > 0 ? selectedRating : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', selectedAppraisal.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Draft Saved",
+        description: "Your progress has been saved as draft.",
+      });
+      
+      // Refresh the data
+      fetchAppraisals();
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save draft. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
 
   const getStatusBadge = (status: Appraisal["status"]) => {
     const statusConfig = {
@@ -100,33 +240,6 @@ export function PerformanceAppraisals() {
         }`}
       />
     ));
-  };
-
-  const handleStartAppraisal = (appraisalId: string, employeeName: string) => {
-    toast({
-      title: "Appraisal Started",
-      description: `Performance appraisal for ${employeeName} has been initiated.`,
-    });
-  };
-
-  const handleCompleteAppraisal = () => {
-    if (selectedRating === 0) {
-      toast({
-        title: "Rating Required",
-        description: "Please provide an overall rating before completing the appraisal.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    toast({
-      title: "Appraisal Completed",
-      description: `Performance appraisal has been completed with a rating of ${selectedRating} stars.`,
-    });
-    
-    setSelectedRating(0);
-    setAppraisalComment("");
-    setSelectedAppraisal(null);
   };
 
   const filteredAppraisals = selectedFilter === "all" 
@@ -274,7 +387,7 @@ export function PerformanceAppraisals() {
                                   Complete Appraisal
                                 </Button>
                               )}
-                              <Button variant="outline">
+                              <Button variant="outline" onClick={handleSaveDraft}>
                                 Save Draft
                               </Button>
                             </div>

@@ -14,6 +14,130 @@ export type Database = {
   }
   public: {
     Tables: {
+      appraisal_objectives: {
+        Row: {
+          actual_value: string | null
+          appraisal_id: string
+          created_at: string
+          employee_comments: string | null
+          employee_rating: number | null
+          id: string
+          manager_comments: string | null
+          manager_rating: number | null
+          objective_description: string | null
+          objective_title: string
+          target_value: string | null
+          updated_at: string
+          weight_percentage: number | null
+        }
+        Insert: {
+          actual_value?: string | null
+          appraisal_id: string
+          created_at?: string
+          employee_comments?: string | null
+          employee_rating?: number | null
+          id?: string
+          manager_comments?: string | null
+          manager_rating?: number | null
+          objective_description?: string | null
+          objective_title: string
+          target_value?: string | null
+          updated_at?: string
+          weight_percentage?: number | null
+        }
+        Update: {
+          actual_value?: string | null
+          appraisal_id?: string
+          created_at?: string
+          employee_comments?: string | null
+          employee_rating?: number | null
+          id?: string
+          manager_comments?: string | null
+          manager_rating?: number | null
+          objective_description?: string | null
+          objective_title?: string
+          target_value?: string | null
+          updated_at?: string
+          weight_percentage?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appraisal_objectives_appraisal_id_fkey"
+            columns: ["appraisal_id"]
+            isOneToOne: false
+            referencedRelation: "appraisals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appraisals: {
+        Row: {
+          appraisal_period: string
+          appraiser_id: string
+          areas_for_improvement: string | null
+          created_at: string
+          development_needs: string | null
+          due_date: string
+          employee_id: string
+          goals_achievement: string | null
+          id: string
+          manager_appraisal_comments: string | null
+          manager_appraisal_completed: boolean
+          overall_rating: number | null
+          self_appraisal_comments: string | null
+          self_appraisal_completed: boolean
+          status: string
+          strengths: string | null
+          updated_at: string
+        }
+        Insert: {
+          appraisal_period: string
+          appraiser_id: string
+          areas_for_improvement?: string | null
+          created_at?: string
+          development_needs?: string | null
+          due_date: string
+          employee_id: string
+          goals_achievement?: string | null
+          id?: string
+          manager_appraisal_comments?: string | null
+          manager_appraisal_completed?: boolean
+          overall_rating?: number | null
+          self_appraisal_comments?: string | null
+          self_appraisal_completed?: boolean
+          status?: string
+          strengths?: string | null
+          updated_at?: string
+        }
+        Update: {
+          appraisal_period?: string
+          appraiser_id?: string
+          areas_for_improvement?: string | null
+          created_at?: string
+          development_needs?: string | null
+          due_date?: string
+          employee_id?: string
+          goals_achievement?: string | null
+          id?: string
+          manager_appraisal_comments?: string | null
+          manager_appraisal_completed?: boolean
+          overall_rating?: number | null
+          self_appraisal_comments?: string | null
+          self_appraisal_completed?: boolean
+          status?: string
+          strengths?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appraisals_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           achievements: Json | null
