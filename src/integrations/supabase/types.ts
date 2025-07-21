@@ -371,6 +371,138 @@ export type Database = {
           },
         ]
       }
+      task_comments: {
+        Row: {
+          comment: string
+          created_at: string
+          id: string
+          is_internal: boolean
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          comment: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          comment?: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          actual_hours: number | null
+          assigned_by: string
+          assigned_to: string
+          attachments: Json | null
+          completed_at: string | null
+          complexity_level: string
+          created_at: string
+          department: string | null
+          description: string | null
+          due_date: string | null
+          escalated_at: string | null
+          escalated_to: string | null
+          escalation_reason: string | null
+          estimated_hours: number | null
+          id: string
+          priority: string
+          progress_percentage: number
+          started_at: string | null
+          status: string
+          tags: Json | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          actual_hours?: number | null
+          assigned_by: string
+          assigned_to: string
+          attachments?: Json | null
+          completed_at?: string | null
+          complexity_level?: string
+          created_at?: string
+          department?: string | null
+          description?: string | null
+          due_date?: string | null
+          escalated_at?: string | null
+          escalated_to?: string | null
+          escalation_reason?: string | null
+          estimated_hours?: number | null
+          id?: string
+          priority?: string
+          progress_percentage?: number
+          started_at?: string | null
+          status?: string
+          tags?: Json | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          actual_hours?: number | null
+          assigned_by?: string
+          assigned_to?: string
+          attachments?: Json | null
+          completed_at?: string | null
+          complexity_level?: string
+          created_at?: string
+          department?: string | null
+          description?: string | null
+          due_date?: string | null
+          escalated_at?: string | null
+          escalated_to?: string | null
+          escalation_reason?: string | null
+          estimated_hours?: number | null
+          id?: string
+          priority?: string
+          progress_percentage?: number
+          started_at?: string | null
+          status?: string
+          tags?: Json | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_escalated_to_fkey"
+            columns: ["escalated_to"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_comments: {
         Row: {
           comment: string

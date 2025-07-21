@@ -15,7 +15,8 @@ import {
   Home,
   Settings,
   ShoppingCart,
-  Ticket
+  Ticket,
+  CheckSquare
 } from "lucide-react";
 
 import {
@@ -42,6 +43,7 @@ const mainModules = [
   { title: "Payroll", url: "/payroll", icon: DollarSign },
   { title: "Loans", url: "/loans", icon: FileText },
   { title: "Timesheets", url: "/timesheets", icon: FileText },
+  { title: "Task Management", url: "/tasks", icon: CheckSquare },
   { title: "Tickets", url: "/tickets", icon: Ticket },
 ];
 
