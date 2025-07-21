@@ -71,15 +71,37 @@ export function TaskTable({ viewType }: TaskTableProps) {
   const fetchTasks = async () => {
     try {
       const { data: user } = await supabase.auth.getUser();
-      if (!user.user) return;
+      if (!user.user) {
+        console.log('No authenticated user found');
+        return;
+      }
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('employee_id')
+        .select('employee_id, role')
         .eq('user_id', user.user.id)
         .single();
 
-      if (!profile) return;
+      if (profileError) {
+        console.error('Profile error:', profileError);
+        toast({
+          title: "Error",
+          description: "Failed to load user profile",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!profile?.employee_id) {
+        console.log('User profile has no employee_id assigned');
+        toast({
+          title: "Setup Required",
+          description: "Your account is not linked to an employee record. Please contact your administrator.",
+          variant: "destructive",
+        });
+        setTasks([]);
+        return;
+      }
 
       let query = supabase
         .from('tasks')
@@ -97,7 +119,11 @@ export function TaskTable({ viewType }: TaskTableProps) {
 
       const { data, error } = await query.order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Tasks query error:', error);
+        throw error;
+      }
+      
       setTasks(data || []);
     } catch (error) {
       console.error('Error fetching tasks:', error);
@@ -115,6 +141,24 @@ export function TaskTable({ viewType }: TaskTableProps) {
     if (!selectedTask) return;
 
     try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('employee_id')
+        .eq('user_id', user.user.id)
+        .single();
+
+      if (!profile?.employee_id) {
+        toast({
+          title: "Error",
+          description: "Your account is not linked to an employee record",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const updates: any = {
         progress_percentage: progress,
         status,
@@ -138,12 +182,11 @@ export function TaskTable({ viewType }: TaskTableProps) {
 
       // Add comment if provided
       if (comment.trim()) {
-        const { data: user } = await supabase.auth.getUser();
         await supabase
           .from('task_comments')
           .insert([{
             task_id: selectedTask.id,
-            user_id: user.user?.id,
+            user_id: user.user.id,
             comment: comment.trim(),
           }]);
       }
