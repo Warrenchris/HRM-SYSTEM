@@ -1,9 +1,12 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Activity, Clock, Shield, User, Settings, Eye } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ActivityLog {
   id: string;
@@ -22,92 +25,110 @@ interface ActivityLog {
 }
 
 export function UserActivity() {
-  const activities: ActivityLog[] = [
-    {
-      id: "A001",
-      user: {
-        name: "Sarah Manager",
-        email: "sarah.manager@company.com",
-        avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Sarah Manager",
-      },
-      action: "Created new user account",
-      target: "john.developer@company.com",
-      timestamp: "2024-07-23 09:30:15",
-      ipAddress: "192.168.1.100",
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-      severity: "medium",
-      category: "user_management",
-    },
-    {
-      id: "A002",
-      user: {
-        name: "John Developer",
-        email: "john.dev@company.com",
-      },
-      action: "Successful login",
-      timestamp: "2024-07-23 08:45:22",
-      ipAddress: "10.0.0.50",
-      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-      severity: "low",
-      category: "auth",
-    },
-    {
-      id: "A003",
-      user: {
-        name: "Emily HR",
-        email: "emily.hr@company.com",
-      },
-      action: "Updated user role",
-      target: "mike.finance@company.com -> Finance Manager",
-      timestamp: "2024-07-22 16:20:45",
-      ipAddress: "192.168.1.101",
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-      severity: "high",
-      category: "user_management",
-    },
-    {
-      id: "A004",
-      user: {
-        name: "System",
-        email: "system@company.com",
-      },
-      action: "Password reset requested",
-      target: "lisa.design@company.com",
-      timestamp: "2024-07-22 14:15:30",
-      ipAddress: "203.0.113.100",
-      userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
-      severity: "medium",
-      category: "security",
-    },
-    {
-      id: "A005",
-      user: {
-        name: "Mike Finance",
-        email: "mike.finance@company.com",
-      },
-      action: "Accessed payroll data",
-      target: "Payroll Report Q2 2024",
-      timestamp: "2024-07-22 07:15:12",
-      ipAddress: "10.0.0.75",
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-      severity: "medium",
-      category: "data_access",
-    },
-    {
-      id: "A006",
-      user: {
-        name: "Sarah Manager",
-        email: "sarah.manager@company.com",
-      },
-      action: "Modified system settings",
-      target: "Security Policy Updates",
-      timestamp: "2024-07-21 15:45:33",
-      ipAddress: "192.168.1.100",
-      userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-      severity: "high",
-      category: "system",
-    },
-  ];
+  const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedTimeframe, setSelectedTimeframe] = useState("24h");
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchActivities();
+  }, [selectedCategory, selectedTimeframe]);
+
+  const fetchActivities = async () => {
+    try {
+      setLoading(true);
+      
+      let query = supabase
+        .from('user_activity_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (selectedCategory !== 'all') {
+        query = query.eq('category', selectedCategory);
+      }
+
+      // Add time filter
+      const now = new Date();
+      let startDate = new Date();
+      switch (selectedTimeframe) {
+        case '1h':
+          startDate.setHours(now.getHours() - 1);
+          break;
+        case '24h':
+          startDate.setDate(now.getDate() - 1);
+          break;
+        case '7d':
+          startDate.setDate(now.getDate() - 7);
+          break;
+        case '30d':
+          startDate.setDate(now.getDate() - 30);
+          break;
+      }
+      
+      query = query.gte('created_at', startDate.toISOString());
+
+      const { data, error } = await query;
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load activities",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Get user information for each activity
+      const userIds = [...new Set(data?.map(activity => activity.user_id))];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select(`
+          user_id,
+          employees(first_name, last_name, email)
+        `)
+        .in('user_id', userIds);
+
+      const userMap = new Map();
+      profilesData?.forEach(profile => {
+        if (profile.employees) {
+          userMap.set(profile.user_id, {
+            name: `${profile.employees.first_name} ${profile.employees.last_name}`,
+            email: profile.employees.email,
+            avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${profile.employees.first_name} ${profile.employees.last_name}`,
+          });
+        }
+      });
+
+      const formattedActivities: ActivityLog[] = data?.map(activity => ({
+        id: activity.id,
+        user: userMap.get(activity.user_id) || {
+          name: 'Unknown User',
+          email: 'No email',
+          avatar: 'https://api.dicebear.com/7.x/initials/svg?seed=Unknown User',
+        },
+        action: activity.action,
+        target: activity.target,
+        timestamp: activity.created_at,
+        ipAddress: activity.ip_address?.toString() || 'Unknown',
+        userAgent: activity.user_agent || 'Unknown',
+        severity: activity.severity as ActivityLog["severity"],
+        category: activity.category as ActivityLog["category"],
+      })) || [];
+
+      setActivities(formattedActivities);
+    } catch (error) {
+      console.error('Error fetching activities:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load activities",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getSeverityBadge = (severity: ActivityLog["severity"]) => {
     switch (severity) {
@@ -212,7 +233,7 @@ export function UserActivity() {
               Recent Activity
             </CardTitle>
             <div className="flex items-center gap-2">
-              <Select defaultValue="all">
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                 <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
@@ -225,7 +246,7 @@ export function UserActivity() {
                   <SelectItem value="security">Security</SelectItem>
                 </SelectContent>
               </Select>
-              <Select defaultValue="24h">
+              <Select value={selectedTimeframe} onValueChange={setSelectedTimeframe}>
                 <SelectTrigger className="w-32">
                   <SelectValue />
                 </SelectTrigger>
@@ -253,7 +274,20 @@ export function UserActivity() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {activities.map((activity) => (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      Loading activities...
+                    </TableCell>
+                  </TableRow>
+                ) : activities.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      No activities found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  activities.map((activity) => (
                   <TableRow key={activity.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -296,7 +330,8 @@ export function UserActivity() {
                     </TableCell>
                     <TableCell>{getSeverityBadge(activity.severity)}</TableCell>
                   </TableRow>
-                ))}
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>

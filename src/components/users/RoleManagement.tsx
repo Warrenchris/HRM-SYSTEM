@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Shield, Plus, Users, Settings, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Role {
   id: string;
@@ -24,64 +25,65 @@ export function RoleManagement() {
   const [roleName, setRoleName] = useState("");
   const [roleDescription, setRoleDescription] = useState("");
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const { toast } = useToast();
 
-  const roles: Role[] = [
-    {
-      id: "R001",
-      name: "Super Admin",
-      description: "Full system access with all permissions",
-      permissions: ["*"],
-      userCount: 2,
-      color: "bg-red-100 text-red-800 hover:bg-red-100",
-      isSystemRole: true,
-    },
-    {
-      id: "R002",
-      name: "Admin",
-      description: "Administrative access to most system features",
-      permissions: ["user_management", "system_settings", "reports", "audit_logs"],
-      userCount: 5,
-      color: "bg-purple-100 text-purple-800 hover:bg-purple-100",
-      isSystemRole: true,
-    },
-    {
-      id: "R003",
-      name: "HR Manager",
-      description: "Human resources management and employee data access",
-      permissions: ["employee_management", "payroll_access", "leave_management", "performance_reviews"],
-      userCount: 8,
-      color: "bg-blue-100 text-blue-800 hover:bg-blue-100",
-      isSystemRole: false,
-    },
-    {
-      id: "R004",
-      name: "Finance Manager",
-      description: "Financial operations and payroll management",
-      permissions: ["payroll_management", "expense_approval", "financial_reports", "budget_management"],
-      userCount: 4,
-      color: "bg-green-100 text-green-800 hover:bg-green-100",
-      isSystemRole: false,
-    },
-    {
-      id: "R005",
-      name: "Department Head",
-      description: "Department-level management and team oversight",
-      permissions: ["team_management", "approve_requests", "view_reports", "schedule_management"],
-      userCount: 12,
-      color: "bg-orange-100 text-orange-800 hover:bg-orange-100",
-      isSystemRole: false,
-    },
-    {
-      id: "R006",
-      name: "Employee",
-      description: "Standard employee access to personal data and basic features",
-      permissions: ["view_own_data", "submit_requests", "clock_in_out", "view_schedule"],
-      userCount: 125,
-      color: "bg-gray-100 text-gray-800 hover:bg-gray-100",
-      isSystemRole: true,
-    },
-  ];
+  useEffect(() => {
+    fetchRoles();
+  }, []);
+
+  const fetchRoles = async () => {
+    try {
+      setLoading(true);
+      const { data: rolesData, error } = await supabase
+        .from('user_roles')
+        .select('*');
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load roles",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Get user count for each role
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('role');
+
+      const roleCounts: Record<string, number> = {};
+      profilesData?.forEach(profile => {
+        const roleKey = profile.role;
+        roleCounts[roleKey] = (roleCounts[roleKey] || 0) + 1;
+      });
+
+      const formattedRoles: Role[] = rolesData?.map(role => ({
+        id: role.id,
+        name: role.name,
+        description: role.description || '',
+        permissions: Array.isArray(role.permissions) ? role.permissions.map(p => String(p)) : [],
+        userCount: roleCounts[role.name.toLowerCase().replace(' ', '_')] || 0,
+        color: role.color || 'bg-gray-100 text-gray-800',
+        isSystemRole: role.is_system_role,
+      })) || [];
+
+      setRoles(formattedRoles);
+    } catch (error) {
+      console.error('Error fetching roles:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load roles",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   const availablePermissions = [
     { id: "user_management", name: "User Management", category: "Admin" },
@@ -105,7 +107,7 @@ export function RoleManagement() {
     { id: "view_schedule", name: "View Schedule", category: "General" },
   ];
 
-  const handleCreateRole = () => {
+  const handleCreateRole = async () => {
     if (!roleName || !roleDescription || selectedPermissions.length === 0) {
       toast({
         title: "Missing Information",
@@ -115,16 +117,48 @@ export function RoleManagement() {
       return;
     }
 
-    toast({
-      title: "Role Created",
-      description: `Role "${roleName}" has been created successfully`,
-    });
+    setCreating(true);
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .insert({
+          name: roleName,
+          description: roleDescription,
+          permissions: selectedPermissions,
+          is_system_role: false,
+          color: 'bg-indigo-100 text-indigo-800',
+        });
 
-    // Reset form
-    setRoleName("");
-    setRoleDescription("");
-    setSelectedPermissions([]);
-    setIsDialogOpen(false);
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to create role",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Role Created",
+        description: `Role "${roleName}" has been created successfully`,
+      });
+
+      // Reset form and refresh data
+      setRoleName("");
+      setRoleDescription("");
+      setSelectedPermissions([]);
+      setIsDialogOpen(false);
+      fetchRoles();
+    } catch (error) {
+      console.error('Error creating role:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create role",
+        variant: "destructive",
+      });
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handlePermissionToggle = (permissionId: string) => {
@@ -218,8 +252,8 @@ export function RoleManagement() {
                     <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={handleCreateRole}>
-                      Create Role
+                    <Button onClick={handleCreateRole} disabled={creating}>
+                      {creating ? "Creating..." : "Create Role"}
                     </Button>
                   </div>
                 </div>
@@ -228,8 +262,11 @@ export function RoleManagement() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {roles.map((role) => (
+          {loading ? (
+            <div className="text-center py-8">Loading roles...</div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {roles.map((role) => (
               <Card key={role.id} className="relative">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
@@ -291,8 +328,9 @@ export function RoleManagement() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

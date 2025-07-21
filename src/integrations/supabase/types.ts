@@ -833,6 +833,108 @@ export type Database = {
         }
         Relationships: []
       }
+      user_activity_logs: {
+        Row: {
+          action: string
+          category: string
+          created_at: string
+          id: string
+          ip_address: unknown | null
+          metadata: Json | null
+          severity: string
+          target: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          category: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          severity?: string
+          target?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          category?: string
+          created_at?: string
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          severity?: string
+          target?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_system_role: boolean
+          name: string
+          permissions: Json
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system_role?: boolean
+          name: string
+          permissions?: Json
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_system_role?: boolean
+          name?: string
+          permissions?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_system_setting: boolean
+          setting_key: string
+          setting_value: Json
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          is_system_setting?: boolean
+          setting_key: string
+          setting_value: Json
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_system_setting?: boolean
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

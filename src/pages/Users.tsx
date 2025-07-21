@@ -4,6 +4,7 @@ import { UserTable } from "@/components/users/UserTable";
 import { RoleManagement } from "@/components/users/RoleManagement";
 import { PermissionMatrix } from "@/components/users/PermissionMatrix";
 import { UserActivity } from "@/components/users/UserActivity";
+import { UserSettings } from "@/components/users/UserSettings";
 
 export default function Users() {
   return (
@@ -43,14 +44,7 @@ export default function Users() {
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="h-64 bg-muted/50 rounded-lg flex items-center justify-center">
-              <p className="text-muted-foreground">Security Settings</p>
-            </div>
-            <div className="h-64 bg-muted/50 rounded-lg flex items-center justify-center">
-              <p className="text-muted-foreground">Authentication Config</p>
-            </div>
-          </div>
+          <UserSettings />
         </TabsContent>
       </Tabs>
     </div>
