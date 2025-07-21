@@ -115,7 +115,7 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger }
           department: employeeData.department,
           position: employeeData.position,
           salary: employeeData.salary,
-          status: employeeData.status,
+          status: employeeData.status.toLowerCase(),
           address: employeeData.address,
           emergency_contact: employeeData.emergencyContact,
           emergency_phone: employeeData.emergencyPhone,
