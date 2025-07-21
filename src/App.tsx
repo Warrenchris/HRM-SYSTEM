@@ -20,6 +20,7 @@ import Performance from "./pages/Performance";
 import Recruitment from "./pages/Recruitment";
 import Reports from "./pages/Reports";
 import Users from "./pages/Users";
+import Tickets from "./pages/Tickets";
 import Company from "./pages/Company";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
@@ -58,6 +59,7 @@ const App = () => (
                     <Route path="recruitment" element={<Recruitment />} />
                     <Route path="reports" element={<Reports />} />
                     <Route path="users" element={<Users />} />
+                    <Route path="tickets" element={<Tickets />} />
                     <Route path="company" element={<Company />} />
                     <Route path="settings" element={<Settings />} />
                   </Route>
