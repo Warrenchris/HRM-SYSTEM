@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { History, Clock, Coffee, Calendar, Search, Filter, Download } from "lucide-react";
+import { History, Clock, Coffee, Calendar, Search, Filter, Download, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -20,6 +20,7 @@ interface AttendanceRecord {
   break_duration: number | null;
   status: string;
   location?: string;
+  clock_out_location?: string;
   notes?: string;
   created_at: string;
 }
@@ -274,7 +275,9 @@ export function AttendanceHistory() {
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Clock In</TableHead>
+                    <TableHead>Clock In Location</TableHead>
                     <TableHead>Clock Out</TableHead>
+                    <TableHead>Clock Out Location</TableHead>
                     <TableHead>Break</TableHead>
                     <TableHead>Total Hours</TableHead>
                     <TableHead>Status</TableHead>
@@ -297,11 +300,43 @@ export function AttendanceHistory() {
                         </div>
                       </TableCell>
                       <TableCell>
+                        {record.location ? (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-blue-500" />
+                            <span className="text-xs font-mono">
+                              {record.location.length > 20 
+                                ? `${record.location.substring(0, 20)}...` 
+                                : record.location
+                              }
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         {record.clock_out_time ? (
                           <div className="flex items-center gap-2">
                             <Clock className="h-4 w-4 text-red-500" />
                             {formatTime(record.clock_out_time)}
                           </div>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {record.clock_out_location ? (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-purple-500" />
+                            <span className="text-xs font-mono">
+                              {record.clock_out_location.length > 20 
+                                ? `${record.clock_out_location.substring(0, 20)}...` 
+                                : record.clock_out_location
+                              }
+                            </span>
+                          </div>
+                        ) : record.clock_out_time ? (
+                          <span className="text-muted-foreground">No location</span>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}

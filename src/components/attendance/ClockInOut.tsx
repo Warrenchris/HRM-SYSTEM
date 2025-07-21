@@ -17,10 +17,12 @@ interface AttendanceRecord {
   break_end_time: string | null;
   status: string; // Allow any string from database
   location?: string;
+  clock_out_location?: string;
   notes?: string;
   total_hours?: number;
   break_duration?: number;
   ip_address?: string;
+  clock_out_ip_address?: string;
   approved_by?: string;
   is_approved?: boolean;
   created_at?: string;
@@ -175,10 +177,39 @@ export function ClockInOut() {
     setLoading(true);
     
     try {
+      // Get current location and IP for clock out
+      let clockOutLocation = "";
+      let clockOutIp = null;
+      
+      // Get GPS location
+      if (navigator.geolocation) {
+        try {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 60000
+            });
+          });
+          clockOutLocation = `${position.coords.latitude}, ${position.coords.longitude}`;
+        } catch (error) {
+          console.log('Failed to get location for clock out');
+        }
+      }
+      
+      // Get IP address
+      try {
+        clockOutIp = await fetch('https://api.ipify.org').then(r => r.text());
+      } catch (error) {
+        console.log('Failed to get IP address');
+      }
+
       const { error } = await supabase
         .from('attendance_records')
         .update({
           clock_out_time: new Date().toISOString(),
+          clock_out_location: clockOutLocation || null,
+          clock_out_ip_address: clockOutIp || null,
           notes: notes || currentRecord.notes
         })
         .eq('id', currentRecord.id);
@@ -332,13 +363,21 @@ export function ClockInOut() {
             )}
           </div>
 
-          {/* Location */}
-          {location && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <MapPin className="h-4 w-4" />
-              Location detected
+          {/* Location Info */}
+          <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <MapPin className="h-4 w-4 text-blue-500" />
+              GPS Location Status
             </div>
-          )}
+            {location ? (
+              <div className="space-y-1">
+                <div className="text-xs text-green-600 font-medium">✓ Location detected</div>
+                <div className="text-xs font-mono text-muted-foreground">{location}</div>
+              </div>
+            ) : (
+              <div className="text-xs text-orange-600">📍 Getting location...</div>
+            )}
+          </div>
 
           {/* Notes */}
           <div className="space-y-2">

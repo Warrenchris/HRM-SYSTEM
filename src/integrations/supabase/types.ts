@@ -145,6 +145,8 @@ export type Database = {
           break_end_time: string | null
           break_start_time: string | null
           clock_in_time: string
+          clock_out_ip_address: unknown | null
+          clock_out_location: string | null
           clock_out_time: string | null
           created_at: string
           employee_id: string
@@ -163,6 +165,8 @@ export type Database = {
           break_end_time?: string | null
           break_start_time?: string | null
           clock_in_time: string
+          clock_out_ip_address?: unknown | null
+          clock_out_location?: string | null
           clock_out_time?: string | null
           created_at?: string
           employee_id: string
@@ -181,6 +185,8 @@ export type Database = {
           break_end_time?: string | null
           break_start_time?: string | null
           clock_in_time?: string
+          clock_out_ip_address?: unknown | null
+          clock_out_location?: string | null
           clock_out_time?: string | null
           created_at?: string
           employee_id?: string
