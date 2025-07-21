@@ -9,9 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
-import { Users, Plus, Search, Filter, MoreHorizontal, Shield, Mail, Eye, EyeOff } from "lucide-react";
+import { Users, Plus, Search, Filter, MoreHorizontal, Shield, Mail, Eye, EyeOff, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface User {
   id: string;
@@ -22,12 +23,15 @@ interface User {
   status: "active" | "inactive" | "pending";
   lastLogin: string;
   avatar?: string;
+  employeeId?: string;
 }
 
 export function UserTable() {
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [userRole, setUserRole] = useState("");
@@ -37,6 +41,7 @@ export function UserTable() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const { toast } = useToast();
 
   // Fetch users from Supabase
@@ -66,6 +71,7 @@ export function UserTable() {
 
       const formattedUsers: User[] = profiles?.map(profile => ({
         id: profile.user_id,
+        employeeId: profile.employee_id,
         name: profile.employees 
           ? `${profile.employees.first_name} ${profile.employees.last_name}`
           : 'Unknown User',
@@ -256,6 +262,98 @@ export function UserTable() {
     }
   };
 
+  const handleEditUser = (user: User) => {
+    setEditingUser(user);
+    setUserName(user.name);
+    setUserEmail(user.email);
+    setUserRole(user.role);
+    setUserDepartment(user.department);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateUser = async () => {
+    if (!editingUser || !userName || !userEmail || !userRole || !userDepartment) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      // Update employee record if linked
+      if (editingUser.employeeId) {
+        const [firstName, ...lastNameParts] = userName.split(' ');
+        const lastName = lastNameParts.join(' ') || '';
+        
+        const { error: employeeError } = await supabase
+          .from('employees')
+          .update({
+            first_name: firstName,
+            last_name: lastName,
+            email: userEmail,
+            department: userDepartment,
+            position: userRole,
+          })
+          .eq('id', editingUser.employeeId);
+
+        if (employeeError) {
+          console.error('Error updating employee:', employeeError);
+        }
+      }
+
+      // Update profile role
+      const roleMapping = {
+        'Admin': 'admin',
+        'HR Manager': 'hr', 
+        'Department Head': 'manager',
+        'Employee': 'employee'
+      };
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ 
+          role: roleMapping[userRole as keyof typeof roleMapping] || 'employee'
+        })
+        .eq('user_id', editingUser.id);
+
+      if (profileError) {
+        toast({
+          title: "Error",
+          description: "Failed to update user profile",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "User Updated",
+        description: `${userName} has been updated successfully`,
+      });
+
+      // Reset form and refresh data
+      setUserName("");
+      setUserEmail("");
+      setUserRole("");
+      setUserDepartment("");
+      setEditingUser(null);
+      setIsEditDialogOpen(false);
+      fetchUsers();
+
+    } catch (error) {
+      console.error('Error updating user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update user. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const filteredUsers = users.filter(user => {
     const statusMatch = selectedFilter === "all" || user.status === selectedFilter;
     const searchMatch = searchTerm === "" || 
@@ -398,24 +496,24 @@ export function UserTable() {
                     </Button>
                   </div>
                 </div>
-              </DialogContent>
-            </Dialog>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Last Login</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Last Login</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
@@ -470,9 +568,23 @@ export function UserTable() {
                       <Button size="sm" variant="outline">
                         <Mail className="h-4 w-4" />
                       </Button>
-                      <Button size="sm" variant="outline">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="outline">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditUser(user)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit User
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete User
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -497,6 +609,80 @@ export function UserTable() {
           </div>
         </div>
       </CardContent>
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-user-name">Full Name *</Label>
+                <Input
+                  id="edit-user-name"
+                  placeholder="Enter full name"
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-user-email">Email *</Label>
+                <Input
+                  id="edit-user-email"
+                  type="email"
+                  placeholder="user@company.com"
+                  value={userEmail}
+                  onChange={(e) => setUserEmail(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Role *</Label>
+                <Select value={userRole} onValueChange={setUserRole}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roles.map((role) => (
+                      <SelectItem key={role} value={role}>
+                        {role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Department *</Label>
+                <Select value={userDepartment} onValueChange={setUserDepartment}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept} value={dept}>
+                        {dept}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleUpdateUser} disabled={updating}>
+                {updating ? "Updating..." : "Update User"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
