@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Settings, UserCheck, Clock } from "lucide-react";
+import { Settings, UserCheck, Clock, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -44,6 +44,7 @@ export function TicketManagement() {
   const [newAssignee, setNewAssignee] = useState("");
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [escalating, setEscalating] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -155,6 +156,64 @@ export function TicketManagement() {
     }
   };
 
+  const handleEscalateTicket = async (ticket: Ticket) => {
+    setEscalating(true);
+    try {
+      // Find the next level manager/admin to escalate to
+      const higherLevelUsers = users.filter(user => 
+        user.profiles?.role === 'admin' || 
+        (user.profiles?.role === 'hr' && ticket.assigned_to !== user.id)
+      );
+
+      if (higherLevelUsers.length === 0) {
+        toast({
+          title: "No Higher Level Available",
+          description: "No higher management level available for escalation",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Assign to the first available admin/higher level user
+      const escalateToUser = higherLevelUsers[0];
+
+      const { error } = await supabase
+        .from('tickets')
+        .update({
+          assigned_to: escalateToUser.id,
+          status: 'in_progress',
+          priority: ticket.priority === 'urgent' ? 'urgent' : 
+                   ticket.priority === 'high' ? 'urgent' : 'high'
+        })
+        .eq('id', ticket.id);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to escalate ticket",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Ticket Escalated",
+        description: `Ticket escalated to ${escalateToUser.employees?.first_name} ${escalateToUser.employees?.last_name}`,
+      });
+
+      fetchTickets();
+    } catch (error) {
+      console.error('Error escalating ticket:', error);
+      toast({
+        title: "Error",
+        description: "Failed to escalate ticket",
+        variant: "destructive",
+      });
+    } finally {
+      setEscalating(false);
+    }
+  };
+
   const getPriorityBadge = (priority: string) => {
     const colors = {
       low: "bg-green-100 text-green-800",
@@ -248,20 +307,21 @@ export function TicketManagement() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Dialog open={isDialogOpen && selectedTicket?.id === ticket.id} onOpenChange={setIsDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedTicket(ticket);
-                              setNewStatus(ticket.status);
-                              setNewAssignee(ticket.assigned_to || "");
-                            }}
-                          >
-                            Manage
-                          </Button>
-                        </DialogTrigger>
+                      <div className="flex gap-1">
+                        <Dialog open={isDialogOpen && selectedTicket?.id === ticket.id} onOpenChange={setIsDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedTicket(ticket);
+                                setNewStatus(ticket.status);
+                                setNewAssignee(ticket.assigned_to || "");
+                              }}
+                            >
+                              Manage
+                            </Button>
+                          </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
                             <DialogTitle>Manage Ticket: {ticket.title}</DialogTitle>
@@ -312,6 +372,19 @@ export function TicketManagement() {
                           </div>
                         </DialogContent>
                       </Dialog>
+                      {ticket.status !== 'closed' && ticket.status !== 'resolved' && (
+                        <Button 
+                          size="sm" 
+                          variant="secondary"
+                          onClick={() => handleEscalateTicket(ticket)}
+                          disabled={escalating}
+                          className="ml-1"
+                        >
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                          Escalate
+                        </Button>
+                      )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

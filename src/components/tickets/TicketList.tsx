@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Search, Filter, MessageSquare, Calendar, User } from "lucide-react";
+import { Search, Filter, MessageSquare, Calendar, User, TrendingUp } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,6 +49,7 @@ export function TicketList({ showMyTickets }: TicketListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [escalating, setEscalating] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [commenting, setCommenting] = useState(false);
 
@@ -153,6 +154,45 @@ export function TicketList({ showMyTickets }: TicketListProps) {
       });
     } finally {
       setCommenting(false);
+    }
+  };
+
+  const handleEscalateTicket = async (ticket: Ticket) => {
+    setEscalating(true);
+    try {
+      const { error } = await supabase
+        .from('tickets')
+        .update({
+          status: 'in_progress',
+          priority: ticket.priority === 'urgent' ? 'urgent' : 
+                   ticket.priority === 'high' ? 'urgent' : 'high'
+        })
+        .eq('id', ticket.id);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to escalate ticket",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Ticket Escalated",
+        description: "Your ticket has been escalated to higher management for priority review",
+      });
+
+      fetchTickets();
+    } catch (error) {
+      console.error('Error escalating ticket:', error);
+      toast({
+        title: "Error", 
+        description: "Failed to escalate ticket",
+        variant: "destructive",
+      });
+    } finally {
+      setEscalating(false);
     }
   };
 
@@ -269,16 +309,17 @@ export function TicketList({ showMyTickets }: TicketListProps) {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Dialog open={isDialogOpen && selectedTicket?.id === ticket.id} onOpenChange={setIsDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => setSelectedTicket(ticket)}
-                          >
-                            <MessageSquare className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
+                      <div className="flex gap-1">
+                        <Dialog open={isDialogOpen && selectedTicket?.id === ticket.id} onOpenChange={setIsDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => setSelectedTicket(ticket)}
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
                         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle>{ticket.title}</DialogTitle>
@@ -333,6 +374,19 @@ export function TicketList({ showMyTickets }: TicketListProps) {
                           </div>
                         </DialogContent>
                       </Dialog>
+                      {ticket.status !== 'closed' && ticket.status !== 'resolved' && (
+                        <Button 
+                          size="sm" 
+                          variant="secondary"
+                          onClick={() => handleEscalateTicket(ticket)}
+                          disabled={escalating}
+                          className="ml-1"
+                        >
+                          <TrendingUp className="h-3 w-3 mr-1" />
+                          Escalate
+                        </Button>
+                      )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
