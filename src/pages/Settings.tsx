@@ -4,6 +4,7 @@ import { SecuritySettings } from "@/components/settings/SecuritySettings";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { IntegrationSettings } from "@/components/settings/IntegrationSettings";
 import { BackupSettings } from "@/components/settings/BackupSettings";
+import { ThemeSelector } from "@/components/settings/ThemeSelector";
 
 export default function Settings() {
   return (
@@ -15,14 +16,19 @@ export default function Settings() {
         </p>
       </div>
 
-      <Tabs defaultValue="system" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+      <Tabs defaultValue="themes" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="themes">Themes</TabsTrigger>
           <TabsTrigger value="system">System</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
           <TabsTrigger value="backup">Backup & Data</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="themes" className="space-y-6">
+          <ThemeSelector />
+        </TabsContent>
 
         <TabsContent value="system" className="space-y-6">
           <SystemSettings />
