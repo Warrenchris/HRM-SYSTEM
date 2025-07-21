@@ -16,59 +16,194 @@ export type Database = {
     Tables: {
       employees: {
         Row: {
+          achievements: Json | null
           address: string | null
           auth_email: string | null
+          bank_account_holder_name: string | null
+          bank_account_number: string | null
+          bank_branch_location: string | null
+          bank_code: string | null
+          bank_identifier_code: string | null
+          bank_name: string | null
+          basic_salary: number | null
+          bonuses: Json | null
+          branch_code: string | null
+          contract_end_date: string | null
+          contract_start_date: string | null
+          courses_taken: Json | null
           created_at: string
+          date_of_birth: string | null
           department: string
+          documents: Json | null
           email: string | null
           emergency_contact: string | null
+          emergency_contact_number: string | null
+          emergency_contact_person: string | null
           emergency_phone: string | null
           employee_id: string
+          exit_date: string | null
           first_name: string
+          gender: string | null
+          hourly_rate: number | null
           id: string
+          id_number: string | null
           join_date: string
+          kra_pin: string | null
           last_name: string
+          local_address: string | null
+          login_password: string | null
+          marital_status: string | null
+          mpesa_name: string | null
+          mpesa_number: string | null
+          mpesa_payment_status: string | null
+          next_of_kin_email: string | null
+          next_of_kin_mobile: string | null
+          next_of_kin_name: string | null
+          next_of_kin_relationship: string | null
+          nssf_number: string | null
+          office_branch: string | null
+          office_email: string | null
+          other_academics: string | null
+          other_name: string | null
+          passport_photo_url: string | null
+          permanent_address: string | null
+          personal_email: string | null
           phone: string | null
           position: string
+          reporting_to: string | null
+          role: string | null
           salary: number | null
+          second_name: string | null
+          shif_number: string | null
+          site_project: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          achievements?: Json | null
           address?: string | null
           auth_email?: string | null
+          bank_account_holder_name?: string | null
+          bank_account_number?: string | null
+          bank_branch_location?: string | null
+          bank_code?: string | null
+          bank_identifier_code?: string | null
+          bank_name?: string | null
+          basic_salary?: number | null
+          bonuses?: Json | null
+          branch_code?: string | null
+          contract_end_date?: string | null
+          contract_start_date?: string | null
+          courses_taken?: Json | null
           created_at?: string
+          date_of_birth?: string | null
           department: string
+          documents?: Json | null
           email?: string | null
           emergency_contact?: string | null
+          emergency_contact_number?: string | null
+          emergency_contact_person?: string | null
           emergency_phone?: string | null
           employee_id: string
+          exit_date?: string | null
           first_name: string
+          gender?: string | null
+          hourly_rate?: number | null
           id?: string
+          id_number?: string | null
           join_date: string
+          kra_pin?: string | null
           last_name: string
+          local_address?: string | null
+          login_password?: string | null
+          marital_status?: string | null
+          mpesa_name?: string | null
+          mpesa_number?: string | null
+          mpesa_payment_status?: string | null
+          next_of_kin_email?: string | null
+          next_of_kin_mobile?: string | null
+          next_of_kin_name?: string | null
+          next_of_kin_relationship?: string | null
+          nssf_number?: string | null
+          office_branch?: string | null
+          office_email?: string | null
+          other_academics?: string | null
+          other_name?: string | null
+          passport_photo_url?: string | null
+          permanent_address?: string | null
+          personal_email?: string | null
           phone?: string | null
           position: string
+          reporting_to?: string | null
+          role?: string | null
           salary?: number | null
+          second_name?: string | null
+          shif_number?: string | null
+          site_project?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          achievements?: Json | null
           address?: string | null
           auth_email?: string | null
+          bank_account_holder_name?: string | null
+          bank_account_number?: string | null
+          bank_branch_location?: string | null
+          bank_code?: string | null
+          bank_identifier_code?: string | null
+          bank_name?: string | null
+          basic_salary?: number | null
+          bonuses?: Json | null
+          branch_code?: string | null
+          contract_end_date?: string | null
+          contract_start_date?: string | null
+          courses_taken?: Json | null
           created_at?: string
+          date_of_birth?: string | null
           department?: string
+          documents?: Json | null
           email?: string | null
           emergency_contact?: string | null
+          emergency_contact_number?: string | null
+          emergency_contact_person?: string | null
           emergency_phone?: string | null
           employee_id?: string
+          exit_date?: string | null
           first_name?: string
+          gender?: string | null
+          hourly_rate?: number | null
           id?: string
+          id_number?: string | null
           join_date?: string
+          kra_pin?: string | null
           last_name?: string
+          local_address?: string | null
+          login_password?: string | null
+          marital_status?: string | null
+          mpesa_name?: string | null
+          mpesa_number?: string | null
+          mpesa_payment_status?: string | null
+          next_of_kin_email?: string | null
+          next_of_kin_mobile?: string | null
+          next_of_kin_name?: string | null
+          next_of_kin_relationship?: string | null
+          nssf_number?: string | null
+          office_branch?: string | null
+          office_email?: string | null
+          other_academics?: string | null
+          other_name?: string | null
+          passport_photo_url?: string | null
+          permanent_address?: string | null
+          personal_email?: string | null
           phone?: string | null
           position?: string
+          reporting_to?: string | null
+          role?: string | null
           salary?: number | null
+          second_name?: string | null
+          shif_number?: string | null
+          site_project?: string | null
           status?: string
           updated_at?: string
         }

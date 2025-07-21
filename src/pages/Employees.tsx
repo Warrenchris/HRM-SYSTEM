@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { EmployeeTable } from "@/components/employees/EmployeeTable";
 import { EmployeeStats } from "@/components/employees/EmployeeStats";
 import { AddEmployeeDialog } from "@/components/employees/AddEmployeeDialog";
+import { EmployeeFormData } from "@/components/employees/EmployeeFormTabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -19,31 +20,87 @@ export default function Employees() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { toast } = useToast();
 
-  const handleAddEmployee = async (employeeData: any) => {
+  const handleAddEmployee = async (employeeData: EmployeeFormData) => {
     try {
       const { error } = await supabase
         .from('employees')
         .insert({
+          // Personal Information
           employee_id: employeeData.employeeId,
           first_name: employeeData.firstName,
-          last_name: employeeData.lastName,
-          email: employeeData.email,
+          last_name: employeeData.secondName || employeeData.otherName || employeeData.firstName, // Use second name as last name, fallback to other name or first name
+          second_name: employeeData.secondName,
+          other_name: employeeData.otherName,
+          office_email: employeeData.officeEmail,
+          personal_email: employeeData.personalEmail,
+          email: employeeData.officeEmail, // Keep for backward compatibility
+          date_of_birth: employeeData.dateOfBirth,
+          gender: employeeData.gender,
+          marital_status: employeeData.maritalStatus,
           phone: employeeData.phone,
+          local_address: employeeData.localAddress,
+          permanent_address: employeeData.permanentAddress,
+          login_password: employeeData.loginPassword,
+
+          // Company Information
           department: employeeData.department,
-          position: employeeData.position,
-          join_date: employeeData.joinDate,
-          salary: parseFloat(employeeData.salary),
+          position: employeeData.designation,
+          reporting_to: employeeData.reportingTo,
+          role: employeeData.role,
+          office_branch: employeeData.officeBranch,
+          site_project: employeeData.siteProject,
+          join_date: employeeData.dateOfJoining,
+          contract_start_date: employeeData.contractStartDate,
+          contract_end_date: employeeData.contractEndDate,
+          exit_date: employeeData.exitDate,
+
+          // Payment Information
+          basic_salary: employeeData.basicSalary ? parseFloat(employeeData.basicSalary) : null,
+          hourly_rate: employeeData.hourlyRate ? parseFloat(employeeData.hourlyRate) : null,
+          salary: employeeData.basicSalary ? parseFloat(employeeData.basicSalary) : null, // Keep for backward compatibility
+
+          // Bank Details
+          bank_name: employeeData.bankName,
+          bank_branch_location: employeeData.bankBranchLocation,
+          bank_account_holder_name: employeeData.bankAccountHolderName,
+          bank_account_number: employeeData.bankAccountNumber,
+          bank_code: employeeData.bankCode,
+          branch_code: employeeData.branchCode,
+          bank_identifier_code: employeeData.bankIdentifierCode,
+          kra_pin: employeeData.kraPin,
+
+          // Mpesa Details
+          mpesa_name: employeeData.mpesaName,
+          mpesa_number: employeeData.mpesaNumber,
+          mpesa_payment_status: employeeData.mpesaPaymentStatus,
+
+          // Statutory Information
+          shif_number: employeeData.shifNumber,
+          nssf_number: employeeData.nssfNumber,
+          id_number: employeeData.idNumber,
+
+          // Academic Information
+          achievements: JSON.stringify(employeeData.achievements),
+          courses_taken: JSON.stringify(employeeData.coursesTaken),
+          other_academics: employeeData.otherAcademics,
+
+          // Next of Kin Information
+          next_of_kin_name: employeeData.nextOfKinName,
+          next_of_kin_relationship: employeeData.nextOfKinRelationship,
+          next_of_kin_mobile: employeeData.nextOfKinMobile,
+          next_of_kin_email: employeeData.nextOfKinEmail,
+          emergency_contact_person: employeeData.emergencyContactPerson,
+          emergency_contact_number: employeeData.emergencyContactNumber,
+
+          // Default values
           status: 'active',
-          address: employeeData.address,
-          emergency_contact: employeeData.emergencyContact,
-          emergency_phone: employeeData.emergencyPhone,
         });
 
       if (error) throw error;
 
       toast({
         title: "Employee Added",
-        description: `${employeeData.firstName} ${employeeData.lastName} has been added successfully.`,
+        description: `${employeeData.firstName} has been added successfully.`,
       });
       
       setIsAddDialogOpen(false);
