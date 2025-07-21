@@ -15,21 +15,24 @@ import {
   FileText,
   AlertTriangle
 } from "lucide-react";
+import { useEmployeeStats } from "@/hooks/useEmployeeStats";
 
 export default function Dashboard() {
+  const { totalEmployees, activeEmployees, exitedEmployees, loading, error } = useEmployeeStats();
+
   const stats = [
     {
       title: "Total Employees",
-      value: "1,248",
-      change: "+12%",
+      value: loading ? "..." : totalEmployees.toString(),
+      change: `${activeEmployees} active`,
       trend: "up",
       icon: Users,
       color: "bg-blue-500"
     },
     {
-      title: "Present Today",
-      value: "1,156",
-      change: "92.6%",
+      title: "Active Employees",
+      value: loading ? "..." : activeEmployees.toString(),
+      change: `${exitedEmployees} exited`,
       trend: "up",
       icon: UserCheck,
       color: "bg-green-500"
