@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,8 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
-import { Users, Plus, Search, Filter, MoreHorizontal, Shield, Mail } from "lucide-react";
+import { Users, Plus, Search, Filter, MoreHorizontal, Shield, Mail, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface User {
   id: string;
@@ -20,7 +21,6 @@ interface User {
   department: string;
   status: "active" | "inactive" | "pending";
   lastLogin: string;
-  permissions: string[];
   avatar?: string;
 }
 
@@ -32,63 +32,66 @@ export function UserTable() {
   const [userEmail, setUserEmail] = useState("");
   const [userRole, setUserRole] = useState("");
   const [userDepartment, setUserDepartment] = useState("");
+  const [userPassword, setUserPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
   const { toast } = useToast();
 
-  const users: User[] = [
-    {
-      id: "U001",
-      name: "Sarah Manager",
-      email: "sarah.manager@company.com",
-      role: "Admin",
-      department: "IT",
-      status: "active",
-      lastLogin: "2024-07-23 09:30",
-      permissions: ["user_management", "system_settings", "reports"],
-      avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Sarah Manager",
-    },
-    {
-      id: "U002",
-      name: "John Developer",
-      email: "john.dev@company.com",
-      role: "Employee",
-      department: "Engineering",
-      status: "active",
-      lastLogin: "2024-07-23 08:45",
-      permissions: ["view_own_data", "submit_requests"],
-    },
-    {
-      id: "U003",
-      name: "Emily HR",
-      email: "emily.hr@company.com",
-      role: "HR Manager",
-      department: "Human Resources",
-      status: "active",
-      lastLogin: "2024-07-22 16:20",
-      permissions: ["employee_management", "payroll_access", "reports"],
-    },
-    {
-      id: "U004",
-      name: "Mike Finance",
-      email: "mike.finance@company.com",
-      role: "Finance Manager",
-      department: "Finance",
-      status: "active",
-      lastLogin: "2024-07-23 07:15",
-      permissions: ["payroll_management", "expense_approval", "financial_reports"],
-    },
-    {
-      id: "U005",
-      name: "Lisa Designer",
-      email: "lisa.design@company.com",
-      role: "Employee",
-      department: "Design",
-      status: "inactive",
-      lastLogin: "2024-07-20 14:30",
-      permissions: ["view_own_data", "submit_requests"],
-    },
-  ];
+  // Fetch users from Supabase
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
-  const roles = ["Admin", "HR Manager", "Finance Manager", "Department Head", "Employee"];
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select(`
+          *,
+          employees(first_name, last_name, department, email)
+        `);
+
+      if (error) {
+        console.error('Error fetching users:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load users",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const formattedUsers: User[] = profiles?.map(profile => ({
+        id: profile.user_id,
+        name: profile.employees 
+          ? `${profile.employees.first_name} ${profile.employees.last_name}`
+          : 'Unknown User',
+        email: profile.employees?.email || 'No email',
+        role: profile.role === 'admin' ? 'Admin' : 
+              profile.role === 'hr' ? 'HR Manager' :
+              profile.role === 'manager' ? 'Department Head' : 'Employee',
+        department: profile.employees?.department || 'Unknown',
+        status: profile.is_active ? 'active' : 'inactive',
+        lastLogin: new Date().toISOString(), // You can track this separately later
+      })) || [];
+
+      setUsers(formattedUsers);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load users",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const roles = ["Admin", "HR Manager", "Department Head", "Employee"];
   const departments = ["IT", "Engineering", "Human Resources", "Finance", "Design", "Marketing", "Sales"];
 
   const getStatusBadge = (status: User["status"]) => {
@@ -114,35 +117,143 @@ export function UserTable() {
     return <Badge className={roleColors[role] || "bg-gray-100 text-gray-800 hover:bg-gray-100"}>{role}</Badge>;
   };
 
-  const handleCreateUser = () => {
-    if (!userName || !userEmail || !userRole || !userDepartment) {
+  const handleCreateUser = async () => {
+    if (!userName || !userEmail || !userRole || !userDepartment || !userPassword) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields including password",
         variant: "destructive",
       });
       return;
     }
 
-    toast({
-      title: "User Created",
-      description: `User ${userName} has been created successfully`,
-    });
+    setCreating(true);
+    try {
+      // Create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: userEmail,
+        password: userPassword,
+        options: {
+          emailRedirectTo: `${window.location.origin}/dashboard`
+        }
+      });
 
-    // Reset form
-    setUserName("");
-    setUserEmail("");
-    setUserRole("");
-    setUserDepartment("");
-    setIsDialogOpen(false);
+      if (authError) {
+        toast({
+          title: "Error Creating User",
+          description: authError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!authData.user) {
+        toast({
+          title: "Error",
+          description: "Failed to create user account",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create employee record
+      const [firstName, ...lastNameParts] = userName.split(' ');
+      const lastName = lastNameParts.join(' ') || '';
+      
+      const { error: employeeError } = await supabase
+        .from('employees')
+        .insert({
+          first_name: firstName,
+          last_name: lastName,
+          email: userEmail,
+          auth_email: userEmail,
+          department: userDepartment,
+          position: userRole,
+          employee_id: `EMP${Date.now()}`,
+          join_date: new Date().toISOString().split('T')[0],
+        });
+
+      if (employeeError) {
+        console.error('Error creating employee:', employeeError);
+      }
+
+      // Update profile with role
+      const roleMapping = {
+        'Admin': 'admin',
+        'HR Manager': 'hr', 
+        'Department Head': 'manager',
+        'Employee': 'employee'
+      };
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ 
+          role: roleMapping[userRole as keyof typeof roleMapping] || 'employee'
+        })
+        .eq('user_id', authData.user.id);
+
+      if (profileError) {
+        console.error('Error updating profile:', profileError);
+      }
+
+      toast({
+        title: "User Created",
+        description: `User ${userName} has been created successfully`,
+      });
+
+      // Reset form and refresh data
+      setUserName("");
+      setUserEmail("");
+      setUserRole("");
+      setUserDepartment("");
+      setUserPassword("");
+      setIsDialogOpen(false);
+      fetchUsers();
+
+    } catch (error) {
+      console.error('Error creating user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create user. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreating(false);
+    }
   };
 
-  const handleToggleStatus = (userId: string, userName: string, currentStatus: User["status"]) => {
+  const handleToggleStatus = async (userId: string, userName: string, currentStatus: User["status"]) => {
     const newStatus = currentStatus === "active" ? "inactive" : "active";
-    toast({
-      title: "Status Updated",
-      description: `${userName} has been ${newStatus === "active" ? "activated" : "deactivated"}`,
-    });
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_active: newStatus === "active" })
+        .eq('user_id', userId);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to update user status",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Status Updated",
+        description: `${userName} has been ${newStatus === "active" ? "activated" : "deactivated"}`,
+      });
+
+      fetchUsers();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update user status",
+        variant: "destructive",
+      });
+    }
   };
 
   const filteredUsers = users.filter(user => {
@@ -219,6 +330,32 @@ export function UserTable() {
                     </div>
                   </div>
 
+                  <div>
+                    <Label htmlFor="user-password">Password *</Label>
+                    <div className="relative">
+                      <Input
+                        id="user-password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Enter password"
+                        value={userPassword}
+                        onChange={(e) => setUserPassword(e.target.value)}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Role *</Label>
@@ -256,8 +393,8 @@ export function UserTable() {
                     <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={handleCreateUser}>
-                      Create User
+                    <Button onClick={handleCreateUser} disabled={creating}>
+                      {creating ? "Creating..." : "Create User"}
                     </Button>
                   </div>
                 </div>
@@ -280,13 +417,27 @@ export function UserTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredUsers.map((user) => (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    Loading users...
+                  </TableCell>
+                </TableRow>
+              ) : filteredUsers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    No users found
+                  </TableCell>
+                </TableRow>
+              ) : filteredUsers.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar>
                         <AvatarImage src={user.avatar} />
-                        <AvatarFallback>{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                        <AvatarFallback>
+                          {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        </AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="font-medium">{user.name}</div>
@@ -325,7 +476,7 @@ export function UserTable() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                ))}
             </TableBody>
           </Table>
         </div>
