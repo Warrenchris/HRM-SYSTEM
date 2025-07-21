@@ -10,10 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CalendarIcon, Play, CheckCircle, AlertTriangle, DollarSign, Download, FileText, CreditCard, Calculator, Users, Eye } from "lucide-react";
+import { CalendarIcon, Play, CheckCircle, AlertTriangle, DollarSign, Download, FileText, CreditCard, Calculator, Users, Eye, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { usePayrollEmployees, usePayrollRecords, calculatePayroll } from "@/hooks/usePayrollData";
 
 const payrollSteps = [
   { id: 1, name: "Import Attendance", status: "completed", description: "Attendance data imported successfully" },
@@ -83,11 +84,21 @@ export function PayrollProcessing() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [payrollPeriod, setPayrollPeriod] = useState("monthly");
   const [currentStep, setCurrentStep] = useState(5);
-  const [selectedEmployees, setSelectedEmployees] = useState<string[]>(employeePayrollData.map(emp => emp.id));
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [isGeneratingPayslips, setIsGeneratingPayslips] = useState(false);
   const [isProcessingPayments, setIsProcessingPayments] = useState(false);
   const [showPayslipPreview, setShowPayslipPreview] = useState<string | null>(null);
   const { toast } = useToast();
+  
+  const { employees, loading: employeesLoading } = usePayrollEmployees();
+  const { records, processPayroll, loading: recordsLoading } = usePayrollRecords();
+  
+  // Initialize selected employees when employees are loaded
+  useEffect(() => {
+    if (employees.length > 0 && selectedEmployees.length === 0) {
+      setSelectedEmployees(employees.map(emp => emp.id));
+    }
+  }, [employees, selectedEmployees.length]);
 
   const getStepIcon = (step: any) => {
     switch (step.status) {
@@ -107,30 +118,69 @@ export function PayrollProcessing() {
   const handleGeneratePayslips = async () => {
     setIsGeneratingPayslips(true);
     
-    // Simulate payslip generation
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    toast({
-      title: "Payslips Generated Successfully",
-      description: `Generated ${selectedEmployees.length} payslips for January 2024.`,
-    });
-    
-    setIsGeneratingPayslips(false);
-    setCurrentStep(6);
+    try {
+      const payPeriod = `${format(selectedDate, 'yyyy-MM')}`;
+      const payDate = format(selectedDate, 'yyyy-MM-dd');
+      
+      // Process payroll for selected employees
+      for (const employeeId of selectedEmployees) {
+        const employee = employees.find(emp => emp.id === employeeId);
+        if (!employee) continue;
+        
+        const allowances = Math.round((employee.basic_salary || employee.salary || 0) * 0.2);
+        const overtime = 0;
+        const calculations = calculatePayroll(employee, allowances, overtime);
+        
+        await processPayroll(employeeId, payPeriod, payDate, calculations);
+      }
+      
+      toast({
+        title: "Payslips Generated Successfully",
+        description: `Generated ${selectedEmployees.length} payslips for ${format(selectedDate, 'MMMM yyyy')}.`,
+      });
+      
+      setCurrentStep(6);
+    } catch (error) {
+      toast({
+        title: "Error generating payslips",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPayslips(false);
+    }
   };
 
   const handleProcessPayments = async () => {
     setIsProcessingPayments(true);
     
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    toast({
-      title: "Payments Processed",
-      description: `KSh ${payrollSummary.totalNet.toLocaleString()} transferred to ${selectedEmployees.length} employees.`,
-    });
-    
-    setIsProcessingPayments(false);
+    try {
+      // Calculate total for selected employees
+      const totalNet = selectedEmployees.reduce((sum, employeeId) => {
+        const employee = employees.find(emp => emp.id === employeeId);
+        if (!employee) return sum;
+        
+        const allowances = Math.round((employee.basic_salary || employee.salary || 0) * 0.2);
+        const calculations = calculatePayroll(employee, allowances, 0);
+        return sum + calculations.netSalary;
+      }, 0);
+      
+      // Simulate payment processing
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      toast({
+        title: "Payments Processed",
+        description: `KSh ${totalNet.toLocaleString()} transferred to ${selectedEmployees.length} employees.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error processing payments",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingPayments(false);
+    }
   };
 
   const handleExportPayslips = (format: string) => {
@@ -157,6 +207,47 @@ export function PayrollProcessing() {
 
   const progressPercentage = (currentStep / payrollSteps.length) * 100;
 
+  // Calculate real-time stats from employees
+  const calculateStats = () => {
+    if (!employees.length) return { totalEmployees: 0, totalGross: 0, totalDeductions: 0, totalNet: 0 };
+    
+    const selectedEmployeeData = employees.filter(emp => selectedEmployees.includes(emp.id));
+    
+    let totalGross = 0;
+    let totalDeductions = 0;
+    let totalNet = 0;
+    
+    selectedEmployeeData.forEach(employee => {
+      const allowances = Math.round((employee.basic_salary || employee.salary || 0) * 0.2);
+      const overtime = 0;
+      const calculations = calculatePayroll(employee, allowances, overtime);
+      
+      totalGross += calculations.grossSalary;
+      totalDeductions += calculations.totalDeductions;
+      totalNet += calculations.netSalary;
+    });
+    
+    return {
+      totalEmployees: selectedEmployeeData.length,
+      totalGross,
+      totalDeductions,
+      totalNet
+    };
+  };
+
+  const stats = calculateStats();
+
+  if (employeesLoading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Loading payroll data...</span>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
@@ -167,9 +258,9 @@ export function PayrollProcessing() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{payrollSummary.totalEmployees}</div>
+            <div className="text-2xl font-bold">{stats.totalEmployees}</div>
             <p className="text-xs text-muted-foreground">
-              {payrollSummary.approvedEmployees} approved, {payrollSummary.pendingApprovals} pending
+              Selected for payroll processing
             </p>
           </CardContent>
         </Card>
@@ -180,7 +271,7 @@ export function PayrollProcessing() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">KSh {payrollSummary.totalGross.toLocaleString()}</div>
+            <div className="text-2xl font-bold">KSh {stats.totalGross.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               Before deductions
             </p>
@@ -194,7 +285,7 @@ export function PayrollProcessing() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              KSh {(payrollSummary.totalPaye + payrollSummary.totalNssf + payrollSummary.totalShif + payrollSummary.totalHousingLevy).toLocaleString()}
+              KSh {Math.round(stats.totalDeductions).toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
               Tax & statutory deductions
@@ -208,7 +299,7 @@ export function PayrollProcessing() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">KSh {payrollSummary.totalNet.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-600">KSh {Math.round(stats.totalNet).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               To be paid out
             </p>
@@ -317,17 +408,17 @@ export function PayrollProcessing() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <Checkbox
-                  checked={selectedEmployees.length === employeePayrollData.length}
+                  checked={selectedEmployees.length === employees.length}
                   onCheckedChange={(checked) => {
                     if (checked) {
-                      setSelectedEmployees(employeePayrollData.map(emp => emp.id));
+                      setSelectedEmployees(employees.map(emp => emp.id));
                     } else {
                       setSelectedEmployees([]);
                     }
                   }}
                 />
                 <span className="text-sm font-medium">
-                  Select All ({selectedEmployees.length} of {employeePayrollData.length} selected)
+                  Select All ({selectedEmployees.length} of {employees.length} selected)
                 </span>
               </div>
               <div className="flex gap-2">
@@ -355,49 +446,54 @@ export function PayrollProcessing() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {employeePayrollData.map((employee) => (
-                    <TableRow key={employee.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedEmployees.includes(employee.id)}
-                          onCheckedChange={() => toggleEmployeeSelection(employee.id)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{employee.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {employee.id} • {employee.department}
+                  {employees.map((employee) => {
+                    const allowances = Math.round((employee.basic_salary || employee.salary || 0) * 0.2);
+                    const overtime = 0;
+                    const calculations = calculatePayroll(employee, allowances, overtime);
+                    
+                    return (
+                      <TableRow key={employee.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedEmployees.includes(employee.id)}
+                            onCheckedChange={() => toggleEmployeeSelection(employee.id)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{employee.first_name} {employee.last_name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {employee.employee_id} • {employee.department}
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">KSh {employee.grossSalary.toLocaleString()}</div>
-                        <div className="text-sm text-muted-foreground">
-                          Basic: KSh {employee.basicSalary.toLocaleString()}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">
-                          <div>PAYE: KSh {employee.deductions.paye.toLocaleString()}</div>
-                          <div>NSSF: KSh {employee.deductions.nssf.toLocaleString()}</div>
-                          <div>Other: KSh {(employee.deductions.shif + employee.deductions.housingLevy).toLocaleString()}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium text-green-600">
-                          KSh {employee.netSalary.toLocaleString()}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {employee.bankAccount}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={employee.approved ? "default" : "secondary"}>
-                          {employee.approved ? "Approved" : "Pending"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">KSh {calculations.grossSalary.toLocaleString()}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Basic: KSh {(employee.basic_salary || employee.salary || 0).toLocaleString()}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            <div>PAYE: KSh {Math.round(calculations.paye).toLocaleString()}</div>
+                            <div>NSSF: KSh {Math.round(calculations.nssf).toLocaleString()}</div>
+                            <div>Other: KSh {Math.round(calculations.shif + calculations.housingLevy).toLocaleString()}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium text-green-600">
+                            KSh {Math.round(calculations.netSalary).toLocaleString()}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {employee.bank_account_number ? `****${employee.bank_account_number.slice(-4)}` : 'No bank account'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="default">
+                            Ready
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
                         <div className="flex items-center gap-2">
                           <Dialog>
                             <DialogTrigger asChild>
@@ -411,9 +507,9 @@ export function PayrollProcessing() {
                             </DialogTrigger>
                             <DialogContent className="max-w-2xl">
                               <DialogHeader>
-                                <DialogTitle>Payslip Preview - {employee.name}</DialogTitle>
+                                <DialogTitle>Payslip Preview - {employee.first_name} {employee.last_name}</DialogTitle>
                                 <DialogDescription>
-                                  January 2024 payslip for {employee.name} ({employee.id})
+                                  {format(selectedDate, 'MMMM yyyy')} payslip for {employee.first_name} {employee.last_name}
                                 </DialogDescription>
                               </DialogHeader>
                               
@@ -424,29 +520,15 @@ export function PayrollProcessing() {
                                     <div className="space-y-1 text-sm">
                                       <div className="flex justify-between">
                                         <span>Basic Salary:</span>
-                                        <span>KSh {employee.basicSalary.toLocaleString()}</span>
+                                        <span>KSh {(employee.basic_salary || employee.salary || 0).toLocaleString()}</span>
                                       </div>
                                       <div className="flex justify-between">
-                                        <span>House Allowance:</span>
-                                        <span>KSh {employee.allowances.house.toLocaleString()}</span>
+                                        <span>Allowances:</span>
+                                        <span>KSh {allowances.toLocaleString()}</span>
                                       </div>
-                                      <div className="flex justify-between">
-                                        <span>Transport Allowance:</span>
-                                        <span>KSh {employee.allowances.transport.toLocaleString()}</span>
-                                      </div>
-                                      <div className="flex justify-between">
-                                        <span>Medical Allowance:</span>
-                                        <span>KSh {employee.allowances.medical.toLocaleString()}</span>
-                                      </div>
-                                      {employee.overtime > 0 && (
-                                        <div className="flex justify-between">
-                                          <span>Overtime:</span>
-                                          <span>KSh {employee.overtime.toLocaleString()}</span>
-                                        </div>
-                                      )}
                                       <div className="flex justify-between font-medium border-t pt-1">
                                         <span>Gross Salary:</span>
-                                        <span>KSh {employee.grossSalary.toLocaleString()}</span>
+                                        <span>KSh {calculations.grossSalary.toLocaleString()}</span>
                                       </div>
                                     </div>
                                   </div>
@@ -456,27 +538,27 @@ export function PayrollProcessing() {
                                     <div className="space-y-1 text-sm">
                                       <div className="flex justify-between">
                                         <span>PAYE Tax:</span>
-                                        <span>KSh {employee.deductions.paye.toLocaleString()}</span>
+                                        <span>KSh {Math.round(calculations.paye).toLocaleString()}</span>
                                       </div>
                                       <div className="flex justify-between">
                                         <span>NSSF:</span>
-                                        <span>KSh {employee.deductions.nssf.toLocaleString()}</span>
+                                        <span>KSh {Math.round(calculations.nssf).toLocaleString()}</span>
                                       </div>
                                       <div className="flex justify-between">
                                         <span>SHIF:</span>
-                                        <span>KSh {employee.deductions.shif.toLocaleString()}</span>
+                                        <span>KSh {calculations.shif.toLocaleString()}</span>
                                       </div>
                                       <div className="flex justify-between">
                                         <span>Housing Levy:</span>
-                                        <span>KSh {employee.deductions.housingLevy.toLocaleString()}</span>
+                                        <span>KSh {Math.round(calculations.housingLevy).toLocaleString()}</span>
                                       </div>
                                       <div className="flex justify-between font-medium border-t pt-1">
                                         <span>Total Deductions:</span>
-                                        <span>KSh {Object.values(employee.deductions).reduce((sum, val) => sum + val, 0).toLocaleString()}</span>
+                                        <span>KSh {Math.round(calculations.totalDeductions).toLocaleString()}</span>
                                       </div>
                                       <div className="flex justify-between font-bold text-green-600 border-t pt-1">
                                         <span>Net Salary:</span>
-                                        <span>KSh {employee.netSalary.toLocaleString()}</span>
+                                        <span>KSh {Math.round(calculations.netSalary).toLocaleString()}</span>
                                       </div>
                                     </div>
                                   </div>
@@ -485,9 +567,10 @@ export function PayrollProcessing() {
                             </DialogContent>
                           </Dialog>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

@@ -388,6 +388,47 @@ export type Database = {
         }
         Relationships: []
       }
+      attendance_summary: {
+        Row: {
+          created_at: string
+          days_absent: number
+          days_worked: number
+          employee_id: string
+          id: string
+          overtime_hours: number
+          pay_period: string
+          total_hours: number
+        }
+        Insert: {
+          created_at?: string
+          days_absent?: number
+          days_worked?: number
+          employee_id: string
+          id?: string
+          overtime_hours?: number
+          pay_period: string
+          total_hours?: number
+        }
+        Update: {
+          created_at?: string
+          days_absent?: number
+          days_worked?: number
+          employee_id?: string
+          id?: string
+          overtime_hours?: number
+          pay_period?: string
+          total_hours?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_attendance_employee"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
           achievements: Json | null
@@ -582,6 +623,80 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      payroll_records: {
+        Row: {
+          allowances: number
+          basic_salary: number
+          created_at: string
+          employee_id: string
+          gross_salary: number
+          housing_levy: number
+          id: string
+          net_salary: number
+          nssf_deduction: number
+          other_deductions: number
+          overtime_pay: number
+          pay_date: string
+          pay_period: string
+          paye_tax: number
+          processed_by: string | null
+          shif_deduction: number
+          status: string
+          total_deductions: number
+          updated_at: string
+        }
+        Insert: {
+          allowances?: number
+          basic_salary?: number
+          created_at?: string
+          employee_id: string
+          gross_salary?: number
+          housing_levy?: number
+          id?: string
+          net_salary?: number
+          nssf_deduction?: number
+          other_deductions?: number
+          overtime_pay?: number
+          pay_date: string
+          pay_period: string
+          paye_tax?: number
+          processed_by?: string | null
+          shif_deduction?: number
+          status?: string
+          total_deductions?: number
+          updated_at?: string
+        }
+        Update: {
+          allowances?: number
+          basic_salary?: number
+          created_at?: string
+          employee_id?: string
+          gross_salary?: number
+          housing_levy?: number
+          id?: string
+          net_salary?: number
+          nssf_deduction?: number
+          other_deductions?: number
+          overtime_pay?: number
+          pay_date?: string
+          pay_period?: string
+          paye_tax?: number
+          processed_by?: string | null
+          shif_deduction?: number
+          status?: string
+          total_deductions?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_payroll_employee"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
