@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PerformanceStats } from "@/components/performance/PerformanceStats";
 import { PerformanceReviews } from "@/components/performance/PerformanceReviews";
+import { PerformanceAppraisals } from "@/components/performance/PerformanceAppraisals";
 import { GoalTracking } from "@/components/performance/GoalTracking";
 import { FeedbackSystem } from "@/components/performance/FeedbackSystem";
 import { DevelopmentPlans } from "@/components/performance/DevelopmentPlans";
@@ -18,8 +19,9 @@ export default function Performance() {
       <PerformanceStats />
 
       <Tabs defaultValue="reviews" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="reviews">Reviews</TabsTrigger>
+          <TabsTrigger value="appraisals">Appraisals</TabsTrigger>
           <TabsTrigger value="goals">Goals</TabsTrigger>
           <TabsTrigger value="feedback">Feedback</TabsTrigger>
           <TabsTrigger value="development">Development</TabsTrigger>
@@ -28,6 +30,10 @@ export default function Performance() {
 
         <TabsContent value="reviews" className="space-y-6">
           <PerformanceReviews />
+        </TabsContent>
+
+        <TabsContent value="appraisals" className="space-y-6">
+          <PerformanceAppraisals />
         </TabsContent>
 
         <TabsContent value="goals" className="space-y-6">
