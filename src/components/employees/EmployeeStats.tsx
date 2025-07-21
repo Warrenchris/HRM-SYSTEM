@@ -1,38 +1,41 @@
 import { Users, UserCheck, UserX, UserPlus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-const stats = [
-  {
-    title: "Total Employees",
-    value: "247",
-    change: "+5 this month",
-    icon: Users,
-    color: "text-primary"
-  },
-  {
-    title: "Active Employees",
-    value: "241",
-    change: "+2 this week",
-    icon: UserCheck,
-    color: "text-emerald-600"
-  },
-  {
-    title: "On Leave",
-    value: "6",
-    change: "3 returning tomorrow",
-    icon: UserX,
-    color: "text-orange-500"
-  },
-  {
-    title: "New Hires",
-    value: "12",
-    change: "This quarter",
-    icon: UserPlus,
-    color: "text-blue-600"
-  }
-];
+import { useEmployeeStats } from "@/hooks/useEmployeeStats";
 
 export function EmployeeStats() {
+  const { totalEmployees, activeEmployees, exitedEmployees, loading, error } = useEmployeeStats();
+
+  const stats = [
+    {
+      title: "Total Employees",
+      value: loading ? "..." : totalEmployees.toString(),
+      change: `${exitedEmployees} exited`,
+      icon: Users,
+      color: "text-primary"
+    },
+    {
+      title: "Active Employees",
+      value: loading ? "..." : activeEmployees.toString(),
+      change: totalEmployees > 0 ? `${((activeEmployees / totalEmployees) * 100).toFixed(1)}% active` : "0% active",
+      icon: UserCheck,
+      color: "text-emerald-600"
+    },
+    {
+      title: "Exited Employees",
+      value: loading ? "..." : exitedEmployees.toString(),
+      change: totalEmployees > 0 ? `${((exitedEmployees / totalEmployees) * 100).toFixed(1)}% of total` : "0% of total",
+      icon: UserX,
+      color: "text-orange-500"
+    },
+    {
+      title: "New Hires",
+      value: "12",
+      change: "This quarter",
+      icon: UserPlus,
+      color: "text-blue-600"
+    }
+  ];
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {stats.map((stat, index) => (
