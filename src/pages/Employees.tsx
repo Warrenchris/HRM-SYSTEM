@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { EmployeeTable } from "@/components/employees/EmployeeTable";
@@ -18,6 +19,7 @@ export default function Employees() {
   const [selectedDepartment, setSelectedDepartment] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [activeTab, setActiveTab] = useState("active");
   const { toast } = useToast();
 
   const handleAddEmployee = async (employeeData: EmployeeFormData) => {
@@ -185,92 +187,149 @@ export default function Employees() {
       {/* Employee Statistics */}
       <EmployeeStats />
 
-      {/* Search and Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Employee Directory</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4 mb-6">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Search employees by name, email, or employee ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+      {/* Employee Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList>
+          <TabsTrigger value="active">Active Employees</TabsTrigger>
+          <TabsTrigger value="exited">Exited Employees</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="active" className="space-y-4">
+          {/* Search and Filters */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Employee Directory</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-4 mb-6">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder="Search employees by name, email, or employee ID..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Select Department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Departments</SelectItem>
+                      <SelectItem value="engineering">Engineering</SelectItem>
+                      <SelectItem value="marketing">Marketing</SelectItem>
+                      <SelectItem value="sales">Sales</SelectItem>
+                      <SelectItem value="hr">Human Resources</SelectItem>
+                      <SelectItem value="finance">Finance</SelectItem>
+                      <SelectItem value="operations">Operations</SelectItem>
+                      <SelectItem value="it">IT Support</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline">
+                    <Filter className="w-4 h-4 mr-2" />
+                    More Filters
+                  </Button>
+                </div>
+              </div>
+
+              {/* Filter Summary */}
+              {(selectedDepartment !== "all" || searchTerm) && (
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-sm text-muted-foreground">Active filters:</span>
+                  {selectedDepartment !== "all" && (
+                    <Badge variant="secondary" className="gap-1">
+                      Department: {selectedDepartment.charAt(0).toUpperCase() + selectedDepartment.slice(1)}
+                      <button 
+                        onClick={() => setSelectedDepartment("all")}
+                        className="ml-1 hover:bg-destructive hover:text-destructive-foreground rounded-full"
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  )}
+                  {searchTerm && (
+                    <Badge variant="secondary" className="gap-1">
+                      Search: "{searchTerm}"
+                      <button 
+                        onClick={() => setSearchTerm("")}
+                        className="ml-1 hover:bg-destructive hover:text-destructive-foreground rounded-full"
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  )}
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => {
+                      setSelectedDepartment("all");
+                      setSearchTerm("");
+                    }}
+                    className="text-xs"
+                  >
+                    Clear all
+                  </Button>
+                </div>
+              )}
+
+              <EmployeeTable 
+                searchTerm={searchTerm}
+                selectedDepartment={selectedDepartment}
+                refreshTrigger={refreshTrigger}
+                showExited={false}
               />
-            </div>
-            <div className="flex gap-2">
-              <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Select Department" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Departments</SelectItem>
-                  <SelectItem value="engineering">Engineering</SelectItem>
-                  <SelectItem value="marketing">Marketing</SelectItem>
-                  <SelectItem value="sales">Sales</SelectItem>
-                  <SelectItem value="hr">Human Resources</SelectItem>
-                  <SelectItem value="finance">Finance</SelectItem>
-                  <SelectItem value="operations">Operations</SelectItem>
-                  <SelectItem value="it">IT Support</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button variant="outline">
-                <Filter className="w-4 h-4 mr-2" />
-                More Filters
-              </Button>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-          {/* Filter Summary */}
-          {(selectedDepartment !== "all" || searchTerm) && (
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-sm text-muted-foreground">Active filters:</span>
-              {selectedDepartment !== "all" && (
-                <Badge variant="secondary" className="gap-1">
-                  Department: {selectedDepartment.charAt(0).toUpperCase() + selectedDepartment.slice(1)}
-                  <button 
-                    onClick={() => setSelectedDepartment("all")}
-                    className="ml-1 hover:bg-destructive hover:text-destructive-foreground rounded-full"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              {searchTerm && (
-                <Badge variant="secondary" className="gap-1">
-                  Search: "{searchTerm}"
-                  <button 
-                    onClick={() => setSearchTerm("")}
-                    className="ml-1 hover:bg-destructive hover:text-destructive-foreground rounded-full"
-                  >
-                    ×
-                  </button>
-                </Badge>
-              )}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => {
-                  setSelectedDepartment("all");
-                  setSearchTerm("");
-                }}
-                className="text-xs"
-              >
-                Clear all
-              </Button>
-            </div>
-          )}
+        <TabsContent value="exited" className="space-y-4">
+          {/* Search and Filters for Exited Employees */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Exited Employees</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-4 mb-6">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder="Search exited employees..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Select Department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Departments</SelectItem>
+                      <SelectItem value="engineering">Engineering</SelectItem>
+                      <SelectItem value="marketing">Marketing</SelectItem>
+                      <SelectItem value="sales">Sales</SelectItem>
+                      <SelectItem value="hr">Human Resources</SelectItem>
+                      <SelectItem value="finance">Finance</SelectItem>
+                      <SelectItem value="operations">Operations</SelectItem>
+                      <SelectItem value="it">IT Support</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-          <EmployeeTable 
-            searchTerm={searchTerm}
-            selectedDepartment={selectedDepartment}
-            refreshTrigger={refreshTrigger}
-          />
-        </CardContent>
-      </Card>
+              <EmployeeTable 
+                searchTerm={searchTerm}
+                selectedDepartment={selectedDepartment}
+                refreshTrigger={refreshTrigger}
+                showExited={true}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <AddEmployeeDialog
         isOpen={isAddDialogOpen}

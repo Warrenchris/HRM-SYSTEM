@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MoreHorizontal, Eye, Edit, Trash2, Mail, Phone } from "lucide-react";
+import { MoreHorizontal, Eye, Edit, Trash2, Mail, Phone, UserX, RotateCcw } from "lucide-react";
 import { EditEmployeeDialog } from "./EditEmployeeDialog";
 import { ViewEmployeeDialog } from "./ViewEmployeeDialog";
 import { Button } from "@/components/ui/button";
@@ -28,9 +28,10 @@ interface EmployeeTableProps {
   searchTerm: string;
   selectedDepartment: string;
   refreshTrigger?: number;
+  showExited?: boolean;
 }
 
-export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger }: EmployeeTableProps) {
+export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger, showExited = false }: EmployeeTableProps) {
   const { toast } = useToast();
   const [editEmployee, setEditEmployee] = useState<any>(null);
   const [viewEmployee, setViewEmployee] = useState<any>(null);
@@ -44,19 +45,33 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger }
     fetchEmployees();
   }, []);
 
-  // Refetch when refreshTrigger changes
+  // Refetch when refreshTrigger or showExited changes
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
       fetchEmployees();
     }
   }, [refreshTrigger]);
 
+  // Refetch when showExited changes
+  useEffect(() => {
+    fetchEmployees();
+  }, [showExited]);
+
   const fetchEmployees = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('employees')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
+      
+      if (showExited) {
+        // Show employees with exit_date or status = 'inactive'
+        query = query.or('exit_date.not.is.null,status.eq.inactive');
+      } else {
+        // Show active employees (no exit_date and status = 'active')
+        query = query.is('exit_date', null).eq('status', 'active');
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
       setEmployees(data || []);
@@ -74,14 +89,14 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger }
 
   const filteredEmployees = employees.filter(employee => {
     const matchesSearch = 
-      employee.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.employee_id.toLowerCase().includes(searchTerm.toLowerCase());
+      employee.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.employee_id?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesDepartment = 
       selectedDepartment === "all" || 
-      employee.department.toLowerCase() === selectedDepartment.toLowerCase();
+      employee.department?.toLowerCase() === selectedDepartment.toLowerCase();
 
     return matchesSearch && matchesDepartment;
   });
@@ -101,6 +116,10 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger }
       setIsEditDialogOpen(true);
     } else if (action === "Delete") {
       handleDeleteEmployee(employee);
+    } else if (action === "MarkExited") {
+      handleMarkAsExited(employee);
+    } else if (action === "Reactivate") {
+      handleReactivateEmployee(employee);
     } else {
       toast({
         title: `${action} Employee`,
@@ -239,8 +258,72 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger }
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status.toLowerCase()) {
+  const handleMarkAsExited = async (employee: any) => {
+    try {
+      const { error } = await supabase
+        .from('employees')
+        .update({
+          status: 'inactive',
+          exit_date: new Date().toISOString().split('T')[0], // Today's date
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', employee.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Employee Marked as Exited",
+        description: `${employee.first_name} ${employee.last_name} has been marked as exited`,
+      });
+      
+      // Refresh the employee list
+      await fetchEmployees();
+    } catch (error) {
+      console.error('Error marking employee as exited:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark employee as exited",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReactivateEmployee = async (employee: any) => {
+    try {
+      const { error } = await supabase
+        .from('employees')
+        .update({
+          status: 'active',
+          exit_date: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', employee.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Employee Reactivated",
+        description: `${employee.first_name} ${employee.last_name} has been reactivated`,
+      });
+      
+      // Refresh the employee list
+      await fetchEmployees();
+    } catch (error) {
+      console.error('Error reactivating employee:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reactivate employee",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getStatusBadge = (status: string, exitDate?: string) => {
+    if (exitDate) {
+      return <Badge variant="destructive" className="bg-gray-100 text-gray-800 hover:bg-gray-100">Exited</Badge>;
+    }
+    
+    switch (status?.toLowerCase()) {
       case "active":
         return <Badge variant="default" className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Active</Badge>;
       case "on leave":
@@ -286,7 +369,7 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger }
             <TableHead>Department</TableHead>
             <TableHead>Position</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Join Date</TableHead>
+            <TableHead>{showExited ? 'Exit Date' : 'Join Date'}</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -298,16 +381,16 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger }
                    <Avatar className="w-10 h-10">
                      <AvatarImage src="" />
                      <AvatarFallback className="bg-primary/10 text-primary">
-                       {employee.first_name[0]}{employee.last_name[0]}
+                       {employee.first_name?.[0]}{employee.last_name?.[0]}
                      </AvatarFallback>
                    </Avatar>
                    <div>
-                     <div className="font-medium text-foreground">
-                       {employee.first_name} {employee.last_name}
-                     </div>
-                     <div className="text-sm text-muted-foreground">
-                       ID: {employee.employee_id}
-                     </div>
+                      <div className="font-medium text-foreground">
+                        {employee.first_name} {employee.last_name}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        ID: {employee.employee_id}
+                      </div>
                    </div>
                 </div>
               </TableCell>
@@ -315,11 +398,11 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger }
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-sm">
                     <Mail className="w-3 h-3 text-muted-foreground" />
-                    <span className="text-foreground">{employee.email}</span>
+                     <span className="text-foreground">{employee.email}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Phone className="w-3 h-3 text-muted-foreground" />
-                    <span className="text-muted-foreground">{employee.phone}</span>
+                     <span className="text-muted-foreground">{employee.phone}</span>
                   </div>
                 </div>
               </TableCell>
@@ -330,11 +413,14 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger }
                 <span className="text-foreground">{employee.position}</span>
               </TableCell>
               <TableCell>
-                {getStatusBadge(employee.status)}
+                {getStatusBadge(employee.status, employee.exit_date)}
               </TableCell>
                <TableCell>
                  <span className="text-muted-foreground">
-                   {new Date(employee.join_date).toLocaleDateString()}
+                   {showExited && employee.exit_date 
+                     ? new Date(employee.exit_date).toLocaleDateString()
+                     : employee.join_date ? new Date(employee.join_date).toLocaleDateString() : 'N/A'
+                   }
                  </span>
                </TableCell>
               <TableCell className="text-right">
@@ -350,18 +436,29 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger }
                       <Eye className="mr-2 h-4 w-4" />
                       View Details
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleAction("Edit", employee)}>
-                      <Edit className="mr-2 h-4 w-4" />
-                      Edit Employee
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onClick={() => handleAction("Delete", employee)}
-                      className="text-destructive"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Employee
-                    </DropdownMenuItem>
+                     <DropdownMenuItem onClick={() => handleAction("Edit", employee)}>
+                       <Edit className="mr-2 h-4 w-4" />
+                       Edit Employee
+                     </DropdownMenuItem>
+                     <DropdownMenuSeparator />
+                     {showExited ? (
+                       <DropdownMenuItem onClick={() => handleAction("Reactivate", employee)}>
+                         <RotateCcw className="mr-2 h-4 w-4" />
+                         Reactivate Employee
+                       </DropdownMenuItem>
+                     ) : (
+                       <DropdownMenuItem onClick={() => handleAction("MarkExited", employee)}>
+                         <UserX className="mr-2 h-4 w-4" />
+                         Mark as Exited
+                       </DropdownMenuItem>
+                     )}
+                     <DropdownMenuItem 
+                       onClick={() => handleAction("Delete", employee)}
+                       className="text-destructive"
+                     >
+                       <Trash2 className="mr-2 h-4 w-4" />
+                       Delete Employee
+                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
