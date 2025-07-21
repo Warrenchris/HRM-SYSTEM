@@ -114,17 +114,80 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger }
       const { error } = await supabase
         .from('employees')
         .update({
+          // Personal Information
           first_name: employeeData.firstName,
-          last_name: employeeData.lastName,
-          email: employeeData.email,
+          second_name: employeeData.secondName,
+          other_name: employeeData.otherName,
+          office_email: employeeData.officeEmail,
+          personal_email: employeeData.personalEmail,
+          email: employeeData.officeEmail, // Keep for backward compatibility
+          date_of_birth: employeeData.dateOfBirth,
+          gender: employeeData.gender,
+          marital_status: employeeData.maritalStatus,
           phone: employeeData.phone,
+          local_address: employeeData.localAddress,
+          permanent_address: employeeData.permanentAddress,
+          address: employeeData.localAddress, // Keep for backward compatibility
+          login_password: employeeData.loginPassword,
+
+          // Company Information
+          employee_id: employeeData.employeeId,
           department: employeeData.department,
-          position: employeeData.position,
-          salary: employeeData.salary,
-          status: employeeData.status.toLowerCase(),
-          address: employeeData.address,
-          emergency_contact: employeeData.emergencyContact,
-          emergency_phone: employeeData.emergencyPhone,
+          position: employeeData.designation,
+          reporting_to: employeeData.reportingTo,
+          role: employeeData.role,
+          office_branch: employeeData.officeBranch,
+          site_project: employeeData.siteProject,
+          join_date: employeeData.dateOfJoining,
+          contract_start_date: employeeData.contractStartDate,
+          contract_end_date: employeeData.contractEndDate,
+          exit_date: employeeData.exitDate,
+
+          // Payment Information
+          basic_salary: employeeData.basicSalary ? parseFloat(employeeData.basicSalary) : null,
+          hourly_rate: employeeData.hourlyRate ? parseFloat(employeeData.hourlyRate) : null,
+          salary: employeeData.basicSalary ? parseFloat(employeeData.basicSalary) : null, // Keep for backward compatibility
+
+          // Bank Details
+          bank_name: employeeData.bankName,
+          bank_branch_location: employeeData.bankBranchLocation,
+          bank_account_holder_name: employeeData.bankAccountHolderName,
+          bank_account_number: employeeData.bankAccountNumber,
+          bank_code: employeeData.bankCode,
+          branch_code: employeeData.branchCode,
+          bank_identifier_code: employeeData.bankIdentifierCode,
+          kra_pin: employeeData.kraPin,
+
+          // Mpesa Details
+          mpesa_name: employeeData.mpesaName,
+          mpesa_number: employeeData.mpesaNumber,
+          mpesa_payment_status: employeeData.mpesaPaymentStatus,
+
+          // Statutory Information
+          shif_number: employeeData.shifNumber,
+          nssf_number: employeeData.nssfNumber,
+          id_number: employeeData.idNumber,
+
+          // Academic Information
+          achievements: JSON.stringify(employeeData.achievements),
+          courses_taken: JSON.stringify(employeeData.coursesTaken),
+          other_academics: employeeData.otherAcademics,
+
+          // Next of Kin Information
+          next_of_kin_name: employeeData.nextOfKinName,
+          next_of_kin_relationship: employeeData.nextOfKinRelationship,
+          next_of_kin_mobile: employeeData.nextOfKinMobile,
+          next_of_kin_email: employeeData.nextOfKinEmail,
+          emergency_contact_person: employeeData.emergencyContactPerson,
+          emergency_contact_number: employeeData.emergencyContactNumber,
+          emergency_contact: employeeData.emergencyContactPerson, // Keep for backward compatibility
+          emergency_phone: employeeData.emergencyContactNumber, // Keep for backward compatibility
+
+          // Status (ensure lowercase)
+          status: 'active', // Default to active for updates
+
+          // Update timestamp
+          updated_at: new Date().toISOString(),
         })
         .eq('id', editEmployee.id);
 
@@ -132,7 +195,7 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger }
 
       toast({
         title: "Employee Updated",
-        description: `Successfully updated ${employeeData.firstName} ${employeeData.lastName}`,
+        description: `Successfully updated ${employeeData.firstName} ${employeeData.secondName || employeeData.otherName || employeeData.firstName}`,
       });
       
       // Refresh the employee list
