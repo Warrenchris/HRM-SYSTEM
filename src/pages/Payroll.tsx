@@ -5,6 +5,8 @@ import { PayrollStats } from "@/components/payroll/PayrollStats";
 import { PayrollTable } from "@/components/payroll/PayrollTable";
 import { PayrollProcessing } from "@/components/payroll/PayrollProcessing";
 import { PayrollHistory } from "@/components/payroll/PayrollHistory";
+import { PayslipViewer } from "@/components/payroll/PayslipViewer";
+import { PayslipGenerator } from "@/components/payroll/PayslipGenerator";
 
 export default function Payroll() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -20,6 +22,8 @@ export default function Payroll() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="employees">Employee Payroll</TabsTrigger>
           <TabsTrigger value="processing">Process Payroll</TabsTrigger>
+          <TabsTrigger value="view-payslips">View Payslips</TabsTrigger>
+          <TabsTrigger value="generate-payslips">Generate Payslips</TabsTrigger>
           <TabsTrigger value="history">Payroll History</TabsTrigger>
         </TabsList>
         
@@ -103,6 +107,14 @@ export default function Payroll() {
         
         <TabsContent value="processing">
           <PayrollProcessing />
+        </TabsContent>
+        
+        <TabsContent value="view-payslips">
+          <PayslipViewer />
+        </TabsContent>
+        
+        <TabsContent value="generate-payslips">
+          <PayslipGenerator />
         </TabsContent>
         
         <TabsContent value="history">

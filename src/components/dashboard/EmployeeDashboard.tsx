@@ -19,6 +19,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Progress } from "@/components/ui/progress";
+import { PayslipSection } from "@/components/employees/PayslipSection";
 
 interface EmployeeProfile {
   employee_id: string;
@@ -205,6 +206,7 @@ export function EmployeeDashboard() {
     { label: "Submit Expense", icon: CreditCard, href: "/expenses", color: "bg-purple-500" },
     { label: "View Tasks", icon: CheckSquare, href: "/tasks", color: "bg-orange-500" },
     { label: "Timesheets", icon: FileText, href: "/timesheets", color: "bg-indigo-500" },
+    { label: "Generate Payslip", icon: FileText, href: "#payslip", color: "bg-teal-500" },
     { label: "Performance", icon: TrendingUp, href: "/performance", color: "bg-pink-500" }
   ];
 
@@ -363,25 +365,43 @@ export function EmployeeDashboard() {
           <CardDescription>Frequently used functions and shortcuts</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
             {quickActions.map((action, index) => (
               <Button
                 key={index}
-                asChild
+                asChild={action.href !== "#payslip"}
                 variant="outline"
                 className="h-20 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/20 transition-all duration-300"
+                onClick={action.href === "#payslip" ? () => {
+                  const payslipSection = document.getElementById('payslip-section');
+                  payslipSection?.scrollIntoView({ behavior: 'smooth' });
+                } : undefined}
               >
-                <Link to={action.href}>
-                  <div className={`w-8 h-8 ${action.color} rounded-lg flex items-center justify-center mb-1`}>
-                    <action.icon className="w-4 h-4 text-white" />
-                  </div>
-                  <span className="text-xs text-center">{action.label}</span>
-                </Link>
+                {action.href !== "#payslip" ? (
+                  <Link to={action.href}>
+                    <div className={`w-8 h-8 ${action.color} rounded-lg flex items-center justify-center mb-1`}>
+                      <action.icon className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-xs text-center">{action.label}</span>
+                  </Link>
+                ) : (
+                  <>
+                    <div className={`w-8 h-8 ${action.color} rounded-lg flex items-center justify-center mb-1`}>
+                      <action.icon className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-xs text-center">{action.label}</span>
+                  </>
+                )}
               </Button>
             ))}
           </div>
         </CardContent>
       </Card>
+
+      {/* Payslip Section */}
+      <div id="payslip-section">
+        <PayslipSection />
+      </div>
     </div>
   );
 }
