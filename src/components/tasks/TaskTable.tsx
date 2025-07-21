@@ -391,25 +391,23 @@ export function TaskTable({ viewType }: TaskTableProps) {
                               <div className="flex gap-2">
                                 <Button onClick={updateTask}>Update Task</Button>
                                 
-                                {task.complexity_level === 'expert' || task.complexity_level === 'high' ? (
-                                  <Dialog>
-                                    <DialogTrigger asChild>
-                                      <Button variant="outline">
-                                        <AlertTriangle className="h-4 w-4 mr-1" />
-                                        Escalate
-                                      </Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                      <DialogHeader>
-                                        <DialogTitle>Escalate Task</DialogTitle>
-                                      </DialogHeader>
-                                      <EscalationForm 
-                                        employees={employees}
-                                        onEscalate={escalateTask}
-                                      />
-                                    </DialogContent>
-                                  </Dialog>
-                                ) : null}
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="outline">
+                                      <AlertTriangle className="h-4 w-4 mr-1" />
+                                      Escalate
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>Escalate Task</DialogTitle>
+                                    </DialogHeader>
+                                    <EscalationForm 
+                                      employees={employees}
+                                      onEscalate={escalateTask}
+                                    />
+                                  </DialogContent>
+                                </Dialog>
                               </div>
                             </>
                           )}
