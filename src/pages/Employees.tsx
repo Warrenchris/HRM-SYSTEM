@@ -13,6 +13,9 @@ import { AddEmployeeDialog } from "@/components/employees/AddEmployeeDialog";
 import { EmployeeFormData } from "@/components/employees/EmployeeFormTabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export default function Employees() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -124,8 +127,206 @@ export default function Employees() {
     });
   };
 
+  const generateCSV = (employees: any[]) => {
+    const headers = [
+      'Employee ID', 'First Name', 'Last Name', 'Email', 'Phone', 'Department', 
+      'Position', 'Join Date', 'Status', 'Salary', 'Address'
+    ];
+    
+    const csvContent = [
+      headers.join(','),
+      ...employees.map(emp => [
+        emp.employee_id || '',
+        emp.first_name || '',
+        emp.last_name || '',
+        emp.email || '',
+        emp.phone || '',
+        emp.department || '',
+        emp.position || '',
+        emp.join_date ? new Date(emp.join_date).toLocaleDateString() : '',
+        emp.status || '',
+        emp.basic_salary || emp.salary || '',
+        emp.local_address || emp.address || ''
+      ].map(field => `"${field}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `active_employees_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const generateExcel = (employees: any[]) => {
+    const workbook = XLSX.utils.book_new();
+    
+    // Prepare data for Excel
+    const excelData = employees.map(emp => ({
+      'Employee ID': emp.employee_id || '',
+      'First Name': emp.first_name || '',
+      'Last Name': emp.last_name || '',
+      'Second Name': emp.second_name || '',
+      'Other Name': emp.other_name || '',
+      'Office Email': emp.office_email || emp.email || '',
+      'Personal Email': emp.personal_email || '',
+      'Phone': emp.phone || '',
+      'Date of Birth': emp.date_of_birth ? new Date(emp.date_of_birth).toLocaleDateString() : '',
+      'Gender': emp.gender || '',
+      'Marital Status': emp.marital_status || '',
+      'Department': emp.department || '',
+      'Position': emp.position || '',
+      'Join Date': emp.join_date ? new Date(emp.join_date).toLocaleDateString() : '',
+      'Status': emp.status || '',
+      'Basic Salary': emp.basic_salary || emp.salary || '',
+      'Hourly Rate': emp.hourly_rate || '',
+      'Local Address': emp.local_address || emp.address || '',
+      'Permanent Address': emp.permanent_address || '',
+      'Reporting To': emp.reporting_to || '',
+      'Office Branch': emp.office_branch || '',
+      'Site Project': emp.site_project || '',
+      'Bank Name': emp.bank_name || '',
+      'Bank Account Number': emp.bank_account_number || '',
+      'KRA PIN': emp.kra_pin || '',
+      'NSSF Number': emp.nssf_number || '',
+      'ID Number': emp.id_number || '',
+      'Next of Kin Name': emp.next_of_kin_name || '',
+      'Next of Kin Relationship': emp.next_of_kin_relationship || '',
+      'Next of Kin Mobile': emp.next_of_kin_mobile || '',
+      'Emergency Contact': emp.emergency_contact_person || emp.emergency_contact || '',
+      'Emergency Phone': emp.emergency_contact_number || emp.emergency_phone || ''
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    
+    // Set column widths
+    const columnWidths = [
+      {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}, 
+      {wch: 25}, {wch: 25}, {wch: 15}, {wch: 12}, {wch: 10}, 
+      {wch: 15}, {wch: 20}, {wch: 20}, {wch: 12}, {wch: 10}, 
+      {wch: 15}, {wch: 12}, {wch: 30}, {wch: 30}, {wch: 20}, 
+      {wch: 20}, {wch: 20}, {wch: 20}, {wch: 20}, {wch: 15}, 
+      {wch: 15}, {wch: 15}, {wch: 20}, {wch: 20}, {wch: 15}, 
+      {wch: 20}, {wch: 15}
+    ];
+    worksheet['!cols'] = columnWidths;
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Active Employees');
+    XLSX.writeFile(workbook, `active_employees_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const generatePDF = (employees: any[]) => {
+    const doc = new jsPDF('l', 'mm', 'a4'); // landscape orientation
+    
+    // Add title
+    doc.setFontSize(16);
+    doc.text('Active Employees Report', 14, 15);
+    
+    // Add generation date
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 25);
+    doc.text(`Total Active Employees: ${employees.length}`, 14, 30);
+
+    // Prepare table data
+    const tableData = employees.map(emp => [
+      emp.employee_id || '',
+      `${emp.first_name || ''} ${emp.last_name || ''}`,
+      emp.email || '',
+      emp.phone || '',
+      emp.department || '',
+      emp.position || '',
+      emp.join_date ? new Date(emp.join_date).toLocaleDateString() : '',
+      emp.status || ''
+    ]);
+
+    // Add table
+    (doc as any).autoTable({
+      head: [['ID', 'Name', 'Email', 'Phone', 'Department', 'Position', 'Join Date', 'Status']],
+      body: tableData,
+      startY: 35,
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+      },
+      headStyles: {
+        fillColor: [66, 139, 202],
+        textColor: 255,
+        fontStyle: 'bold'
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245]
+      },
+      margin: { top: 35, right: 14, bottom: 20, left: 14 },
+    });
+
+    doc.save(`active_employees_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
+  const generateTemplate = () => {
+    const templateData = [{
+      'Employee ID': 'EMP001',
+      'First Name': 'John',
+      'Last Name': 'Doe',
+      'Second Name': 'Middle',
+      'Other Name': 'Nickname',
+      'Office Email': 'john.doe@company.com',
+      'Personal Email': 'john@personal.com',
+      'Phone': '+1234567890',
+      'Date of Birth': '1990-01-01',
+      'Gender': 'Male',
+      'Marital Status': 'Single',
+      'Department': 'Engineering',
+      'Position': 'Software Developer',
+      'Join Date': '2024-01-01',
+      'Basic Salary': '50000',
+      'Hourly Rate': '25',
+      'Local Address': '123 Main St, City',
+      'Permanent Address': '456 Home St, Hometown',
+      'Reporting To': 'Manager Name',
+      'Office Branch': 'Main Office',
+      'Site Project': 'Project Alpha',
+      'Bank Name': 'Bank Name',
+      'Bank Account Number': '1234567890',
+      'KRA PIN': 'A123456789',
+      'NSSF Number': 'NS123456',
+      'ID Number': '12345678',
+      'Next of Kin Name': 'Jane Doe',
+      'Next of Kin Relationship': 'Spouse',
+      'Next of Kin Mobile': '+0987654321',
+      'Emergency Contact': 'Emergency Person',
+      'Emergency Phone': '+1111111111'
+    }];
+
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    
+    // Set column widths
+    const columnWidths = [
+      {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}, 
+      {wch: 25}, {wch: 25}, {wch: 15}, {wch: 12}, {wch: 10}, 
+      {wch: 15}, {wch: 20}, {wch: 20}, {wch: 12}, {wch: 15}, 
+      {wch: 12}, {wch: 30}, {wch: 30}, {wch: 20}, {wch: 20}, 
+      {wch: 20}, {wch: 20}, {wch: 20}, {wch: 15}, {wch: 15}, 
+      {wch: 15}, {wch: 20}, {wch: 20}, {wch: 15}, {wch: 20}, 
+      {wch: 15}
+    ];
+    worksheet['!cols'] = columnWidths;
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Employee Template');
+    XLSX.writeFile(workbook, 'employee_import_template.xlsx');
+  };
+
   const handleExportEmployees = async (format: string) => {
     try {
+      // Show loading state
+      toast({
+        title: "Preparing Export",
+        description: "Fetching employee data...",
+      });
+
       // Fetch only active employees for export
       const { data: activeEmployees, error } = await supabase
         .from('employees')
@@ -154,29 +355,44 @@ export default function Employees() {
 
       const departmentText = selectedDepartment === "all" ? "All Departments" : 
         selectedDepartment.charAt(0).toUpperCase() + selectedDepartment.slice(1);
+
+      if (format === 'template') {
+        generateTemplate();
+        toast({
+          title: "Template Downloaded",
+          description: "Employee import template has been downloaded",
+        });
+        return;
+      }
+
+      if (filteredForExport.length === 0) {
+        toast({
+          title: "No Data to Export",
+          description: "No active employees found matching the current filters",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Generate the appropriate file format
+      switch (format) {
+        case 'excel':
+          generateExcel(filteredForExport);
+          break;
+        case 'csv':
+          generateCSV(filteredForExport);
+          break;
+        case 'pdf':
+          generatePDF(filteredForExport);
+          break;
+        default:
+          throw new Error(`Unsupported format: ${format}`);
+      }
       
       toast({
-        title: `${format.toUpperCase()} Export Started`,
-        description: `Exporting ${filteredForExport.length} active employees from ${departmentText}`,
+        title: `${format.toUpperCase()} Export Complete`,
+        description: `Successfully exported ${filteredForExport.length} active employees from ${departmentText}`,
       });
-      
-      // In a real implementation, this would generate the actual file
-      console.log(`Exporting ${format} for department: ${selectedDepartment}`, {
-        format,
-        department: selectedDepartment,
-        employeeCount: filteredForExport.length,
-        employees: filteredForExport,
-        note: "Only active employees (no exit date, status = active)"
-      });
-
-      // Simulate file download
-      if (format === 'template') {
-        // Generate template for employee import
-        console.log('Generating employee import template...');
-      } else {
-        // Generate actual export with employee data
-        console.log(`Generating ${format} file with ${filteredForExport.length} active employees...`);
-      }
       
     } catch (error) {
       console.error('Error exporting employees:', error);
