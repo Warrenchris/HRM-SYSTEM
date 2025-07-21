@@ -50,12 +50,28 @@ export function ClockInOut() {
       
       const { data: profile } = await supabase
         .from('profiles')
-        .select('employee_id')
+        .select('employee_id, user_id')
         .eq('user_id', user.id)
         .single();
       
       if (profile?.employee_id) {
         setEmployeeId(profile.employee_id);
+      } else {
+        // If no employee_id, try to create/link one based on email
+        const { data: employee } = await supabase
+          .from('employees')
+          .select('id')
+          .eq('email', user.email)
+          .single();
+          
+        if (employee) {
+          // Update profile with employee_id
+          await supabase
+            .from('profiles')
+            .update({ employee_id: employee.id })
+            .eq('user_id', user.id);
+          setEmployeeId(employee.id);
+        }
       }
     };
     
