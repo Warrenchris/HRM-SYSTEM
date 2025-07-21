@@ -1,4 +1,4 @@
-import { Bell, Search, User, LogOut, Settings } from "lucide-react";
+import { Bell, Search, User, LogOut, Settings, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,17 +9,48 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 export function AppHeader() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [notifications, setNotifications] = useState([
+    {
+      id: 1,
+      title: "New Employee Added",
+      message: "John Doe has been added to the system",
+      time: "2 minutes ago",
+      read: false,
+    },
+    {
+      id: 2,
+      title: "Leave Request",
+      message: "Sarah Wilson submitted a leave request",
+      time: "1 hour ago",
+      read: false,
+    },
+    {
+      id: 3,
+      title: "Payroll Processed",
+      message: "Monthly payroll has been processed successfully",
+      time: "3 hours ago",
+      read: false,
+    },
+  ]);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   const handleLogout = async () => {
     try {
@@ -52,6 +83,22 @@ export function AppHeader() {
     ).join(' ');
   };
 
+  const markAsRead = (id: number) => {
+    setNotifications(prev => 
+      prev.map(notification => 
+        notification.id === id 
+          ? { ...notification, read: true }
+          : notification
+      )
+    );
+  };
+
+  const markAllAsRead = () => {
+    setNotifications(prev => 
+      prev.map(notification => ({ ...notification, read: true }))
+    );
+  };
+
   return (
     <header className="h-16 border-b bg-card px-6 flex items-center justify-between">
       {/* Left Section */}
@@ -70,15 +117,70 @@ export function AppHeader() {
       {/* Right Section */}
       <div className="flex items-center gap-4">
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-4 w-4" />
-          <Badge 
-            variant="destructive" 
-            className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-          >
-            3
-          </Badge>
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative">
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <Badge 
+                  variant="destructive" 
+                  className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                >
+                  {unreadCount}
+                </Badge>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 p-0" align="end">
+            <div className="p-4 border-b">
+              <div className="flex items-center justify-between">
+                <h4 className="font-semibold">Notifications</h4>
+                {unreadCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={markAllAsRead}
+                    className="text-xs"
+                  >
+                    Mark all read
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="max-h-80 overflow-y-auto">
+              {notifications.length === 0 ? (
+                <div className="p-4 text-center text-muted-foreground">
+                  No notifications
+                </div>
+              ) : (
+                notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={`p-4 border-b cursor-pointer hover:bg-muted/50 ${
+                      !notification.read ? 'bg-muted/30' : ''
+                    }`}
+                    onClick={() => markAsRead(notification.id)}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{notification.title}</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          {notification.time}
+                        </p>
+                      </div>
+                      {!notification.read && (
+                        <div className="w-2 h-2 bg-primary rounded-full ml-2 mt-1" />
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
 
         {/* User Menu */}
         <DropdownMenu>
