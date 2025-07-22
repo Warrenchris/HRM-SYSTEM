@@ -2,22 +2,20 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ArrowRightLeft, UserCheck } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { ArrowRightLeft, User, Package, MapPin } from "lucide-react";
 
 const transferSchema = z.object({
-  toEmployeeId: z.string().optional(),
-  transferStatus: z.string().min(1, "Transfer status is required"),
-  transferReason: z.string().optional(),
+  newEmployeeId: z.string().optional(),
+  newStatus: z.string().min(1, "Status is required"),
+  transferReason: z.string().min(1, "Transfer reason is required"),
   transferNotes: z.string().optional(),
   keepPreviousStatus: z.boolean().default(false),
 });
@@ -28,6 +26,7 @@ interface Employee {
   id: string;
   first_name: string;
   last_name: string;
+  email: string;
   department: string;
   position: string;
 }
@@ -36,33 +35,27 @@ interface Asset {
   id: string;
   name: string;
   asset_tag: string;
+  category: string;
   status: string;
+  location: string;
   current_employee_id?: string;
-  employees?: {
+  employee?: {
     first_name: string;
     last_name: string;
+    email: string;
   };
 }
 
 interface TransferAssetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  asset: Asset;
+  asset: Asset | null;
   onTransferComplete: () => void;
 }
 
-const statusOptions = [
-  { value: "available", label: "Available" },
-  { value: "assigned", label: "Assigned" },
-  { value: "maintenance", label: "Maintenance" },
-  { value: "repair", label: "Repair" },
-  { value: "return_to_store", label: "Return to Store" },
-  { value: "write_off", label: "Write Off" },
-];
-
 export function TransferAssetDialog({ 
   open, 
-  onOpenChange,
+  onOpenChange, 
   asset, 
   onTransferComplete 
 }: TransferAssetDialogProps) {
@@ -74,8 +67,8 @@ export function TransferAssetDialog({
   const form = useForm<TransferFormData>({
     resolver: zodResolver(transferSchema),
     defaultValues: {
-      toEmployeeId: "",
-      transferStatus: asset.status,
+      newEmployeeId: "",
+      newStatus: "assigned",
       transferReason: "",
       transferNotes: "",
       keepPreviousStatus: false,
@@ -85,306 +78,342 @@ export function TransferAssetDialog({
   useEffect(() => {
     if (open) {
       fetchEmployees();
-      fetchCurrentEmployee();
+      if (asset?.current_employee_id) {
+        fetchCurrentEmployee();
+      }
     }
-  }, [open, asset.current_employee_id]);
+  }, [open, asset]);
 
   const fetchEmployees = async () => {
     try {
       const { data, error } = await supabase
         .from('employees')
-        .select('id, first_name, last_name, department, position')
+        .select('id, first_name, last_name, email, department, position')
         .eq('status', 'active')
         .order('first_name');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching employees:', error);
+        return;
+      }
+
       setEmployees(data || []);
     } catch (error) {
-      toast({
-        title: "Error fetching employees",
-        description: "Could not load employees. Please try again.",
-        variant: "destructive"
-      });
+      console.error('Error fetching employees:', error);
     }
   };
 
   const fetchCurrentEmployee = async () => {
-    if (!asset.current_employee_id) {
-      setCurrentEmployee(null);
-      return;
-    }
+    if (!asset?.current_employee_id) return;
 
     try {
       const { data, error } = await supabase
         .from('employees')
-        .select('id, first_name, last_name, department, position')
+        .select('id, first_name, last_name, email, department, position')
         .eq('id', asset.current_employee_id)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching current employee:', error);
+        return;
+      }
+
       setCurrentEmployee(data);
     } catch (error) {
       console.error('Error fetching current employee:', error);
-      setCurrentEmployee(null);
     }
   };
 
   const onSubmit = async (data: TransferFormData) => {
+    if (!asset) return;
+
     setIsSubmitting(true);
-    
+
     try {
-      // Get current user's employee record
+      // Get current user's employee ID
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        toast({
+          title: "Error",
+          description: "Unable to get current user information",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('employee_id')
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .eq('user_id', user.id)
         .single();
 
-      if (profileError) throw profileError;
+      if (profileError || !profile?.employee_id) {
+        toast({
+          title: "Error",
+          description: "Unable to get employee information",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      // Determine the final status
-      const finalStatus = data.keepPreviousStatus ? asset.status : data.transferStatus;
+      // Determine final status
+      const finalStatus = data.keepPreviousStatus ? asset.status : data.newStatus;
 
-      // Update asset
-      const { error: assetError } = await supabase
+      // Update the asset
+      const { error: updateError } = await supabase
         .from('assets')
         .update({
-          current_employee_id: data.toEmployeeId || null,
+          current_employee_id: data.newEmployeeId || null,
           status: finalStatus,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', asset.id);
 
-      if (assetError) throw assetError;
+      if (updateError) {
+        console.error('Error updating asset:', updateError);
+        toast({
+          title: "Error",
+          description: "Failed to transfer asset",
+          variant: "destructive",
+        });
+        return;
+      }
 
       // Create transfer record
       const { error: transferError } = await supabase
         .from('asset_transfers')
         .insert({
           asset_id: asset.id,
-          from_employee_id: asset.current_employee_id || null,
-          to_employee_id: data.toEmployeeId || null,
-          transfer_status: finalStatus,
-          previous_status: data.keepPreviousStatus ? null : asset.status,
+          from_employee_id: asset.current_employee_id,
+          to_employee_id: data.newEmployeeId || null,
+          transfer_status: 'completed',
+          previous_status: asset.status,
           transfer_reason: data.transferReason,
           transfer_notes: data.transferNotes,
           transferred_by: profile.employee_id,
         });
 
-      if (transferError) throw transferError;
+      if (transferError) {
+        console.error('Error creating transfer record:', transferError);
+        // Don't fail the whole operation for this
+      }
 
       toast({
-        title: "Asset Transfer Successful",
+        title: "Asset Transferred Successfully",
         description: `${asset.name} has been transferred successfully.`,
       });
 
       form.reset();
       onTransferComplete();
     } catch (error) {
-      console.error('Transfer error:', error);
+      console.error('Error transferring asset:', error);
       toast({
-        title: "Transfer Failed",
-        description: "Could not complete the asset transfer. Please try again.",
-        variant: "destructive"
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const selectedStatus = form.watch('transferStatus');
-  const keepPreviousStatus = form.watch('keepPreviousStatus');
+  if (!asset) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowRightLeft className="h-5 w-5" />
             Transfer Asset
           </DialogTitle>
           <DialogDescription>
-            Transfer {asset.name} ({asset.asset_tag}) to another employee or change its status.
+            Transfer {asset.name} ({asset.asset_tag}) to a new employee or change its status
           </DialogDescription>
         </DialogHeader>
 
-        {/* Asset Info */}
-        <div className="bg-muted/50 p-4 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium">{asset.name}</h4>
-              <p className="text-sm text-muted-foreground">{asset.asset_tag}</p>
-            </div>
-            <Badge variant="outline">{asset.status}</Badge>
-          </div>
-          {currentEmployee && (
-            <div className="mt-2 text-sm">
-              <span className="text-muted-foreground">Currently assigned to: </span>
-              <span className="font-medium">
-                {currentEmployee.first_name} {currentEmployee.last_name}
-              </span>
-              <span className="text-muted-foreground">
-                {" "}({currentEmployee.position}, {currentEmployee.department})
-              </span>
-            </div>
-          )}
-        </div>
-
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Employee Selection */}
-            <FormField
-              control={form.control}
-              name="toEmployeeId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Transfer To (Optional)</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an employee or leave empty to unassign" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="">Unassign (Return to inventory)</SelectItem>
-                      {employees.map((employee) => (
-                        <SelectItem key={employee.id} value={employee.id}>
-                          <div className="flex items-center gap-2">
-                            <UserCheck className="h-4 w-4" />
-                            <span>
-                              {employee.first_name} {employee.last_name}
-                            </span>
-                            <span className="text-muted-foreground text-xs">
-                              ({employee.position}, {employee.department})
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Status Selection */}
-            <FormField
-              control={form.control}
-              name="transferStatus"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>New Status</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select new status" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {statusOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Keep Previous Status Option */}
-            <FormField
-              control={form.control}
-              name="keepPreviousStatus"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>
-                      Transfer previous status to next employee
-                    </FormLabel>
-                    <p className="text-sm text-muted-foreground">
-                      If checked, the asset will keep its current status ({asset.status}) 
-                      instead of changing to "{statusOptions.find(s => s.value === selectedStatus)?.label}"
-                    </p>
+            {/* Asset Summary */}
+            <div className="p-4 rounded-lg border bg-muted/50">
+              <h3 className="font-medium mb-3">Asset Information</h3>
+              <div className="grid gap-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">{asset.name}</span>
+                  <span className="text-muted-foreground">({asset.asset_tag})</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <span>{asset.location}</span>
+                </div>
+                {currentEmployee && (
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span>Currently assigned to: {currentEmployee.first_name} {currentEmployee.last_name}</span>
                   </div>
-                </FormItem>
-              )}
-            />
-
-            {/* Transfer Reason */}
-            <FormField
-              control={form.control}
-              name="transferReason"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Transfer Reason (Optional)</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a reason" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="">Other/Not specified</SelectItem>
-                      <SelectItem value="employee_departure">Employee Departure</SelectItem>
-                      <SelectItem value="role_change">Role Change</SelectItem>
-                      <SelectItem value="equipment_upgrade">Equipment Upgrade</SelectItem>
-                      <SelectItem value="maintenance_required">Maintenance Required</SelectItem>
-                      <SelectItem value="repair_needed">Repair Needed</SelectItem>
-                      <SelectItem value="department_transfer">Department Transfer</SelectItem>
-                      <SelectItem value="project_completion">Project Completion</SelectItem>
-                      <SelectItem value="asset_retirement">Asset Retirement</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Transfer Notes */}
-            <FormField
-              control={form.control}
-              name="transferNotes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Transfer Notes (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Add any additional notes about this transfer..."
-                      className="min-h-[80px]"
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Status Preview */}
-            <div className="bg-muted/50 p-4 rounded-lg">
-              <h4 className="font-medium mb-2">Transfer Summary</h4>
-              <div className="space-y-1 text-sm">
-                <p>
-                  <span className="text-muted-foreground">Final Status: </span>
-                  <Badge variant="outline">
-                    {keepPreviousStatus 
-                      ? asset.status 
-                      : statusOptions.find(s => s.value === selectedStatus)?.label
-                    }
-                  </Badge>
-                </p>
-                {keepPreviousStatus && (
-                  <p className="text-amber-600 text-xs">
-                    Note: Previous status will be maintained instead of changing to "{statusOptions.find(s => s.value === selectedStatus)?.label}"
-                  </p>
                 )}
+              </div>
+            </div>
+
+            {/* Transfer Details */}
+            <div className="space-y-4">
+              <h3 className="font-medium">Transfer Details</h3>
+              
+              <FormField
+                control={form.control}
+                name="newEmployeeId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>New Assignee (Optional)</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select employee or leave unassigned" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="">Unassigned</SelectItem>
+                        {employees.map((employee) => (
+                          <SelectItem key={employee.id} value={employee.id}>
+                            <div className="flex flex-col items-start">
+                              <span>{employee.first_name} {employee.last_name}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {employee.department} • {employee.position}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="newStatus"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>New Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select new status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="available">Available</SelectItem>
+                        <SelectItem value="assigned">Assigned</SelectItem>
+                        <SelectItem value="maintenance">Maintenance</SelectItem>
+                        <SelectItem value="under_repair">Under Repair</SelectItem>
+                        <SelectItem value="disposed">Disposed</SelectItem>
+                        <SelectItem value="lost">Lost</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="keepPreviousStatus"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        Keep previous status ({asset.status})
+                      </FormLabel>
+                      <p className="text-xs text-muted-foreground">
+                        Check this if you only want to change the assignee without changing the asset status
+                      </p>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="transferReason"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Transfer Reason</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select transfer reason" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="employee_request">Employee Request</SelectItem>
+                        <SelectItem value="department_change">Department Change</SelectItem>
+                        <SelectItem value="equipment_upgrade">Equipment Upgrade</SelectItem>
+                        <SelectItem value="maintenance_required">Maintenance Required</SelectItem>
+                        <SelectItem value="damage_repair">Damage/Repair</SelectItem>
+                        <SelectItem value="end_of_lease">End of Lease</SelectItem>
+                        <SelectItem value="employee_leaving">Employee Leaving</SelectItem>
+                        <SelectItem value="reallocation">Reallocation</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="transferNotes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Additional Notes (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Any additional information about this transfer..."
+                        className="min-h-[80px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Transfer Summary */}
+            <div className="p-4 rounded-lg border bg-blue-50 dark:bg-blue-950/30">
+              <h4 className="font-medium text-sm mb-2">Transfer Summary</h4>
+              <div className="text-sm space-y-1">
+                <div>
+                  <span className="text-muted-foreground">From: </span>
+                  <span className="font-medium">
+                    {currentEmployee ? `${currentEmployee.first_name} ${currentEmployee.last_name}` : "Unassigned"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">To: </span>
+                  <span className="font-medium">
+                    {form.watch("newEmployeeId") 
+                      ? employees.find(e => e.id === form.watch("newEmployeeId"))?.first_name + " " + 
+                        employees.find(e => e.id === form.watch("newEmployeeId"))?.last_name
+                      : "Unassigned"
+                    }
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Status: </span>
+                  <span className="font-medium">
+                    {form.watch("keepPreviousStatus") ? asset.status : form.watch("newStatus")}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -394,7 +423,7 @@ export function TransferAssetDialog({
                 disabled={isSubmitting} 
                 className="flex-1"
               >
-                {isSubmitting ? "Processing Transfer..." : "Complete Transfer"}
+                {isSubmitting ? "Completing Transfer..." : "Complete Transfer"}
               </Button>
               <Button 
                 type="button" 
