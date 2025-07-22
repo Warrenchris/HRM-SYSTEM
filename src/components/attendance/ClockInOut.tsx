@@ -40,11 +40,27 @@ export function ClockInOut() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string | null>(null);
 
   // Update current time every second
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Fetch Google Maps API key
+  useEffect(() => {
+    const fetchApiKey = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-google-maps-key');
+        if (error) throw error;
+        setGoogleMapsApiKey(data.apiKey);
+      } catch (error) {
+        console.error('Error fetching Google Maps API key:', error);
+      }
+    };
+    
+    fetchApiKey();
   }, []);
 
   // Get current user's employee ID
@@ -387,9 +403,9 @@ export function ClockInOut() {
                 <div className="text-xs font-mono text-muted-foreground">{location}</div>
                 
                 {/* Google Maps */}
-                {currentPosition && (
+                {currentPosition && googleMapsApiKey && (
                   <div className="h-48 w-full rounded-lg overflow-hidden border">
-                    <APIProvider apiKey="AIzaSyBGne_7VZCAFVZjAOdFQJmX-NQJOQiXVzI">
+                    <APIProvider apiKey={googleMapsApiKey}>
                       <Map
                         defaultZoom={15}
                         center={currentPosition}
