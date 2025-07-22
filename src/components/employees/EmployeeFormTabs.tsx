@@ -9,6 +9,7 @@ import { PersonalInfoTab } from "./tabs/PersonalInfoTab";
 import { CompanyPaymentTab } from "./tabs/CompanyPaymentTab";
 import { AcademicsTab } from "./tabs/AcademicsTab";
 import { NextOfKinTab } from "./tabs/NextOfKinTab";
+import { useToast } from "@/hooks/use-toast";
 
 const employeeFormSchema = z.object({
   // Personal Information
@@ -76,17 +77,80 @@ const employeeFormSchema = z.object({
   emergencyContactNumber: z.string().optional(),
 });
 
+// Individual tab schemas for validation
+const personalInfoSchema = employeeFormSchema.pick({
+  firstName: true,
+  secondName: true,
+  otherName: true,
+  officeEmail: true,
+  personalEmail: true,
+  dateOfBirth: true,
+  gender: true,
+  maritalStatus: true,
+  phone: true,
+  localAddress: true,
+  permanentAddress: true,
+  loginPassword: true,
+});
+
+const companyPaymentSchema = employeeFormSchema.pick({
+  employeeId: true,
+  department: true,
+  designation: true,
+  reportingTo: true,
+  role: true,
+  officeBranch: true,
+  siteProject: true,
+  dateOfJoining: true,
+  contractStartDate: true,
+  contractEndDate: true,
+  exitDate: true,
+  basicSalary: true,
+  hourlyRate: true,
+  bankName: true,
+  bankBranchLocation: true,
+  bankAccountHolderName: true,
+  bankAccountNumber: true,
+  bankCode: true,
+  branchCode: true,
+  bankIdentifierCode: true,
+  kraPin: true,
+  mpesaName: true,
+  mpesaNumber: true,
+  mpesaPaymentStatus: true,
+  shifNumber: true,
+  nssfNumber: true,
+  idNumber: true,
+});
+
+const academicsSchema = employeeFormSchema.pick({
+  achievements: true,
+  coursesTaken: true,
+  otherAcademics: true,
+});
+
+const nextOfKinSchema = employeeFormSchema.pick({
+  nextOfKinName: true,
+  nextOfKinRelationship: true,
+  nextOfKinMobile: true,
+  nextOfKinEmail: true,
+  emergencyContactPerson: true,
+  emergencyContactNumber: true,
+});
+
 export type EmployeeFormData = z.infer<typeof employeeFormSchema>;
 
 interface EmployeeFormTabsProps {
   onSubmit: (data: EmployeeFormData) => void;
+  onTabSave?: (tabData: Partial<EmployeeFormData>, tabName: string) => void;
   initialData?: Partial<EmployeeFormData>;
   isEdit?: boolean;
 }
 
-export function EmployeeFormTabs({ onSubmit, initialData, isEdit = false }: EmployeeFormTabsProps) {
+export function EmployeeFormTabs({ onSubmit, onTabSave, initialData, isEdit = false }: EmployeeFormTabsProps) {
   const [activeTab, setActiveTab] = useState("personal");
   const [passportPhoto, setPassportPhoto] = useState<File | null>(null);
+  const { toast } = useToast();
 
   const form = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeFormSchema),
@@ -151,6 +215,37 @@ export function EmployeeFormTabs({ onSubmit, initialData, isEdit = false }: Empl
     }
   };
 
+  const handleTabSave = async (tabName: string, schema: z.ZodSchema) => {
+    try {
+      const currentValues = form.getValues();
+      const validatedData = schema.parse(currentValues);
+      
+      if (onTabSave) {
+        onTabSave(validatedData, tabName);
+      } else {
+        toast({
+          title: "Section Saved",
+          description: `${tabName} information has been saved successfully.`,
+        });
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const firstError = error.errors[0];
+        toast({
+          title: "Validation Error",
+          description: firstError.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to save section data.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
@@ -168,22 +263,58 @@ export function EmployeeFormTabs({ onSubmit, initialData, isEdit = false }: Empl
               passportPhoto={passportPhoto}
               setPassportPhoto={setPassportPhoto}
             />
+            <div className="flex justify-end pt-4 border-t">
+              <Button
+                type="button"
+                onClick={() => handleTabSave("Personal Info", personalInfoSchema)}
+                variant="outline"
+              >
+                Save Personal Info
+              </Button>
+            </div>
           </TabsContent>
 
           <TabsContent value="company" className="space-y-4">
             <CompanyPaymentTab form={form} />
+            <div className="flex justify-end pt-4 border-t">
+              <Button
+                type="button"
+                onClick={() => handleTabSave("Company/Payment", companyPaymentSchema)}
+                variant="outline"
+              >
+                Save Company/Payment Info
+              </Button>
+            </div>
           </TabsContent>
 
           <TabsContent value="academics" className="space-y-4">
             <AcademicsTab form={form} />
+            <div className="flex justify-end pt-4 border-t">
+              <Button
+                type="button"
+                onClick={() => handleTabSave("Academics", academicsSchema)}
+                variant="outline"
+              >
+                Save Academic Info
+              </Button>
+            </div>
           </TabsContent>
 
           <TabsContent value="nextofkin" className="space-y-4">
             <NextOfKinTab form={form} />
+            <div className="flex justify-end pt-4 border-t">
+              <Button
+                type="button"
+                onClick={() => handleTabSave("Next of Kin", nextOfKinSchema)}
+                variant="outline"
+              >
+                Save Next of Kin Info
+              </Button>
+            </div>
           </TabsContent>
         </Tabs>
 
-        <div className="flex justify-between pt-6">
+        <div className="flex justify-between pt-6 border-t-2">
           <div className="flex space-x-2">
             {activeTab !== "personal" && (
               <Button
