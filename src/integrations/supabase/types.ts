@@ -1334,9 +1334,17 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_user_company_role: {
+        Args: { company_uuid: string }
+        Returns: string
+      }
       get_user_current_company: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      is_user_company_member: {
+        Args: { company_uuid: string }
+        Returns: boolean
       }
     }
     Enums: {
