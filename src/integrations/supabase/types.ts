@@ -624,6 +624,75 @@ export type Database = {
         }
         Relationships: []
       }
+      organization_positions: {
+        Row: {
+          budget_authority: number | null
+          created_at: string
+          department: string
+          description: string | null
+          employee_id: string | null
+          id: string
+          is_active: boolean
+          level: number
+          location: string | null
+          max_reports: number | null
+          parent_position_id: string | null
+          requirements: string | null
+          responsibilities: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          budget_authority?: number | null
+          created_at?: string
+          department: string
+          description?: string | null
+          employee_id?: string | null
+          id?: string
+          is_active?: boolean
+          level?: number
+          location?: string | null
+          max_reports?: number | null
+          parent_position_id?: string | null
+          requirements?: string | null
+          responsibilities?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          budget_authority?: number | null
+          created_at?: string
+          department?: string
+          description?: string | null
+          employee_id?: string | null
+          id?: string
+          is_active?: boolean
+          level?: number
+          location?: string | null
+          max_reports?: number | null
+          parent_position_id?: string | null
+          requirements?: string | null
+          responsibilities?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_positions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_positions_parent_position_id_fkey"
+            columns: ["parent_position_id"]
+            isOneToOne: false
+            referencedRelation: "organization_positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_records: {
         Row: {
           allowances: number
