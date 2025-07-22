@@ -1,0 +1,10 @@
+-- Insert organizational roles
+INSERT INTO public.user_roles (name, description, permissions, color, is_system_role) VALUES
+('CEO', 'Chief Executive Officer - Executive leadership and strategic oversight', '["user_management", "employee_management", "payroll_management", "performance_management", "reporting", "system_administration"]', 'bg-purple-100 text-purple-800', true),
+('Principal Staff Officer', 'Principal Staff Officer - Senior administrative oversight and coordination', '["employee_management", "task_management", "reporting", "performance_management"]', 'bg-blue-100 text-blue-800', true),
+('Chief Supply Chain and Logistics', 'Chief Supply Chain and Logistics - Supply chain and logistics management', '["procurement_management", "asset_management", "vendor_management", "reporting"]', 'bg-green-100 text-green-800', true),
+('Chief Forester', 'Chief Forester - Forest management and operations oversight', '["employee_management", "task_management", "performance_management", "reporting"]', 'bg-emerald-100 text-emerald-800', true),
+('Chief External Affairs Officer', 'Chief External Affairs Officer - External relations and communications', '["reporting", "employee_management"]', 'bg-indigo-100 text-indigo-800', true),
+('Agro-Ecosystem Manager', 'Agro-Ecosystem Manager - Agricultural and ecosystem management', '["employee_management", "task_management", "reporting", "performance_management"]', 'bg-lime-100 text-lime-800', true),
+('Director Special Projects Site Forester', 'Director Special Projects Site Forester - Special forestry projects management', '["employee_management", "task_management", "reporting", "performance_management"]', 'bg-teal-100 text-teal-800', true),
+('M&E', 'Monitoring and Evaluation - Performance monitoring and evaluation oversight', '["reporting", "performance_management", "employee_management"]', 'bg-amber-100 text-amber-800', true);
