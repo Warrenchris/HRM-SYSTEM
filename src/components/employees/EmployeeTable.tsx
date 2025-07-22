@@ -379,7 +379,7 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger, 
               <TableCell>
                 <div className="flex items-center gap-3">
                    <Avatar className="w-10 h-10">
-                     <AvatarImage src="" />
+                     <AvatarImage src={employee.passport_photo_url || ""} />
                      <AvatarFallback className="bg-primary/10 text-primary">
                        {employee.first_name?.[0]}{employee.last_name?.[0]}
                      </AvatarFallback>
