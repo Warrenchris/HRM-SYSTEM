@@ -10,6 +10,7 @@ import { CompanyPaymentTab } from "./tabs/CompanyPaymentTab";
 import { AcademicsTab } from "./tabs/AcademicsTab";
 import { NextOfKinTab } from "./tabs/NextOfKinTab";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const employeeFormSchema = z.object({
   // Personal Information
@@ -145,9 +146,10 @@ interface EmployeeFormTabsProps {
   onTabSave?: (tabData: Partial<EmployeeFormData>, tabName: string) => void;
   initialData?: Partial<EmployeeFormData>;
   isEdit?: boolean;
+  existingPhotoUrl?: string;
 }
 
-export function EmployeeFormTabs({ onSubmit, onTabSave, initialData, isEdit = false }: EmployeeFormTabsProps) {
+export function EmployeeFormTabs({ onSubmit, onTabSave, initialData, isEdit = false, existingPhotoUrl }: EmployeeFormTabsProps) {
   const [activeTab, setActiveTab] = useState("personal");
   const [passportPhoto, setPassportPhoto] = useState<File | null>(null);
   const { toast } = useToast();
@@ -207,7 +209,27 @@ export function EmployeeFormTabs({ onSubmit, onTabSave, initialData, isEdit = fa
     },
   });
 
-  const handleSubmit = (values: EmployeeFormData) => {
+  const handleSubmit = async (values: EmployeeFormData) => {
+    // Handle passport photo upload for new employees
+    if (passportPhoto && !isEdit) {
+      try {
+        const photoUrl = await uploadPassportPhoto(values.employeeId);
+        (values as any).passportPhotoUrl = photoUrl;
+        
+        toast({
+          title: "Photo Uploaded",
+          description: "Passport photo uploaded successfully.",
+        });
+      } catch (photoError) {
+        console.error('Error uploading passport photo:', photoError);
+        toast({
+          title: "Photo Upload Failed",
+          description: "Failed to upload passport photo, but employee data will be saved.",
+          variant: "destructive",
+        });
+      }
+    }
+    
     onSubmit(values);
     if (!isEdit) {
       form.reset();
@@ -215,10 +237,59 @@ export function EmployeeFormTabs({ onSubmit, onTabSave, initialData, isEdit = fa
     }
   };
 
+  const uploadPassportPhoto = async (employeeId: string): Promise<string | null> => {
+    if (!passportPhoto) return null;
+    
+    try {
+      const fileExt = passportPhoto.name.split('.').pop();
+      const fileName = `${employeeId}_passport_${Date.now()}.${fileExt}`;
+      const filePath = `${employeeId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('employee-photos')
+        .upload(filePath, passportPhoto);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('employee-photos')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading passport photo:', error);
+      throw error;
+    }
+  };
+
   const handleTabSave = async (tabName: string, schema: z.ZodSchema) => {
     try {
       const currentValues = form.getValues();
       const validatedData = schema.parse(currentValues);
+      
+      // Handle passport photo upload for Personal Info tab
+      if (tabName === "Personal Info" && passportPhoto && onTabSave) {
+        let photoUrl = null;
+        try {
+          // Generate a temporary employee ID if not available
+          const employeeId = currentValues.employeeId || `temp_${Date.now()}`;
+          photoUrl = await uploadPassportPhoto(employeeId);
+          
+          // Add photo URL to validated data
+          (validatedData as any).passportPhotoUrl = photoUrl;
+          
+          toast({
+            title: "Photo Uploaded",
+            description: "Passport photo uploaded successfully.",
+          });
+        } catch (photoError) {
+          toast({
+            title: "Photo Upload Failed",
+            description: "Failed to upload passport photo, but other data will be saved.",
+            variant: "destructive",
+          });
+        }
+      }
       
       if (onTabSave) {
         onTabSave(validatedData, tabName);
@@ -262,6 +333,7 @@ export function EmployeeFormTabs({ onSubmit, onTabSave, initialData, isEdit = fa
               form={form} 
               passportPhoto={passportPhoto}
               setPassportPhoto={setPassportPhoto}
+              existingPhotoUrl={existingPhotoUrl}
             />
             <div className="flex justify-end pt-4 border-t">
               <Button

@@ -58,6 +58,7 @@ export function EditEmployeeDialog({ isOpen, onClose, onSubmit, onRefresh, emplo
       }
       if (tabData.permanentAddress !== undefined) updateData.permanent_address = tabData.permanentAddress;
       if (tabData.loginPassword !== undefined) updateData.login_password = tabData.loginPassword;
+      if ((tabData as any).passportPhotoUrl !== undefined) updateData.passport_photo_url = (tabData as any).passportPhotoUrl;
 
       // Company/Payment/Statutory mapping
       if (tabData.employeeId !== undefined) updateData.employee_id = tabData.employeeId;
@@ -234,6 +235,7 @@ export function EditEmployeeDialog({ isOpen, onClose, onSubmit, onRefresh, emplo
           onTabSave={handleTabSave}
           initialData={convertEmployeeToFormData(employee)} 
           isEdit={true}
+          existingPhotoUrl={employee?.passport_photo_url}
         />
       </DialogContent>
     </Dialog>

@@ -13,9 +13,10 @@ interface PersonalInfoTabProps {
   form: UseFormReturn<EmployeeFormData>;
   passportPhoto: File | null;
   setPassportPhoto: (file: File | null) => void;
+  existingPhotoUrl?: string;
 }
 
-export function PersonalInfoTab({ form, passportPhoto, setPassportPhoto }: PersonalInfoTabProps) {
+export function PersonalInfoTab({ form, passportPhoto, setPassportPhoto, existingPhotoUrl }: PersonalInfoTabProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -34,6 +35,8 @@ export function PersonalInfoTab({ form, passportPhoto, setPassportPhoto }: Perso
         <Avatar className="w-24 h-24">
           {passportPhoto ? (
             <AvatarImage src={URL.createObjectURL(passportPhoto)} />
+          ) : existingPhotoUrl ? (
+            <AvatarImage src={existingPhotoUrl} />
           ) : (
             <AvatarFallback className="bg-muted">
               <User className="w-8 h-8 text-muted-foreground" />
