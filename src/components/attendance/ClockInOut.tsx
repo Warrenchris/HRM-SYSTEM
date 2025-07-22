@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { APIProvider, Map, Marker } from '@vis.gl/react-google-maps';
 
 interface AttendanceRecord {
   id: string;
@@ -35,6 +36,7 @@ export function ClockInOut() {
   const [currentRecord, setCurrentRecord] = useState<AttendanceRecord | null>(null);
   const [notes, setNotes] = useState("");
   const [location, setLocation] = useState("");
+  const [currentPosition, setCurrentPosition] = useState<{lat: number; lng: number} | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -114,12 +116,22 @@ export function ClockInOut() {
   // Get current location
   useEffect(() => {
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
+      navigator.geolocation.watchPosition(
         (position) => {
+          const coords = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          setCurrentPosition(coords);
           setLocation(`${position.coords.latitude}, ${position.coords.longitude}`);
         },
         (error) => {
           console.log('Location access denied');
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 60000
         }
       );
     }
@@ -364,15 +376,34 @@ export function ClockInOut() {
           </div>
 
           {/* Location Info */}
-          <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
+          <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
             <div className="flex items-center gap-2 text-sm font-medium">
               <MapPin className="h-4 w-4 text-blue-500" />
-              GPS Location Status
+              Real-time Location
             </div>
             {location ? (
-              <div className="space-y-1">
+              <div className="space-y-3">
                 <div className="text-xs text-green-600 font-medium">✓ Location detected</div>
                 <div className="text-xs font-mono text-muted-foreground">{location}</div>
+                
+                {/* Google Maps */}
+                {currentPosition && (
+                  <div className="h-48 w-full rounded-lg overflow-hidden border">
+                    <APIProvider apiKey="AIzaSyBGne_7VZCAFVZjAOdFQJmX-NQJOQiXVzI">
+                      <Map
+                        defaultZoom={15}
+                        center={currentPosition}
+                        mapId="attendance-map"
+                        style={{ width: '100%', height: '100%' }}
+                      >
+                        <Marker 
+                          position={currentPosition}
+                          title="Your Current Location"
+                        />
+                      </Map>
+                    </APIProvider>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-xs text-orange-600">📍 Getting location...</div>
