@@ -6,17 +6,146 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmployeeFormTabs, EmployeeFormData } from "./EmployeeFormTabs";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface EditEmployeeDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: EmployeeFormData) => void;
+  onRefresh?: () => void;
   employee: any;
 }
 
-export function EditEmployeeDialog({ isOpen, onClose, onSubmit, employee }: EditEmployeeDialogProps) {
+export function EditEmployeeDialog({ isOpen, onClose, onSubmit, onRefresh, employee }: EditEmployeeDialogProps) {
+  const { toast } = useToast();
+
   const handleSubmit = (values: EmployeeFormData) => {
     onSubmit(values);
+  };
+
+  // Handle individual tab saves
+  const handleTabSave = async (tabData: Partial<EmployeeFormData>, tabName: string) => {
+    try {
+      if (!employee?.id) {
+        toast({
+          title: "Error",
+          description: "Employee ID not found. Cannot save individual section.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Convert form data to database format
+      const updateData: any = {};
+
+      // Personal Information mapping
+      if (tabData.firstName !== undefined) updateData.first_name = tabData.firstName;
+      if (tabData.secondName !== undefined) updateData.second_name = tabData.secondName;
+      if (tabData.otherName !== undefined) updateData.other_name = tabData.otherName;
+      if (tabData.officeEmail !== undefined) {
+        updateData.office_email = tabData.officeEmail;
+        updateData.email = tabData.officeEmail; // Keep for backward compatibility
+      }
+      if (tabData.personalEmail !== undefined) updateData.personal_email = tabData.personalEmail;
+      if (tabData.dateOfBirth !== undefined) updateData.date_of_birth = tabData.dateOfBirth;
+      if (tabData.gender !== undefined) updateData.gender = tabData.gender;
+      if (tabData.maritalStatus !== undefined) updateData.marital_status = tabData.maritalStatus;
+      if (tabData.phone !== undefined) updateData.phone = tabData.phone;
+      if (tabData.localAddress !== undefined) {
+        updateData.local_address = tabData.localAddress;
+        updateData.address = tabData.localAddress; // Keep for backward compatibility
+      }
+      if (tabData.permanentAddress !== undefined) updateData.permanent_address = tabData.permanentAddress;
+      if (tabData.loginPassword !== undefined) updateData.login_password = tabData.loginPassword;
+
+      // Company/Payment/Statutory mapping
+      if (tabData.employeeId !== undefined) updateData.employee_id = tabData.employeeId;
+      if (tabData.department !== undefined) updateData.department = tabData.department;
+      if (tabData.designation !== undefined) updateData.position = tabData.designation;
+      if (tabData.reportingTo !== undefined) updateData.reporting_to = tabData.reportingTo;
+      if (tabData.role !== undefined) updateData.role = tabData.role;
+      if (tabData.officeBranch !== undefined) updateData.office_branch = tabData.officeBranch;
+      if (tabData.siteProject !== undefined) updateData.site_project = tabData.siteProject;
+      if (tabData.dateOfJoining !== undefined) updateData.join_date = tabData.dateOfJoining;
+      if (tabData.contractStartDate !== undefined) updateData.contract_start_date = tabData.contractStartDate;
+      if (tabData.contractEndDate !== undefined) updateData.contract_end_date = tabData.contractEndDate;
+      if (tabData.exitDate !== undefined) updateData.exit_date = tabData.exitDate;
+      if (tabData.basicSalary !== undefined) {
+        const salary = tabData.basicSalary ? parseFloat(tabData.basicSalary) : null;
+        updateData.basic_salary = salary;
+        updateData.salary = salary; // Keep for backward compatibility
+      }
+      if (tabData.hourlyRate !== undefined) updateData.hourly_rate = tabData.hourlyRate ? parseFloat(tabData.hourlyRate) : null;
+
+      // Bank Details mapping
+      if (tabData.bankName !== undefined) updateData.bank_name = tabData.bankName;
+      if (tabData.bankBranchLocation !== undefined) updateData.bank_branch_location = tabData.bankBranchLocation;
+      if (tabData.bankAccountHolderName !== undefined) updateData.bank_account_holder_name = tabData.bankAccountHolderName;
+      if (tabData.bankAccountNumber !== undefined) updateData.bank_account_number = tabData.bankAccountNumber;
+      if (tabData.bankCode !== undefined) updateData.bank_code = tabData.bankCode;
+      if (tabData.branchCode !== undefined) updateData.branch_code = tabData.branchCode;
+      if (tabData.bankIdentifierCode !== undefined) updateData.bank_identifier_code = tabData.bankIdentifierCode;
+      if (tabData.kraPin !== undefined) updateData.kra_pin = tabData.kraPin;
+
+      // Mpesa Details mapping
+      if (tabData.mpesaName !== undefined) updateData.mpesa_name = tabData.mpesaName;
+      if (tabData.mpesaNumber !== undefined) updateData.mpesa_number = tabData.mpesaNumber;
+      if (tabData.mpesaPaymentStatus !== undefined) updateData.mpesa_payment_status = tabData.mpesaPaymentStatus;
+
+      // Statutory mapping
+      if (tabData.shifNumber !== undefined) updateData.shif_number = tabData.shifNumber;
+      if (tabData.nssfNumber !== undefined) updateData.nssf_number = tabData.nssfNumber;
+      if (tabData.idNumber !== undefined) updateData.id_number = tabData.idNumber;
+
+      // Academics mapping
+      if (tabData.achievements !== undefined) updateData.achievements = JSON.stringify(tabData.achievements);
+      if (tabData.coursesTaken !== undefined) updateData.courses_taken = JSON.stringify(tabData.coursesTaken);
+      if (tabData.otherAcademics !== undefined) updateData.other_academics = tabData.otherAcademics;
+
+      // Next of Kin mapping
+      if (tabData.nextOfKinName !== undefined) updateData.next_of_kin_name = tabData.nextOfKinName;
+      if (tabData.nextOfKinRelationship !== undefined) updateData.next_of_kin_relationship = tabData.nextOfKinRelationship;
+      if (tabData.nextOfKinMobile !== undefined) updateData.next_of_kin_mobile = tabData.nextOfKinMobile;
+      if (tabData.nextOfKinEmail !== undefined) updateData.next_of_kin_email = tabData.nextOfKinEmail;
+      if (tabData.emergencyContactPerson !== undefined) {
+        updateData.emergency_contact_person = tabData.emergencyContactPerson;
+        updateData.emergency_contact = tabData.emergencyContactPerson; // Keep for backward compatibility
+      }
+      if (tabData.emergencyContactNumber !== undefined) {
+        updateData.emergency_contact_number = tabData.emergencyContactNumber;
+        updateData.emergency_phone = tabData.emergencyContactNumber; // Keep for backward compatibility
+      }
+
+      // Always update the timestamp
+      updateData.updated_at = new Date().toISOString();
+
+      // Update the database
+      const { error } = await supabase
+        .from('employees')
+        .update(updateData)
+        .eq('id', employee.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Section Saved",
+        description: `${tabName} information has been saved successfully.`,
+      });
+
+      // Refresh the employee data if callback provided
+      if (onRefresh) {
+        onRefresh();
+      }
+
+    } catch (error) {
+      console.error('Error saving tab data:', error);
+      toast({
+        title: "Error",
+        description: `Failed to save ${tabName} information.`,
+        variant: "destructive",
+      });
+    }
   };
 
   // Convert database format to form format
@@ -102,6 +231,7 @@ export function EditEmployeeDialog({ isOpen, onClose, onSubmit, employee }: Edit
 
         <EmployeeFormTabs 
           onSubmit={handleSubmit} 
+          onTabSave={handleTabSave}
           initialData={convertEmployeeToFormData(employee)} 
           isEdit={true}
         />

@@ -485,15 +485,16 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger, 
     />
     
     {/* Edit Employee Dialog */}
-    <EditEmployeeDialog
-      isOpen={isEditDialogOpen}
-      onClose={() => {
-        setIsEditDialogOpen(false);
-        setEditEmployee(null);
-      }}
-      onSubmit={handleEditEmployee}
-      employee={editEmployee}
-    />
+      <EditEmployeeDialog
+        isOpen={isEditDialogOpen}
+        onClose={() => {
+          setIsEditDialogOpen(false);
+          setEditEmployee(null);
+        }}
+        onSubmit={handleEditEmployee}
+        onRefresh={fetchEmployees}
+        employee={editEmployee}
+      />
     </div>
   );
 }
