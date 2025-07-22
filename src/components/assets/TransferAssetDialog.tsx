@@ -67,7 +67,7 @@ export function TransferAssetDialog({
   const form = useForm<TransferFormData>({
     resolver: zodResolver(transferSchema),
     defaultValues: {
-      newEmployeeId: "",
+      newEmployeeId: "unassigned",
       newStatus: "assigned",
       transferReason: "",
       transferNotes: "",
@@ -163,7 +163,7 @@ export function TransferAssetDialog({
       const { error: updateError } = await supabase
         .from('assets')
         .update({
-          current_employee_id: data.newEmployeeId || null,
+          current_employee_id: data.newEmployeeId === "unassigned" ? null : data.newEmployeeId || null,
           status: finalStatus,
           updated_at: new Date().toISOString(),
         })
@@ -185,7 +185,7 @@ export function TransferAssetDialog({
         .insert({
           asset_id: asset.id,
           from_employee_id: asset.current_employee_id,
-          to_employee_id: data.newEmployeeId || null,
+          to_employee_id: data.newEmployeeId === "unassigned" ? null : data.newEmployeeId || null,
           transfer_status: 'completed',
           previous_status: asset.status,
           transfer_reason: data.transferReason,
@@ -273,7 +273,7 @@ export function TransferAssetDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
                         {employees.map((employee) => (
                           <SelectItem key={employee.id} value={employee.id}>
                             <div className="flex flex-col items-start">
@@ -401,7 +401,7 @@ export function TransferAssetDialog({
                 <div>
                   <span className="text-muted-foreground">To: </span>
                   <span className="font-medium">
-                    {form.watch("newEmployeeId") 
+                    {form.watch("newEmployeeId") && form.watch("newEmployeeId") !== "unassigned"
                       ? employees.find(e => e.id === form.watch("newEmployeeId"))?.first_name + " " + 
                         employees.find(e => e.id === form.watch("newEmployeeId"))?.last_name
                       : "Unassigned"
