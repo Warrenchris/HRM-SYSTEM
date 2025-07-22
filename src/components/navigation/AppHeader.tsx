@@ -21,6 +21,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { CompanySwitcher } from "@/components/company/CompanySwitcher";
 
 export function AppHeader() {
   const { user, signOut } = useAuth();
@@ -116,6 +117,9 @@ export function AppHeader() {
 
       {/* Right Section */}
       <div className="flex items-center gap-4">
+        {/* Company Switcher */}
+        <CompanySwitcher />
+        
         {/* Notifications */}
         <Popover>
           <PopoverTrigger asChild>

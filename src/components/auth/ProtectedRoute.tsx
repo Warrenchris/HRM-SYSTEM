@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompany } from "@/contexts/CompanyContext";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface ProtectedRouteProps {
@@ -8,16 +9,19 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { needsOnboarding, loading: companyLoading } = useCompany();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       navigate("/auth");
+    } else if (!authLoading && !companyLoading && user && needsOnboarding) {
+      navigate("/onboarding");
     }
-  }, [user, loading, navigate]);
+  }, [user, authLoading, companyLoading, needsOnboarding, navigate]);
 
-  if (loading) {
+  if (authLoading || companyLoading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="flex h-screen">
@@ -49,7 +53,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!user) {
+  if (!user || needsOnboarding) {
     return null;
   }
 
