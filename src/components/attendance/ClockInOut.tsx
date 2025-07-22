@@ -52,19 +52,34 @@ export function ClockInOut() {
   useEffect(() => {
     const fetchApiKey = async () => {
       try {
+        console.log('Attempting to fetch Google Maps API key...');
         const { data, error } = await supabase.functions.invoke('get-google-maps-key');
+        
+        console.log('Edge function response:', { data, error });
+        
         if (error) {
           console.error('Edge function error:', error);
+          toast({
+            title: "Maps Unavailable",
+            description: "Unable to load Google Maps API key. Location will still be tracked via coordinates.",
+            variant: "destructive"
+          });
           return;
         }
+        
         if (data?.apiKey) {
+          console.log('API key received, length:', data.apiKey.length);
           setGoogleMapsApiKey(data.apiKey);
         } else {
-          console.error('No API key returned from edge function');
+          console.error('No API key returned from edge function:', data);
+          toast({
+            title: "Maps Configuration Error",
+            description: "Google Maps API key not found in response.",
+            variant: "destructive"
+          });
         }
       } catch (error) {
         console.error('Error fetching Google Maps API key:', error);
-        // Add a toast notification for user feedback
         toast({
           title: "Maps Unavailable",
           description: "Unable to load Google Maps. Location will still be tracked via coordinates.",

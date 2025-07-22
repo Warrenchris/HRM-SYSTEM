@@ -6,14 +6,18 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  console.log('Request received:', req.method, req.url);
+  
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
     const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY')
+    console.log('API Key retrieved:', apiKey ? 'Key found' : 'No key found');
     
     if (!apiKey) {
+      console.error('Google Maps API key not configured in secrets');
       return new Response(
         JSON.stringify({ error: 'Google Maps API key not configured' }),
         { 
@@ -23,6 +27,7 @@ serve(async (req) => {
       )
     }
 
+    console.log('Returning API key successfully');
     return new Response(
       JSON.stringify({ apiKey }),
       { 
@@ -30,6 +35,7 @@ serve(async (req) => {
       }
     )
   } catch (error) {
+    console.error('Error in edge function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
