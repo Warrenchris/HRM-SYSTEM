@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { 
   Users, 
   Clock, 
@@ -13,12 +14,155 @@ import {
   CheckCircle,
   XCircle,
   FileText,
-  AlertTriangle
+  AlertTriangle,
+  Cake,
+  MapPin
 } from "lucide-react";
 import { useEmployeeStats } from "@/hooks/useEmployeeStats";
+import { supabase } from "@/integrations/supabase/client";
+
+interface UpcomingBirthday {
+  id: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string;
+  department: string;
+  daysUntil: number;
+}
+
+interface TodayAttendance {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  department: string;
+  clock_in_time: string;
+  clock_out_time?: string;
+  status: string;
+  total_hours?: number;
+}
 
 export default function Dashboard() {
   const { totalEmployees, activeEmployees, exitedEmployees, loading, error } = useEmployeeStats();
+  const [upcomingBirthdays, setUpcomingBirthdays] = useState<UpcomingBirthday[]>([]);
+  const [todayAttendance, setTodayAttendance] = useState<TodayAttendance[]>([]);
+  const [attendanceStats, setAttendanceStats] = useState({
+    clockedIn: 0,
+    clockedOut: 0,
+    late: 0,
+    onBreak: 0
+  });
+
+  useEffect(() => {
+    fetchUpcomingBirthdays();
+    fetchTodayAttendance();
+  }, []);
+
+  const fetchUpcomingBirthdays = async () => {
+    try {
+      const today = new Date();
+      const twoWeeksLater = new Date();
+      twoWeeksLater.setDate(today.getDate() + 14);
+
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id, first_name, last_name, date_of_birth, department')
+        .not('date_of_birth', 'is', null)
+        .eq('status', 'active');
+
+      if (error) throw error;
+
+      const birthdaysWithDays = data
+        .map(employee => {
+          if (!employee.date_of_birth) return null;
+          
+          const birthDate = new Date(employee.date_of_birth);
+          const currentYear = today.getFullYear();
+          const thisYearBirthday = new Date(currentYear, birthDate.getMonth(), birthDate.getDate());
+          
+          if (thisYearBirthday < today) {
+            thisYearBirthday.setFullYear(currentYear + 1);
+          }
+          
+          const daysUntil = Math.ceil((thisYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          
+          return {
+            ...employee,
+            daysUntil
+          };
+        })
+        .filter(employee => employee && employee.daysUntil <= 14)
+        .sort((a, b) => a!.daysUntil - b!.daysUntil)
+        .slice(0, 5) as UpcomingBirthday[];
+
+      setUpcomingBirthdays(birthdaysWithDays);
+    } catch (error) {
+      console.error('Error fetching birthdays:', error);
+    }
+  };
+
+  const fetchTodayAttendance = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // First get attendance records for today
+      const { data: attendanceData, error: attendanceError } = await supabase
+        .from('attendance_records')
+        .select('*')
+        .gte('clock_in_time', `${today}T00:00:00`)
+        .lte('clock_in_time', `${today}T23:59:59`)
+        .order('clock_in_time', { ascending: false });
+
+      if (attendanceError) throw attendanceError;
+
+      // Get employee details for each attendance record
+      const employeeIds = [...new Set(attendanceData.map(record => record.employee_id))];
+      const { data: employeesData, error: employeesError } = await supabase
+        .from('employees')
+        .select('id, first_name, last_name, department')
+        .in('id', employeeIds);
+
+      if (employeesError) throw employeesError;
+
+      // Create a map of employee data for quick lookup
+      const employeeMap = employeesData.reduce((acc, emp) => {
+        acc[emp.id] = emp;
+        return acc;
+      }, {} as Record<string, any>);
+
+      const formattedAttendanceData = attendanceData.map(record => {
+        const employee = employeeMap[record.employee_id];
+        return {
+          id: record.id,
+          employee_id: record.employee_id,
+          employee_name: employee ? `${employee.first_name} ${employee.last_name}` : 'Unknown Employee',
+          department: employee?.department || 'Unknown',
+          clock_in_time: record.clock_in_time,
+          clock_out_time: record.clock_out_time,
+          status: record.status,
+          total_hours: record.total_hours
+        };
+      });
+
+      setTodayAttendance(formattedAttendanceData.slice(0, 10));
+
+      // Calculate attendance stats
+      const stats = {
+        clockedIn: formattedAttendanceData.filter(a => a.status === 'clocked_in').length,
+        clockedOut: formattedAttendanceData.filter(a => a.status === 'clocked_out').length,
+        late: formattedAttendanceData.filter(a => {
+          const clockInTime = new Date(a.clock_in_time);
+          const workStartTime = new Date();
+          workStartTime.setHours(9, 0, 0, 0); // 9 AM
+          return clockInTime > workStartTime;
+        }).length,
+        onBreak: formattedAttendanceData.filter(a => a.status === 'on_break').length
+      };
+
+      setAttendanceStats(stats);
+    } catch (error) {
+      console.error('Error fetching attendance:', error);
+    }
+  };
 
   const stats = [
     {
@@ -243,7 +387,128 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Attendance Overview */}
+      <Card className="shadow-soft border-blue-200 bg-blue-50/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="w-5 h-5 text-blue-600" />
+            Today's Attendance Overview
+          </CardTitle>
+          <CardDescription>
+            Real-time attendance tracking for today
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="flex items-center gap-2 p-4 bg-white border border-blue-200 rounded-lg">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <div>
+                <p className="text-2xl font-bold text-green-600">{attendanceStats.clockedIn}</p>
+                <p className="text-xs text-muted-foreground">Clocked In</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 p-4 bg-white border border-blue-200 rounded-lg">
+              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+              <div>
+                <p className="text-2xl font-bold text-red-600">{attendanceStats.clockedOut}</p>
+                <p className="text-xs text-muted-foreground">Clocked Out</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 p-4 bg-white border border-blue-200 rounded-lg">
+              <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+              <div>
+                <p className="text-2xl font-bold text-orange-600">{attendanceStats.late}</p>
+                <p className="text-xs text-muted-foreground">Late Arrivals</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 p-4 bg-white border border-blue-200 rounded-lg">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <div>
+                <p className="text-2xl font-bold text-yellow-600">{attendanceStats.onBreak}</p>
+                <p className="text-xs text-muted-foreground">On Break</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            <h4 className="font-medium text-sm">Recent Clock-ins</h4>
+            {todayAttendance.slice(0, 5).map((record, index) => (
+              <div key={index} className="flex items-center justify-between p-3 bg-white border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${
+                    record.status === 'clocked_in' ? 'bg-green-500' :
+                    record.status === 'clocked_out' ? 'bg-red-500' :
+                    record.status === 'on_break' ? 'bg-yellow-500' : 'bg-gray-500'
+                  }`}></div>
+                  <div>
+                    <p className="font-medium text-sm">{record.employee_name}</p>
+                    <p className="text-xs text-muted-foreground">{record.department}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium">
+                    {new Date(record.clock_in_time).toLocaleTimeString('en-US', { 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {record.total_hours ? `${record.total_hours.toFixed(1)}h worked` : 'Active'}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {todayAttendance.length > 5 && (
+              <Button asChild variant="outline" size="sm" className="w-full">
+                <Link to="/attendance">View All Attendance</Link>
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Upcoming Birthdays */}
+        <Card className="shadow-soft border-pink-200 bg-pink-50/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Cake className="w-5 h-5 text-pink-600" />
+              Upcoming Birthdays
+            </CardTitle>
+            <CardDescription>
+              Celebrate your team members
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {upcomingBirthdays.length > 0 ? (
+              upcomingBirthdays.map((birthday, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-white border border-pink-200 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center">
+                      <Cake className="w-4 h-4 text-pink-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">{birthday.first_name} {birthday.last_name}</p>
+                      <p className="text-xs text-muted-foreground">{birthday.department}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <Badge variant={birthday.daysUntil === 0 ? 'default' : 'secondary'} className="text-xs">
+                      {birthday.daysUntil === 0 ? 'Today!' : 
+                       birthday.daysUntil === 1 ? 'Tomorrow' : 
+                       `${birthday.daysUntil} days`}
+                    </Badge>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No upcoming birthdays in the next 2 weeks
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Pending Actions */}
         <Card className="shadow-soft">
           <CardHeader>
