@@ -40,11 +40,38 @@ export function PerformanceAppraisals() {
   const [selectedRating, setSelectedRating] = useState<number>(0);
   const [appraisals, setAppraisals] = useState<Appraisal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [employees, setEmployees] = useState<any[]>([]);
+  
+  // Schedule appraisal form state
+  const [scheduleForm, setScheduleForm] = useState({
+    employeeId: "",
+    appraiserId: "",
+    appraisalPeriod: "",
+    dueDate: "",
+    appraisalType: "annual"
+  });
 
-  // Fetch appraisals from database
+  // Fetch appraisals and employees from database
   useEffect(() => {
     fetchAppraisals();
+    fetchEmployees();
   }, []);
+
+  const fetchEmployees = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id, first_name, last_name, department, position')
+        .eq('status', 'active');
+
+      if (error) throw error;
+
+      setEmployees(data || []);
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+    }
+  };
 
   const fetchAppraisals = async () => {
     try {
@@ -225,6 +252,59 @@ export function PerformanceAppraisals() {
     }
   };
 
+  const handleScheduleAppraisal = async () => {
+    if (!scheduleForm.employeeId || !scheduleForm.appraiserId || !scheduleForm.dueDate || !scheduleForm.appraisalPeriod) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const selectedEmployee = employees.find(emp => emp.id === scheduleForm.employeeId);
+      const selectedAppraiser = employees.find(emp => emp.id === scheduleForm.appraiserId);
+      
+      const { error } = await supabase
+        .from('appraisals')
+        .insert({
+          employee_id: scheduleForm.employeeId,
+          appraiser_id: scheduleForm.appraiserId,
+          appraisal_period: scheduleForm.appraisalPeriod,
+          due_date: scheduleForm.dueDate,
+          status: 'pending'
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Appraisal Scheduled",
+        description: `Performance appraisal scheduled for ${selectedEmployee?.first_name} ${selectedEmployee?.last_name}.`,
+      });
+
+      // Reset form and close dialog
+      setScheduleForm({
+        employeeId: "",
+        appraiserId: "",
+        appraisalPeriod: "",
+        dueDate: "",
+        appraisalType: "annual"
+      });
+      setShowScheduleDialog(false);
+      
+      // Refresh the data
+      fetchAppraisals();
+    } catch (error) {
+      console.error('Error scheduling appraisal:', error);
+      toast({
+        title: "Error",
+        description: "Failed to schedule appraisal. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getStatusBadge = (status: Appraisal["status"]) => {
     const statusConfig = {
       pending: { variant: "secondary" as const, label: "Pending" },
@@ -270,10 +350,121 @@ export function PerformanceAppraisals() {
                 <SelectItem value="overdue">Overdue</SelectItem>
               </SelectContent>
             </Select>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Schedule Appraisal
-            </Button>
+            <Dialog open={showScheduleDialog} onOpenChange={setShowScheduleDialog}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Schedule Appraisal
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Schedule New Appraisal</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Select Employee *</Label>
+                      <Select 
+                        value={scheduleForm.employeeId} 
+                        onValueChange={(value) => setScheduleForm(prev => ({ ...prev, employeeId: value }))}
+                      >
+                        <SelectTrigger className="mt-2">
+                          <SelectValue placeholder="Choose employee" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {employees.map((employee) => (
+                            <SelectItem key={employee.id} value={employee.id}>
+                              {employee.first_name} {employee.last_name} - {employee.department}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label>Select Appraiser *</Label>
+                      <Select 
+                        value={scheduleForm.appraiserId} 
+                        onValueChange={(value) => setScheduleForm(prev => ({ ...prev, appraiserId: value }))}
+                      >
+                        <SelectTrigger className="mt-2">
+                          <SelectValue placeholder="Choose appraiser" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {employees.map((employee) => (
+                            <SelectItem key={employee.id} value={employee.id}>
+                              {employee.first_name} {employee.last_name} - {employee.position}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Appraisal Period *</Label>
+                      <Select 
+                        value={scheduleForm.appraisalPeriod} 
+                        onValueChange={(value) => setScheduleForm(prev => ({ ...prev, appraisalPeriod: value }))}
+                      >
+                        <SelectTrigger className="mt-2">
+                          <SelectValue placeholder="Select period" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Q1 2025">Q1 2025</SelectItem>
+                          <SelectItem value="Q2 2025">Q2 2025</SelectItem>
+                          <SelectItem value="Q3 2025">Q3 2025</SelectItem>
+                          <SelectItem value="Q4 2025">Q4 2025</SelectItem>
+                          <SelectItem value="Annual 2025">Annual 2025</SelectItem>
+                          <SelectItem value="Mid-Year 2025">Mid-Year 2025</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label>Due Date *</Label>
+                      <Input 
+                        type="date" 
+                        className="mt-2"
+                        value={scheduleForm.dueDate}
+                        onChange={(e) => setScheduleForm(prev => ({ ...prev, dueDate: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label>Appraisal Type</Label>
+                    <Select 
+                      value={scheduleForm.appraisalType} 
+                      onValueChange={(value) => setScheduleForm(prev => ({ ...prev, appraisalType: value }))}
+                    >
+                      <SelectTrigger className="mt-2">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="annual">Annual Review</SelectItem>
+                        <SelectItem value="quarterly">Quarterly Review</SelectItem>
+                        <SelectItem value="probationary">Probationary Review</SelectItem>
+                        <SelectItem value="project-based">Project-Based Review</SelectItem>
+                        <SelectItem value="360-feedback">360° Feedback</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="flex justify-between pt-4">
+                    <Button variant="outline" onClick={() => setShowScheduleDialog(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleScheduleAppraisal}>
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Schedule Appraisal
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </CardHeader>
