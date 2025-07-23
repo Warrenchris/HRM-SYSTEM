@@ -6,7 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Star, Plus, Eye, Edit } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { Star, Plus, Eye, Edit, Target, Award, TrendingUp, Users, MessageCircle, CheckCircle, AlertTriangle, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -329,70 +335,503 @@ export function PerformanceAppraisals() {
                           <Eye className="h-4 w-4" />
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-2xl">
-                        <DialogHeader>
-                          <DialogTitle>Performance Appraisal Details</DialogTitle>
-                        </DialogHeader>
-                        {selectedAppraisal && (
-                          <div className="space-y-6">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <h4 className="font-semibold">Employee Information</h4>
-                                <p><strong>Name:</strong> {selectedAppraisal.employeeName}</p>
-                                <p><strong>Position:</strong> {selectedAppraisal.position}</p>
-                                <p><strong>Department:</strong> {selectedAppraisal.department}</p>
-                              </div>
-                              <div>
-                                <h4 className="font-semibold">Appraisal Details</h4>
-                                <p><strong>Period:</strong> {selectedAppraisal.appraisalPeriod}</p>
-                                <p><strong>Appraiser:</strong> {selectedAppraisal.appraiser}</p>
-                                <p><strong>Due Date:</strong> {selectedAppraisal.dueDate}</p>
-                              </div>
-                            </div>
-                            
-                            <div>
-                              <h4 className="font-semibold mb-2">Overall Rating</h4>
-                              <div className="flex gap-2">
-                                {Array.from({ length: 5 }, (_, i) => (
-                                  <Star
-                                    key={i}
-                                    className={`h-6 w-6 cursor-pointer transition-colors ${
-                                      i < selectedRating ? "fill-yellow-400 text-yellow-400" : "text-gray-300 hover:text-yellow-200"
-                                    }`}
-                                    onClick={() => setSelectedRating(i + 1)}
-                                  />
-                                ))}
-                              </div>
-                            </div>
+                       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                         <DialogHeader>
+                           <DialogTitle>Comprehensive Performance Appraisal</DialogTitle>
+                         </DialogHeader>
+                         {selectedAppraisal && (
+                           <Tabs defaultValue="performance" className="w-full">
+                             <TabsList className="grid w-full grid-cols-8 mb-6">
+                               <TabsTrigger value="performance">Performance</TabsTrigger>
+                               <TabsTrigger value="training">Training</TabsTrigger>
+                               <TabsTrigger value="recognition">Recognition</TabsTrigger>
+                               <TabsTrigger value="issues">Issues</TabsTrigger>
+                               <TabsTrigger value="decisions">Decisions</TabsTrigger>
+                               <TabsTrigger value="communication">Communication</TabsTrigger>
+                               <TabsTrigger value="motivation">Motivation</TabsTrigger>
+                               <TabsTrigger value="goals">Goal Alignment</TabsTrigger>
+                             </TabsList>
 
-                            <div>
-                              <h4 className="font-semibold mb-2">Comments & Feedback</h4>
-                              <Textarea
-                                placeholder="Add your appraisal comments here..."
-                                value={appraisalComment}
-                                onChange={(e) => setAppraisalComment(e.target.value)}
-                              />
-                            </div>
+                             {/* 1. Assess Employee Performance */}
+                             <TabsContent value="performance" className="space-y-6">
+                               <Card>
+                                 <CardHeader>
+                                   <CardTitle className="flex items-center gap-2">
+                                     <TrendingUp className="h-5 w-5" />
+                                     Performance Assessment
+                                   </CardTitle>
+                                 </CardHeader>
+                                 <CardContent className="space-y-4">
+                                   <div className="grid grid-cols-2 gap-4">
+                                     <div>
+                                       <Label>Overall Performance Rating</Label>
+                                       <div className="flex gap-2 mt-2">
+                                         {Array.from({ length: 5 }, (_, i) => (
+                                           <Star
+                                             key={i}
+                                             className={`h-6 w-6 cursor-pointer transition-colors ${
+                                               i < selectedRating ? "fill-yellow-400 text-yellow-400" : "text-gray-300 hover:text-yellow-200"
+                                             }`}
+                                             onClick={() => setSelectedRating(i + 1)}
+                                           />
+                                         ))}
+                                       </div>
+                                     </div>
+                                     <div>
+                                       <Label>Goal Achievement Rate</Label>
+                                       <Progress value={85} className="mt-2" />
+                                       <span className="text-sm text-muted-foreground">85% of goals met</span>
+                                     </div>
+                                   </div>
+                                   
+                                   <div className="space-y-3">
+                                     <Label>Key Performance Areas</Label>
+                                     {["Quality of Work", "Productivity", "Innovation", "Team Collaboration", "Problem Solving"].map((area, index) => (
+                                       <div key={area} className="flex items-center justify-between p-3 border rounded-lg">
+                                         <span>{area}</span>
+                                         <div className="flex gap-1">
+                                           {Array.from({ length: 5 }, (_, i) => (
+                                             <Star key={i} className={`h-4 w-4 ${i < 4 ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}`} />
+                                           ))}
+                                         </div>
+                                       </div>
+                                     ))}
+                                   </div>
+                                   
+                                   <div>
+                                     <Label>Performance Comments</Label>
+                                     <Textarea 
+                                       placeholder="Detailed performance assessment..." 
+                                       className="mt-2" 
+                                       rows={4}
+                                       value={appraisalComment}
+                                       onChange={(e) => setAppraisalComment(e.target.value)}
+                                     />
+                                   </div>
+                                 </CardContent>
+                               </Card>
+                             </TabsContent>
 
-                            <div className="flex justify-between">
-                              {selectedAppraisal.status === "pending" && (
-                                <Button 
-                                  onClick={() => handleStartAppraisal(selectedAppraisal.id, selectedAppraisal.employeeName)}
-                                >
-                                  Start Appraisal
-                                </Button>
-                              )}
-                              {selectedAppraisal.status === "in-progress" && (
-                                <Button onClick={handleCompleteAppraisal}>
-                                  Complete Appraisal
-                                </Button>
-                              )}
-                              <Button variant="outline" onClick={handleSaveDraft}>
-                                Save Draft
-                              </Button>
-                            </div>
-                          </div>
-                        )}
+                             {/* 2. Identify Training Needs */}
+                             <TabsContent value="training" className="space-y-6">
+                               <Card>
+                                 <CardHeader>
+                                   <CardTitle className="flex items-center gap-2">
+                                     <Target className="h-5 w-5" />
+                                     Training & Development Needs
+                                   </CardTitle>
+                                 </CardHeader>
+                                 <CardContent className="space-y-4">
+                                   <div className="space-y-3">
+                                     <Label>Identified Training Areas</Label>
+                                     {["Technical Skills", "Leadership Development", "Communication", "Project Management", "Industry Knowledge"].map((skill) => (
+                                       <div key={skill} className="flex items-center justify-between p-3 border rounded-lg">
+                                         <div className="flex items-center gap-2">
+                                           <Checkbox />
+                                           <span>{skill}</span>
+                                         </div>
+                                         <Select>
+                                           <SelectTrigger className="w-32">
+                                             <SelectValue placeholder="Priority" />
+                                           </SelectTrigger>
+                                           <SelectContent>
+                                             <SelectItem value="high">High</SelectItem>
+                                             <SelectItem value="medium">Medium</SelectItem>
+                                             <SelectItem value="low">Low</SelectItem>
+                                           </SelectContent>
+                                         </Select>
+                                       </div>
+                                     ))}
+                                   </div>
+                                   
+                                   <div>
+                                     <Label>Recommended Training Programs</Label>
+                                     <Textarea placeholder="Specific training recommendations..." className="mt-2" rows={3} />
+                                   </div>
+                                   
+                                   <div>
+                                     <Label>Training Timeline</Label>
+                                     <Input type="date" className="mt-2" />
+                                   </div>
+                                 </CardContent>
+                               </Card>
+                             </TabsContent>
+
+                             {/* 3. Recognition for High Performers */}
+                             <TabsContent value="recognition" className="space-y-6">
+                               <Card>
+                                 <CardHeader>
+                                   <CardTitle className="flex items-center gap-2">
+                                     <Award className="h-5 w-5" />
+                                     Recognition & Achievements
+                                   </CardTitle>
+                                 </CardHeader>
+                                 <CardContent className="space-y-4">
+                                   <div className="flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded-lg">
+                                     <CheckCircle className="h-5 w-5 text-green-600" />
+                                     <span className="font-medium">High Performer Identified</span>
+                                   </div>
+                                   
+                                   <div className="space-y-3">
+                                     <Label>Outstanding Achievements</Label>
+                                     <Textarea placeholder="Describe specific achievements and contributions..." className="mt-2" rows={3} />
+                                   </div>
+                                   
+                                   <div className="space-y-3">
+                                     <Label>Recognition Type</Label>
+                                     <div className="grid grid-cols-2 gap-3">
+                                       {["Employee of the Month", "Outstanding Performance Award", "Innovation Award", "Team Player Award", "Leadership Excellence"].map((award) => (
+                                         <div key={award} className="flex items-center gap-2">
+                                           <Checkbox />
+                                           <span className="text-sm">{award}</span>
+                                         </div>
+                                       ))}
+                                     </div>
+                                   </div>
+                                   
+                                   <div>
+                                     <Label>Recommended Actions</Label>
+                                     <div className="space-y-2 mt-2">
+                                       <div className="flex items-center gap-2">
+                                         <Checkbox />
+                                         <span className="text-sm">Consider for promotion</span>
+                                       </div>
+                                       <div className="flex items-center gap-2">
+                                         <Checkbox />
+                                         <span className="text-sm">Salary increase recommendation</span>
+                                       </div>
+                                       <div className="flex items-center gap-2">
+                                         <Checkbox />
+                                         <span className="text-sm">Additional responsibilities</span>
+                                       </div>
+                                     </div>
+                                   </div>
+                                 </CardContent>
+                               </Card>
+                             </TabsContent>
+
+                             {/* 4. Address Performance Issues */}
+                             <TabsContent value="issues" className="space-y-6">
+                               <Card>
+                                 <CardHeader>
+                                   <CardTitle className="flex items-center gap-2">
+                                     <AlertTriangle className="h-5 w-5" />
+                                     Performance Issues & Improvement
+                                   </CardTitle>
+                                 </CardHeader>
+                                 <CardContent className="space-y-4">
+                                   <div className="space-y-3">
+                                     <Label>Identified Issues</Label>
+                                     <Textarea placeholder="Describe specific performance issues..." className="mt-2" rows={3} />
+                                   </div>
+                                   
+                                   <div className="space-y-3">
+                                     <Label>Root Cause Analysis</Label>
+                                     <div className="grid grid-cols-2 gap-3">
+                                       {["Lack of Skills", "Resource Constraints", "Unclear Expectations", "Personal Issues", "Workload Management"].map((cause) => (
+                                         <div key={cause} className="flex items-center gap-2">
+                                           <Checkbox />
+                                           <span className="text-sm">{cause}</span>
+                                         </div>
+                                       ))}
+                                     </div>
+                                   </div>
+                                   
+                                   <div>
+                                     <Label>Improvement Plan</Label>
+                                     <Textarea placeholder="Specific actions to address issues..." className="mt-2" rows={4} />
+                                   </div>
+                                   
+                                   <div className="grid grid-cols-2 gap-4">
+                                     <div>
+                                       <Label>Review Date</Label>
+                                       <Input type="date" className="mt-2" />
+                                     </div>
+                                     <div>
+                                       <Label>Support Required</Label>
+                                       <Select>
+                                         <SelectTrigger>
+                                           <SelectValue placeholder="Select support" />
+                                         </SelectTrigger>
+                                         <SelectContent>
+                                           <SelectItem value="training">Additional Training</SelectItem>
+                                           <SelectItem value="mentoring">Mentoring</SelectItem>
+                                           <SelectItem value="resources">Additional Resources</SelectItem>
+                                           <SelectItem value="coaching">Performance Coaching</SelectItem>
+                                         </SelectContent>
+                                       </Select>
+                                     </div>
+                                   </div>
+                                 </CardContent>
+                               </Card>
+                             </TabsContent>
+
+                             {/* 5. Inform Decision-Making */}
+                             <TabsContent value="decisions" className="space-y-6">
+                               <Card>
+                                 <CardHeader>
+                                   <CardTitle className="flex items-center gap-2">
+                                     <Users className="h-5 w-5" />
+                                     HR Decision Support
+                                   </CardTitle>
+                                 </CardHeader>
+                                 <CardContent className="space-y-4">
+                                   <div className="space-y-3">
+                                     <Label>Promotion Readiness</Label>
+                                     <Select>
+                                       <SelectTrigger>
+                                         <SelectValue placeholder="Assessment" />
+                                       </SelectTrigger>
+                                       <SelectContent>
+                                         <SelectItem value="ready">Ready for Promotion</SelectItem>
+                                         <SelectItem value="needs-development">Needs Development</SelectItem>
+                                         <SelectItem value="not-ready">Not Ready</SelectItem>
+                                       </SelectContent>
+                                     </Select>
+                                   </div>
+                                   
+                                   <div className="space-y-3">
+                                     <Label>Compensation Review</Label>
+                                     <div className="grid grid-cols-2 gap-3">
+                                       <div className="flex items-center gap-2">
+                                         <Checkbox />
+                                         <span className="text-sm">Salary increase recommended</span>
+                                       </div>
+                                       <div className="flex items-center gap-2">
+                                         <Checkbox />
+                                         <span className="text-sm">Bonus eligible</span>
+                                       </div>
+                                       <div className="flex items-center gap-2">
+                                         <Checkbox />
+                                         <span className="text-sm">Benefits review</span>
+                                       </div>
+                                       <div className="flex items-center gap-2">
+                                         <Checkbox />
+                                         <span className="text-sm">Stock options consideration</span>
+                                       </div>
+                                     </div>
+                                   </div>
+                                   
+                                   <div>
+                                     <Label>Transfer/Reassignment Suitability</Label>
+                                     <Textarea placeholder="Assessment for different roles or departments..." className="mt-2" rows={3} />
+                                   </div>
+                                   
+                                   <div>
+                                     <Label>Succession Planning</Label>
+                                     <Select>
+                                       <SelectTrigger>
+                                         <SelectValue placeholder="Succession potential" />
+                                       </SelectTrigger>
+                                       <SelectContent>
+                                         <SelectItem value="high">High Potential</SelectItem>
+                                         <SelectItem value="medium">Medium Potential</SelectItem>
+                                         <SelectItem value="low">Low Potential</SelectItem>
+                                       </SelectContent>
+                                     </Select>
+                                   </div>
+                                 </CardContent>
+                               </Card>
+                             </TabsContent>
+
+                             {/* 6. Improve Communication */}
+                             <TabsContent value="communication" className="space-y-6">
+                               <Card>
+                                 <CardHeader>
+                                   <CardTitle className="flex items-center gap-2">
+                                     <MessageCircle className="h-5 w-5" />
+                                     Communication & Expectations
+                                   </CardTitle>
+                                 </CardHeader>
+                                 <CardContent className="space-y-4">
+                                   <div>
+                                     <Label>Current Expectations Clarity</Label>
+                                     <div className="flex gap-4 mt-2">
+                                       {["Very Clear", "Clear", "Somewhat Clear", "Unclear"].map((level) => (
+                                         <div key={level} className="flex items-center gap-2">
+                                           <input type="radio" name="clarity" />
+                                           <span className="text-sm">{level}</span>
+                                         </div>
+                                       ))}
+                                     </div>
+                                   </div>
+                                   
+                                   <div>
+                                     <Label>Clarified Expectations</Label>
+                                     <Textarea placeholder="Clearly define role expectations and responsibilities..." className="mt-2" rows={4} />
+                                   </div>
+                                   
+                                   <div>
+                                     <Label>Communication Feedback</Label>
+                                     <Textarea placeholder="Employee's communication strengths and areas for improvement..." className="mt-2" rows={3} />
+                                   </div>
+                                   
+                                   <div>
+                                     <Label>Guidance Provided</Label>
+                                     <Textarea placeholder="Specific guidance and direction given..." className="mt-2" rows={3} />
+                                   </div>
+                                   
+                                   <div>
+                                     <Label>Follow-up Schedule</Label>
+                                     <div className="grid grid-cols-2 gap-4">
+                                       <Input type="date" placeholder="Next review date" />
+                                       <Select>
+                                         <SelectTrigger>
+                                           <SelectValue placeholder="Frequency" />
+                                         </SelectTrigger>
+                                         <SelectContent>
+                                           <SelectItem value="weekly">Weekly</SelectItem>
+                                           <SelectItem value="biweekly">Bi-weekly</SelectItem>
+                                           <SelectItem value="monthly">Monthly</SelectItem>
+                                           <SelectItem value="quarterly">Quarterly</SelectItem>
+                                         </SelectContent>
+                                       </Select>
+                                     </div>
+                                   </div>
+                                 </CardContent>
+                               </Card>
+                             </TabsContent>
+
+                             {/* 7. Boost Employee Motivation */}
+                             <TabsContent value="motivation" className="space-y-6">
+                               <Card>
+                                 <CardHeader>
+                                   <CardTitle className="flex items-center gap-2">
+                                     <TrendingUp className="h-5 w-5" />
+                                     Motivation & Morale Enhancement
+                                   </CardTitle>
+                                 </CardHeader>
+                                 <CardContent className="space-y-4">
+                                   <div>
+                                     <Label>Achievement Recognition</Label>
+                                     <Textarea placeholder="Specific achievements to be recognized..." className="mt-2" rows={3} />
+                                   </div>
+                                   
+                                   <div>
+                                     <Label>Constructive Feedback</Label>
+                                     <Textarea placeholder="Balanced feedback highlighting strengths and improvement areas..." className="mt-2" rows={4} />
+                                   </div>
+                                   
+                                   <div className="space-y-3">
+                                     <Label>Motivation Strategies</Label>
+                                     <div className="grid grid-cols-2 gap-3">
+                                       {["Public Recognition", "Challenging Projects", "Professional Development", "Flexible Work Options", "Career Advancement Path", "Team Leadership Opportunities"].map((strategy) => (
+                                         <div key={strategy} className="flex items-center gap-2">
+                                           <Checkbox />
+                                           <span className="text-sm">{strategy}</span>
+                                         </div>
+                                       ))}
+                                     </div>
+                                   </div>
+                                   
+                                   <div>
+                                     <Label>Employee Interests & Aspirations</Label>
+                                     <Textarea placeholder="Employee's career interests and aspirations..." className="mt-2" rows={3} />
+                                   </div>
+                                   
+                                   <div>
+                                     <Label>Morale Improvement Actions</Label>
+                                     <Textarea placeholder="Specific actions to enhance employee morale..." className="mt-2" rows={3} />
+                                   </div>
+                                 </CardContent>
+                               </Card>
+                             </TabsContent>
+
+                             {/* 8. Align Goals */}
+                             <TabsContent value="goals" className="space-y-6">
+                               <Card>
+                                 <CardHeader>
+                                   <CardTitle className="flex items-center gap-2">
+                                     <Target className="h-5 w-5" />
+                                     Goal Alignment & Planning
+                                   </CardTitle>
+                                 </CardHeader>
+                                 <CardContent className="space-y-4">
+                                   <div>
+                                     <Label>Organizational Goals Alignment</Label>
+                                     <Progress value={78} className="mt-2" />
+                                     <span className="text-sm text-muted-foreground">78% alignment with organizational objectives</span>
+                                   </div>
+                                   
+                                   <div>
+                                     <Label>Individual Goals for Next Period</Label>
+                                     <div className="space-y-3 mt-2">
+                                       {[1, 2, 3].map((i) => (
+                                         <div key={i} className="p-3 border rounded-lg">
+                                           <Input placeholder={`Goal ${i}`} className="mb-2" />
+                                           <div className="grid grid-cols-2 gap-2">
+                                             <Input type="date" placeholder="Target date" />
+                                             <Select>
+                                               <SelectTrigger>
+                                                 <SelectValue placeholder="Priority" />
+                                               </SelectTrigger>
+                                               <SelectContent>
+                                                 <SelectItem value="high">High</SelectItem>
+                                                 <SelectItem value="medium">Medium</SelectItem>
+                                                 <SelectItem value="low">Low</SelectItem>
+                                               </SelectContent>
+                                             </Select>
+                                           </div>
+                                         </div>
+                                       ))}
+                                     </div>
+                                   </div>
+                                   
+                                   <div>
+                                     <Label>Strategic Initiative Involvement</Label>
+                                     <Textarea placeholder="How employee will contribute to strategic initiatives..." className="mt-2" rows={3} />
+                                   </div>
+                                   
+                                   <div>
+                                     <Label>Cross-functional Collaboration Goals</Label>
+                                     <Textarea placeholder="Planned collaboration with other departments..." className="mt-2" rows={3} />
+                                   </div>
+                                   
+                                   <div className="grid grid-cols-2 gap-4">
+                                     <div>
+                                       <Label>Quarterly Review Date</Label>
+                                       <Input type="date" className="mt-2" />
+                                     </div>
+                                     <div>
+                                       <Label>Goal Achievement Target</Label>
+                                       <Select>
+                                         <SelectTrigger>
+                                           <SelectValue placeholder="Target %" />
+                                         </SelectTrigger>
+                                         <SelectContent>
+                                           <SelectItem value="100">100%</SelectItem>
+                                           <SelectItem value="90">90%</SelectItem>
+                                           <SelectItem value="80">80%</SelectItem>
+                                           <SelectItem value="70">70%</SelectItem>
+                                         </SelectContent>
+                                       </Select>
+                                     </div>
+                                   </div>
+                                 </CardContent>
+                               </Card>
+                             </TabsContent>
+                             
+                             <Separator className="my-6" />
+                             
+                             <div className="flex justify-between">
+                               {selectedAppraisal.status === "pending" && (
+                                 <Button 
+                                   onClick={() => handleStartAppraisal(selectedAppraisal.id, selectedAppraisal.employeeName)}
+                                 >
+                                   Start Appraisal
+                                 </Button>
+                               )}
+                               {selectedAppraisal.status === "in-progress" && (
+                                 <Button onClick={handleCompleteAppraisal}>
+                                   Complete Appraisal
+                                 </Button>
+                               )}
+                               <Button variant="outline" onClick={handleSaveDraft}>
+                                 Save Draft
+                               </Button>
+                             </div>
+                           </Tabs>
+                         )}
                       </DialogContent>
                     </Dialog>
                     <Button 
