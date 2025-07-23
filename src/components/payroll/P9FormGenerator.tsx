@@ -14,14 +14,43 @@ interface P9Data {
   employeeName: string;
   pinNumber: string;
   department: string;
+  // Column A
   basicSalary: number;
-  allowances: number;
-  grossSalary: number;
+  // Column B
+  benefitsNonCash: number;
+  // Column C
+  valueOfQuarters: number;
+  // Column D - Total Gross Pay
+  totalGrossPay: number;
+  // Column E - Defined Contribution Retirement Scheme
+  e1ThirtyPercentOfA: number; // E1 30% of A
+  e3Actual: number; // E3 Actual
+  e3Fixed: number; // E3 Fixed
+  // Column F
+  affordableHousingLevy: number; // AHL
+  // Column G
+  socialHealthInsuranceFund: number; // SHIF
+  // Column H
+  postRetirementMedicalFund: number; // PRMF
+  // Column I
+  ownerOccupiedInterest: number;
+  // Column J - Total Deductions (Lower of E+F+G+H+I)
+  totalDeductions: number;
+  // Column K - Chargeable Pay (D-J)
+  chargeablePay: number;
+  // Column L
+  taxCharged: number;
+  // Column M
+  personalRelief: number;
+  // Column N
+  insuranceRelief: number;
+  // Column O - PAYE Tax (L-M-N)
   payeTax: number;
+  // Legacy fields for compatibility
+  allowances: number;
   nssfDeduction: number;
   shifDeduction: number;
   housingLevy: number;
-  totalDeductions: number;
   netSalary: number;
   cumulativePayeTax: number;
   cumulativeGrossSalary: number;
@@ -119,22 +148,66 @@ export function P9FormGenerator() {
         const totalAllowances = empPayrollRecords.reduce((sum, record) => sum + (record.allowances || 0), 0);
 
         if (employee) {
+          // Calculate new P9 structure fields
+          const benefitsNonCash = totalAllowances * 0.3; // Estimate 30% of allowances as non-cash benefits
+          const valueOfQuarters = 0; // This would come from housing allowance if available
+          const totalGrossPay = totalBasicSalary + benefitsNonCash + valueOfQuarters;
+          
+          // Defined Contribution Retirement Scheme calculations
+          const e1ThirtyPercentOfA = totalBasicSalary * 0.3; // 30% of basic salary
+          const e3Actual = totalNssfDeduction; // Actual NSSF contribution
+          const e3Fixed = Math.min(e1ThirtyPercentOfA, e3Actual); // Lower of the two
+          
+          // Other deductions
+          const affordableHousingLevy = totalHousingLevy;
+          const socialHealthInsuranceFund = totalShifDeduction;
+          const postRetirementMedicalFund = 0; // This would be a separate deduction
+          const ownerOccupiedInterest = 0; // This would be input by user
+          
+          // Total deductions calculation (Lower of sum of E+F+G+H+I)
+          const calculatedTotalDeductions = e3Fixed + affordableHousingLevy + socialHealthInsuranceFund + postRetirementMedicalFund + ownerOccupiedInterest;
+          const finalTotalDeductions = Math.min(calculatedTotalDeductions, totalDeductions);
+          
+          // Chargeable Pay (D-J)
+          const chargeablePay = totalGrossPay - finalTotalDeductions;
+          
+          // Tax calculations
+          const taxCharged = calculateTaxCharged(chargeablePay);
+          const personalRelief = 2400 * 12; // KSh 2,400 per month
+          const insuranceRelief = Math.min(5000 * 12, chargeablePay * 0.15); // Lower of KSh 5,000 per month or 15% of chargeable pay
+          const finalPayeTax = Math.max(0, taxCharged - personalRelief - insuranceRelief);
+
           employeeP9Data.push({
             employeeId: employee.employee_id || employee.id,
             employeeName: `${employee.first_name} ${employee.last_name}`,
             pinNumber: employee.kra_pin || 'N/A',
             department: employee.department,
+            // New P9 structure
             basicSalary: totalBasicSalary,
+            benefitsNonCash,
+            valueOfQuarters,
+            totalGrossPay,
+            e1ThirtyPercentOfA,
+            e3Actual,
+            e3Fixed,
+            affordableHousingLevy,
+            socialHealthInsuranceFund,
+            postRetirementMedicalFund,
+            ownerOccupiedInterest,
+            totalDeductions: finalTotalDeductions,
+            chargeablePay,
+            taxCharged,
+            personalRelief,
+            insuranceRelief,
+            payeTax: finalPayeTax,
+            // Legacy fields for compatibility
             allowances: totalAllowances,
-            grossSalary: totalGrossSalary,
-            payeTax: totalPayeTax,
             nssfDeduction: totalNssfDeduction,
             shifDeduction: totalShifDeduction,
             housingLevy: totalHousingLevy,
-            totalDeductions: totalDeductions,
             netSalary: totalNetSalary,
-            cumulativePayeTax: totalPayeTax,
-            cumulativeGrossSalary: totalGrossSalary
+            cumulativePayeTax: finalPayeTax,
+            cumulativeGrossSalary: totalGrossPay
           });
         }
       }
@@ -163,6 +236,27 @@ export function P9FormGenerator() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Kenya PAYE tax calculation function
+  const calculateTaxCharged = (chargeablePay: number): number => {
+    let tax = 0;
+    const monthlyChargeable = chargeablePay / 12;
+    
+    // Kenya PAYE tax bands (2024 rates)
+    if (monthlyChargeable <= 24000) {
+      tax = monthlyChargeable * 0.1;
+    } else if (monthlyChargeable <= 32333) {
+      tax = 24000 * 0.1 + (monthlyChargeable - 24000) * 0.25;
+    } else if (monthlyChargeable <= 500000) {
+      tax = 24000 * 0.1 + 8333 * 0.25 + (monthlyChargeable - 32333) * 0.3;
+    } else if (monthlyChargeable <= 800000) {
+      tax = 24000 * 0.1 + 8333 * 0.25 + 467667 * 0.3 + (monthlyChargeable - 500000) * 0.325;
+    } else {
+      tax = 24000 * 0.1 + 8333 * 0.25 + 467667 * 0.3 + 300000 * 0.325 + (monthlyChargeable - 800000) * 0.35;
+    }
+    
+    return Math.round(tax * 12); // Annual tax
   };
 
   const downloadP9Form = (employee: P9Data) => {
@@ -226,47 +320,102 @@ export function P9FormGenerator() {
         </div>
         
         <div class="section">
-          <div class="section-title">INCOME AND DEDUCTIONS SUMMARY</div>
+          <div class="section-title">KENYA P9 INCOME TAX CERTIFICATE</div>
           <table>
             <tr>
+              <th style="width: 60px;">Column</th>
               <th>Description</th>
               <th class="amount">Amount (KSh)</th>
             </tr>
             <tr>
+              <td><strong>A</strong></td>
               <td>Basic Salary</td>
               <td class="amount">${employee.basicSalary.toLocaleString()}</td>
             </tr>
             <tr>
-              <td>Allowances</td>
-              <td class="amount">${employee.allowances.toLocaleString()}</td>
+              <td><strong>B</strong></td>
+              <td>Benefits Non Cash</td>
+              <td class="amount">${employee.benefitsNonCash.toLocaleString()}</td>
             </tr>
             <tr>
-              <td><strong>Gross Salary</strong></td>
-              <td class="amount"><strong>${employee.grossSalary.toLocaleString()}</strong></td>
+              <td><strong>C</strong></td>
+              <td>Value of Quarters</td>
+              <td class="amount">${employee.valueOfQuarters.toLocaleString()}</td>
+            </tr>
+            <tr style="background-color: #f0f0f0;">
+              <td><strong>D</strong></td>
+              <td><strong>Total Gross Pay (A+B+C)</strong></td>
+              <td class="amount"><strong>${employee.totalGrossPay.toLocaleString()}</strong></td>
             </tr>
             <tr>
-              <td>PAYE Tax</td>
-              <td class="amount">${employee.payeTax.toLocaleString()}</td>
+              <td colspan="3" style="background-color: #e0e0e0; font-weight: bold; text-align: center;">
+                DEFINED CONTRIBUTION RETIREMENT SCHEME
+              </td>
             </tr>
             <tr>
-              <td>NSSF Deduction</td>
-              <td class="amount">${employee.nssfDeduction.toLocaleString()}</td>
+              <td><strong>E1</strong></td>
+              <td>30% of A</td>
+              <td class="amount">${employee.e1ThirtyPercentOfA.toLocaleString()}</td>
             </tr>
             <tr>
-              <td>SHIF Deduction</td>
-              <td class="amount">${employee.shifDeduction.toLocaleString()}</td>
+              <td><strong>E3</strong></td>
+              <td>Actual Contribution</td>
+              <td class="amount">${employee.e3Actual.toLocaleString()}</td>
             </tr>
             <tr>
-              <td>Housing Levy</td>
-              <td class="amount">${employee.housingLevy.toLocaleString()}</td>
+              <td><strong>E3</strong></td>
+              <td>Fixed (Lower of E1 & E3 Actual)</td>
+              <td class="amount">${employee.e3Fixed.toLocaleString()}</td>
             </tr>
             <tr>
-              <td><strong>Total Deductions</strong></td>
+              <td><strong>F</strong></td>
+              <td>Affordable Housing Levy (AHL)</td>
+              <td class="amount">${employee.affordableHousingLevy.toLocaleString()}</td>
+            </tr>
+            <tr>
+              <td><strong>G</strong></td>
+              <td>Social Health Insurance Fund (SHIF)</td>
+              <td class="amount">${employee.socialHealthInsuranceFund.toLocaleString()}</td>
+            </tr>
+            <tr>
+              <td><strong>H</strong></td>
+              <td>Post Retirement Medical Fund (PRMF)</td>
+              <td class="amount">${employee.postRetirementMedicalFund.toLocaleString()}</td>
+            </tr>
+            <tr>
+              <td><strong>I</strong></td>
+              <td>Owner Occupied Interest</td>
+              <td class="amount">${employee.ownerOccupiedInterest.toLocaleString()}</td>
+            </tr>
+            <tr style="background-color: #f0f0f0;">
+              <td><strong>J</strong></td>
+              <td><strong>Total Deductions (Lower of E+F+G+H+I)</strong></td>
               <td class="amount"><strong>${employee.totalDeductions.toLocaleString()}</strong></td>
             </tr>
+            <tr style="background-color: #f0f0f0;">
+              <td><strong>K</strong></td>
+              <td><strong>Chargeable Pay (D-J)</strong></td>
+              <td class="amount"><strong>${employee.chargeablePay.toLocaleString()}</strong></td>
+            </tr>
             <tr>
-              <td><strong>Net Salary</strong></td>
-              <td class="amount"><strong>${employee.netSalary.toLocaleString()}</strong></td>
+              <td><strong>L</strong></td>
+              <td>Tax Charged</td>
+              <td class="amount">${employee.taxCharged.toLocaleString()}</td>
+            </tr>
+            <tr>
+              <td><strong>M</strong></td>
+              <td>Personal Relief</td>
+              <td class="amount">${employee.personalRelief.toLocaleString()}</td>
+            </tr>
+            <tr>
+              <td><strong>N</strong></td>
+              <td>Insurance Relief</td>
+              <td class="amount">${employee.insuranceRelief.toLocaleString()}</td>
+            </tr>
+            <tr style="background-color: #f0f0f0;">
+              <td><strong>O</strong></td>
+              <td><strong>PAYE Tax (L-M-N)</strong></td>
+              <td class="amount"><strong>${employee.payeTax.toLocaleString()}</strong></td>
             </tr>
           </table>
         </div>
@@ -465,11 +614,11 @@ export function P9FormGenerator() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Employee</TableHead>
-                      <TableHead>KRA PIN</TableHead>
-                      <TableHead>Gross Salary</TableHead>
-                      <TableHead>PAYE Tax</TableHead>
-                      <TableHead>Net Salary</TableHead>
-                      <TableHead>Action</TableHead>
+                      <TableHead className="text-right">Basic Salary</TableHead>
+                      <TableHead className="text-right">Total Gross Pay</TableHead>
+                      <TableHead className="text-right">Chargeable Pay</TableHead>
+                      <TableHead className="text-right">PAYE Tax</TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -481,11 +630,11 @@ export function P9FormGenerator() {
                             <div className="text-sm text-muted-foreground">{employee.employeeId}</div>
                           </div>
                         </TableCell>
-                        <TableCell>{employee.pinNumber}</TableCell>
-                        <TableCell>KSh {employee.grossSalary.toLocaleString()}</TableCell>
-                        <TableCell>KSh {employee.payeTax.toLocaleString()}</TableCell>
-                        <TableCell>KSh {employee.netSalary.toLocaleString()}</TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">KSh {employee.basicSalary.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">KSh {employee.totalGrossPay.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">KSh {employee.chargeablePay.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">KSh {employee.payeTax.toLocaleString()}</TableCell>
+                        <TableCell className="text-center">
                           <Button 
                             variant="outline" 
                             size="sm"
