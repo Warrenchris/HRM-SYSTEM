@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Eye, Download, Search, Calendar, FileText } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const payrollHistory = [
   {
@@ -91,6 +92,7 @@ const getStatusBadge = (status: string) => {
 };
 
 export function PayrollHistory() {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [yearFilter, setYearFilter] = useState("2024");
   
@@ -132,7 +134,13 @@ export function PayrollHistory() {
               <SelectItem value="2022">2022</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline">
+          <Button 
+            variant="outline"
+            onClick={() => toast({
+              title: "Exporting Report",
+              description: "Preparing comprehensive payroll report for download",
+            })}
+          >
             <FileText className="mr-2 h-4 w-4" />
             Export Report
           </Button>
@@ -172,10 +180,24 @@ export function PayrollHistory() {
                   <TableCell>{getStatusBadge(payroll.status)}</TableCell>
                   <TableCell>
                     <div className="flex items-center space-x-2">
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => toast({
+                          title: "Viewing Payroll",
+                          description: `Opening payroll details for ${payroll.period}`,
+                        })}
+                      >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => toast({
+                          title: "Downloading Report",
+                          description: `Preparing report for ${payroll.period}`,
+                        })}
+                      >
                         <Download className="h-4 w-4" />
                       </Button>
                     </div>
