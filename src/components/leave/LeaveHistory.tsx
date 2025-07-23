@@ -7,63 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Calendar, Search, Filter, Eye, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { useLeaveRequests } from "@/hooks/useLeaveData";
 
-interface LeaveRequest {
-  id: string;
-  type: string;
-  startDate: Date;
-  endDate: Date;
-  days: number;
-  status: "pending" | "approved" | "rejected" | "cancelled";
-  reason: string;
-  appliedDate: Date;
-  approvedBy?: string;
-}
-
-const mockLeaveRequests: LeaveRequest[] = [
-  {
-    id: "LR001",
-    type: "Annual Leave",
-    startDate: new Date("2024-12-25"),
-    endDate: new Date("2024-12-31"),
-    days: 7,
-    status: "approved",
-    reason: "Christmas holidays",
-    appliedDate: new Date("2024-11-15"),
-    approvedBy: "John Manager"
-  },
-  {
-    id: "LR002",
-    type: "Sick Leave",
-    startDate: new Date("2025-01-15"),
-    endDate: new Date("2025-01-15"),
-    days: 1,
-    status: "pending",
-    reason: "Medical appointment",
-    appliedDate: new Date("2025-01-10")
-  },
-  {
-    id: "LR003",
-    type: "Personal Leave",
-    startDate: new Date("2024-11-10"),
-    endDate: new Date("2024-11-12"),
-    days: 3,
-    status: "approved",
-    reason: "Family emergency",
-    appliedDate: new Date("2024-11-05"),
-    approvedBy: "John Manager"
-  },
-  {
-    id: "LR004",
-    type: "Annual Leave",
-    startDate: new Date("2024-10-01"),
-    endDate: new Date("2024-10-05"),
-    days: 5,
-    status: "rejected",
-    reason: "Vacation",
-    appliedDate: new Date("2024-09-20")
-  }
-];
+// Mock employee ID - in real app, get from auth context
+const MOCK_EMPLOYEE_ID = "123e4567-e89b-12d3-a456-426614174000";
 
 const statusConfig = {
   pending: { color: "bg-yellow-500", label: "Pending" },
@@ -76,24 +23,57 @@ export function LeaveHistory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  
+  const { requests, loading, error, cancelRequest } = useLeaveRequests(MOCK_EMPLOYEE_ID);
 
-  const filteredRequests = mockLeaveRequests.filter((request) => {
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-center text-muted-foreground">Loading leave requests...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-center text-red-600">Error: {error}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const filteredRequests = requests.filter((request) => {
     const matchesSearch = request.reason.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         request.type.toLowerCase().includes(searchTerm.toLowerCase());
+                         (request.leave_type?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || request.status === statusFilter;
-    const matchesType = typeFilter === "all" || request.type === typeFilter;
+    const matchesType = typeFilter === "all" || request.leave_type?.name === typeFilter;
     
     return matchesSearch && matchesStatus && matchesType;
   });
 
-  const getStatusBadge = (status: LeaveRequest["status"]) => {
-    const config = statusConfig[status];
+  const getStatusBadge = (status: string) => {
+    const config = statusConfig[status as keyof typeof statusConfig];
+    if (!config) return null;
     return (
       <Badge variant="outline" className={`${config.color} text-white border-transparent`}>
         {config.label}
       </Badge>
     );
   };
+
+  const handleCancelRequest = async (requestId: string) => {
+    if (confirm("Are you sure you want to cancel this leave request?")) {
+      await cancelRequest(requestId);
+    }
+  };
+
+  const uniqueLeaveTypes = Array.from(
+    new Set(requests.map(r => r.leave_type?.name).filter(Boolean))
+  );
 
   return (
     <Card>
@@ -139,17 +119,18 @@ export function LeaveHistory() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="Annual Leave">Annual Leave</SelectItem>
-              <SelectItem value="Sick Leave">Sick Leave</SelectItem>
-              <SelectItem value="Personal Leave">Personal Leave</SelectItem>
-              <SelectItem value="Emergency Leave">Emergency Leave</SelectItem>
+              {uniqueLeaveTypes.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {type}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
 
         {/* Results Summary */}
         <div className="mb-4 text-sm text-muted-foreground">
-          Showing {filteredRequests.length} of {mockLeaveRequests.length} requests
+          Showing {filteredRequests.length} of {requests.length} requests
         </div>
 
         {/* Table */}
@@ -170,20 +151,20 @@ export function LeaveHistory() {
               {filteredRequests.map((request) => (
                 <TableRow key={request.id}>
                   <TableCell className="font-medium">{request.id}</TableCell>
-                  <TableCell>{request.type}</TableCell>
-                  <TableCell>{request.days} day{request.days > 1 ? 's' : ''}</TableCell>
+                  <TableCell>{request.leave_type?.name || 'Unknown'}</TableCell>
+                  <TableCell>{request.total_days} day{request.total_days > 1 ? 's' : ''}</TableCell>
                   <TableCell>
                     <div className="text-sm">
-                      <div>{format(request.startDate, "MMM dd, yyyy")}</div>
-                      {request.days > 1 && (
+                      <div>{format(new Date(request.start_date), "MMM dd, yyyy")}</div>
+                      {request.total_days > 1 && (
                         <div className="text-muted-foreground">
-                          to {format(request.endDate, "MMM dd, yyyy")}
+                          to {format(new Date(request.end_date), "MMM dd, yyyy")}
                         </div>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>{getStatusBadge(request.status)}</TableCell>
-                  <TableCell>{format(request.appliedDate, "MMM dd, yyyy")}</TableCell>
+                  <TableCell>{format(new Date(request.applied_date), "MMM dd, yyyy")}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
@@ -194,7 +175,12 @@ export function LeaveHistory() {
                           <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-destructive">
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="h-8 w-8 p-0 text-destructive"
+                            onClick={() => handleCancelRequest(request.id)}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </>

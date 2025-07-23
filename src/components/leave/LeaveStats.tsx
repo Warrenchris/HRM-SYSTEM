@@ -1,82 +1,111 @@
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { useLeaveBalances } from "@/hooks/useLeaveData";
 
-const leaveTypes = [
-  {
-    name: "Annual Leave",
-    total: 25,
-    used: 12,
-    pending: 3,
-    icon: Calendar,
-    color: "bg-blue-500"
-  },
-  {
-    name: "Sick Leave",
-    total: 10,
-    used: 2,
-    pending: 1,
-    icon: AlertCircle,
-    color: "bg-red-500"
-  },
-  {
-    name: "Personal Leave",
-    total: 5,
-    used: 1,
-    pending: 0,
-    icon: Clock,
-    color: "bg-green-500"
-  },
-  {
-    name: "Emergency Leave",
-    total: 3,
-    used: 0,
-    pending: 0,
-    icon: CheckCircle,
-    color: "bg-orange-500"
-  }
-];
+// Mock employee ID - in real app, get from auth context
+const MOCK_EMPLOYEE_ID = "123e4567-e89b-12d3-a456-426614174000";
 
 export function LeaveStats() {
+  const { balances, loading, error } = useLeaveBalances(MOCK_EMPLOYEE_ID);
+
+  if (loading) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Loading...</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="h-8 bg-muted animate-pulse rounded"></div>
+                <div className="h-2 bg-muted animate-pulse rounded"></div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="h-4 bg-muted animate-pulse rounded"></div>
+                  <div className="h-4 bg-muted animate-pulse rounded"></div>
+                  <div className="h-4 bg-muted animate-pulse rounded"></div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-center text-muted-foreground">Failed to load leave balances: {error}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const getLeaveIcon = (leaveName: string) => {
+    switch (leaveName.toLowerCase()) {
+      case 'annual leave':
+        return Calendar;
+      case 'sick leave':
+        return AlertCircle;
+      case 'personal leave':
+        return Clock;
+      default:
+        return CheckCircle;
+    }
+  };
+
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {leaveTypes.map((leave) => {
-        const available = leave.total - leave.used - leave.pending;
-        const usagePercentage = ((leave.used + leave.pending) / leave.total) * 100;
-        const Icon = leave.icon;
+      {balances.map((balance) => {
+        const available = balance.allocated_days - balance.used_days - balance.pending_days + balance.carried_over_days;
+        const totalAllocated = balance.allocated_days + balance.carried_over_days;
+        const usagePercentage = totalAllocated > 0 ? ((balance.used_days + balance.pending_days) / totalAllocated) * 100 : 0;
+        const Icon = getLeaveIcon(balance.leave_type?.name || '');
 
         return (
-          <Card key={leave.name}>
+          <Card key={balance.id}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{leave.name}</CardTitle>
+              <CardTitle className="text-sm font-medium">{balance.leave_type?.name}</CardTitle>
               <Icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold">{available}</span>
+                  <span className="text-2xl font-bold">{Math.max(0, available)}</span>
                   <Badge variant="outline" className="text-xs">
-                    {leave.total} total
+                    {totalAllocated} total
                   </Badge>
                 </div>
                 
-                <Progress value={usagePercentage} className="h-2" />
+                <Progress value={Math.min(100, usagePercentage)} className="h-2" />
                 
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   <div className="text-center">
-                    <div className="font-medium text-green-600">{available}</div>
+                    <div className="font-medium text-green-600">{Math.max(0, available)}</div>
                     <div className="text-muted-foreground">Available</div>
                   </div>
                   <div className="text-center">
-                    <div className="font-medium text-red-600">{leave.used}</div>
+                    <div className="font-medium text-red-600">{balance.used_days}</div>
                     <div className="text-muted-foreground">Used</div>
                   </div>
                   <div className="text-center">
-                    <div className="font-medium text-yellow-600">{leave.pending}</div>
+                    <div className="font-medium text-yellow-600">{balance.pending_days}</div>
                     <div className="text-muted-foreground">Pending</div>
                   </div>
                 </div>
+                
+                {balance.carried_over_days > 0 && (
+                  <div className="text-xs text-center">
+                    <Badge variant="secondary" className="text-xs">
+                      +{balance.carried_over_days} carried over
+                    </Badge>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

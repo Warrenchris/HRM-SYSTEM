@@ -781,6 +781,229 @@ export type Database = {
           },
         ]
       }
+      leave_balances: {
+        Row: {
+          allocated_days: number
+          carried_over_days: number
+          created_at: string
+          employee_id: string
+          id: string
+          leave_type_id: string
+          pending_days: number
+          updated_at: string
+          used_days: number
+          year: number
+        }
+        Insert: {
+          allocated_days?: number
+          carried_over_days?: number
+          created_at?: string
+          employee_id: string
+          id?: string
+          leave_type_id: string
+          pending_days?: number
+          updated_at?: string
+          used_days?: number
+          year: number
+        }
+        Update: {
+          allocated_days?: number
+          carried_over_days?: number
+          created_at?: string
+          employee_id?: string
+          id?: string
+          leave_type_id?: string
+          pending_days?: number
+          updated_at?: string
+          used_days?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_balances_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leave_policies: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          policy_type: string
+          rules: Json
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          policy_type: string
+          rules?: Json
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          policy_type?: string
+          rules?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      leave_requests: {
+        Row: {
+          applied_date: string
+          approval_workflow: string
+          ceo_approval_status: string | null
+          ceo_approved_by: string | null
+          ceo_approved_date: string | null
+          ceo_comments: string | null
+          created_at: string
+          emergency_contact: string | null
+          employee_id: string
+          end_date: string
+          handover_notes: string | null
+          hr_approval_status: string | null
+          hr_approved_by: string | null
+          hr_approved_date: string | null
+          hr_comments: string | null
+          id: string
+          leave_type_id: string
+          manager_approval_status: string | null
+          manager_approved_by: string | null
+          manager_approved_date: string | null
+          manager_comments: string | null
+          reason: string
+          start_date: string
+          status: string
+          total_days: number
+          updated_at: string
+        }
+        Insert: {
+          applied_date?: string
+          approval_workflow?: string
+          ceo_approval_status?: string | null
+          ceo_approved_by?: string | null
+          ceo_approved_date?: string | null
+          ceo_comments?: string | null
+          created_at?: string
+          emergency_contact?: string | null
+          employee_id: string
+          end_date: string
+          handover_notes?: string | null
+          hr_approval_status?: string | null
+          hr_approved_by?: string | null
+          hr_approved_date?: string | null
+          hr_comments?: string | null
+          id?: string
+          leave_type_id: string
+          manager_approval_status?: string | null
+          manager_approved_by?: string | null
+          manager_approved_date?: string | null
+          manager_comments?: string | null
+          reason: string
+          start_date: string
+          status?: string
+          total_days: number
+          updated_at?: string
+        }
+        Update: {
+          applied_date?: string
+          approval_workflow?: string
+          ceo_approval_status?: string | null
+          ceo_approved_by?: string | null
+          ceo_approved_date?: string | null
+          ceo_comments?: string | null
+          created_at?: string
+          emergency_contact?: string | null
+          employee_id?: string
+          end_date?: string
+          handover_notes?: string | null
+          hr_approval_status?: string | null
+          hr_approved_by?: string | null
+          hr_approved_date?: string | null
+          hr_comments?: string | null
+          id?: string
+          leave_type_id?: string
+          manager_approval_status?: string | null
+          manager_approved_by?: string | null
+          manager_approved_date?: string | null
+          manager_comments?: string | null
+          reason?: string
+          start_date?: string
+          status?: string
+          total_days?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leave_types: {
+        Row: {
+          carry_over_allowed: boolean
+          color: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          max_carry_over_days: number | null
+          max_days_per_year: number
+          name: string
+          notice_period_days: number | null
+          requires_medical_certificate: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          carry_over_allowed?: boolean
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          max_carry_over_days?: number | null
+          max_days_per_year?: number
+          name: string
+          notice_period_days?: number | null
+          requires_medical_certificate?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          carry_over_allowed?: boolean
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          max_carry_over_days?: number | null
+          max_days_per_year?: number
+          name?: string
+          notice_period_days?: number | null
+          requires_medical_certificate?: boolean | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       organization_positions: {
         Row: {
           budget_authority: number | null
@@ -1322,6 +1545,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_leave_days: {
+        Args: { start_date: string; end_date: string }
+        Returns: number
+      }
       create_company_with_owner: {
         Args: {
           company_name: string
@@ -1341,6 +1568,10 @@ export type Database = {
       get_user_current_company: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      initialize_employee_leave_balances: {
+        Args: { emp_id: string; join_year?: number }
+        Returns: undefined
       }
       is_user_company_member: {
         Args: { company_uuid: string }

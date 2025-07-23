@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useLeaveTypes, useLeaveRequests, calculateWorkingDays } from "@/hooks/useLeaveData";
 
 const leaveRequestSchema = z.object({
   leaveType: z.string().min(1, "Leave type is required"),
@@ -30,8 +31,13 @@ const leaveRequestSchema = z.object({
 
 type LeaveRequestForm = z.infer<typeof leaveRequestSchema>;
 
+// Mock employee ID - in real app, get from auth context
+const MOCK_EMPLOYEE_ID = "123e4567-e89b-12d3-a456-426614174000";
+
 export function LeaveRequestForm() {
   const { toast } = useToast();
+  const { leaveTypes, loading: typesLoading } = useLeaveTypes();
+  const { submitRequest } = useLeaveRequests();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<LeaveRequestForm>({
@@ -46,15 +52,23 @@ export function LeaveRequestForm() {
   const onSubmit = async (data: LeaveRequestForm) => {
     setIsSubmitting(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const workingDays = calculateWorkingDays(data.startDate, data.endDate);
     
-    toast({
-      title: "Leave Request Submitted",
-      description: `Your ${data.leaveType} request has been submitted for approval.`,
+    const success = await submitRequest({
+      leave_type_id: data.leaveType,
+      start_date: format(data.startDate, 'yyyy-MM-dd'),
+      end_date: format(data.endDate, 'yyyy-MM-dd'),
+      total_days: workingDays,
+      reason: data.reason,
+      emergency_contact: data.emergencyContact || null,
+      handover_notes: data.handoverNotes || null,
+      employee_id: MOCK_EMPLOYEE_ID,
     });
     
-    form.reset();
+    if (success) {
+      form.reset();
+    }
+    
     setIsSubmitting(false);
   };
 
@@ -63,12 +77,20 @@ export function LeaveRequestForm() {
     const endDate = form.watch("endDate");
     
     if (startDate && endDate) {
-      const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      return diffDays;
+      return calculateWorkingDays(startDate, endDate);
     }
     return 0;
   };
+
+  if (typesLoading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-center text-muted-foreground">Loading leave types...</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -99,12 +121,11 @@ export function LeaveRequestForm() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="annual">Annual Leave</SelectItem>
-                          <SelectItem value="sick">Sick Leave</SelectItem>
-                          <SelectItem value="personal">Personal Leave</SelectItem>
-                          <SelectItem value="emergency">Emergency Leave</SelectItem>
-                          <SelectItem value="maternity">Maternity Leave</SelectItem>
-                          <SelectItem value="paternity">Paternity Leave</SelectItem>
+                          {leaveTypes.map((type) => (
+                            <SelectItem key={type.id} value={type.id}>
+                              {type.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />

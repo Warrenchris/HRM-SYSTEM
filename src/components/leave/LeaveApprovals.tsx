@@ -10,237 +10,75 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { CheckCircle, XCircle, Clock, Eye, Search, Filter, User } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-
-interface PendingLeaveRequest {
-  id: string;
-  employeeName: string;
-  employeeId: string;
-  department: string;
-  position: string;
-  leaveType: string;
-  startDate: Date;
-  endDate: Date;
-  days: number;
-  reason: string;
-  appliedDate: Date;
-  emergencyContact?: string;
-  handoverNotes?: string;
-  remainingBalance: number;
-  lineManager: string;
-  isManager: boolean;
-  approvalStatus: "pending_manager" | "pending_hr" | "pending_ceo" | "approved" | "rejected";
-  managerApproval?: {
-    approvedBy: string;
-    approvedDate: Date;
-    comments?: string;
-  };
-  hrApproval?: {
-    approvedBy: string;
-    approvedDate: Date;
-    comments?: string;
-  };
-  ceoApproval?: {
-    approvedBy: string;
-    approvedDate: Date;
-    comments?: string;
-  };
-}
-
-const mockPendingRequests: PendingLeaveRequest[] = [
-  {
-    id: "LR005",
-    employeeName: "Alice Johnson",
-    employeeId: "EMP005",
-    department: "Engineering",
-    position: "Software Engineer",
-    leaveType: "Annual Leave",
-    startDate: new Date("2025-02-15"),
-    endDate: new Date("2025-02-20"),
-    days: 6,
-    reason: "Family vacation to Hawaii. Planning this trip for months and already booked flights and accommodation.",
-    appliedDate: new Date("2025-01-10"),
-    emergencyContact: "+1 234-567-8900",
-    handoverNotes: "All current projects are on track. Jane will cover my meetings and urgent issues.",
-    remainingBalance: 18,
-    lineManager: "John Smith",
-    isManager: false,
-    approvalStatus: "pending_manager"
-  },
-  {
-    id: "LR006",
-    employeeName: "Bob Wilson",
-    employeeId: "EMP006",
-    department: "Marketing",
-    position: "Marketing Specialist",
-    leaveType: "Sick Leave",
-    startDate: new Date("2025-01-25"),
-    endDate: new Date("2025-01-26"),
-    days: 2,
-    reason: "Medical procedure scheduled. Doctor recommended 2 days rest.",
-    appliedDate: new Date("2025-01-20"),
-    emergencyContact: "+1 234-567-8901",
-    remainingBalance: 8,
-    lineManager: "Sarah Johnson",
-    isManager: false,
-    approvalStatus: "pending_hr",
-    managerApproval: {
-      approvedBy: "Sarah Johnson",
-      approvedDate: new Date("2025-01-22"),
-      comments: "Approved. Hope you recover quickly."
-    }
-  },
-  {
-    id: "LR007",
-    employeeName: "Sarah Johnson",
-    employeeId: "EMP007",
-    department: "Marketing",
-    position: "Marketing Manager",
-    leaveType: "Annual Leave",
-    startDate: new Date("2025-02-01"),
-    endDate: new Date("2025-02-05"),
-    days: 5,
-    reason: "Family wedding abroad. Important family event that requires travel.",
-    appliedDate: new Date("2025-01-15"),
-    handoverNotes: "Bob and team will handle ongoing campaigns. All meetings rescheduled.",
-    remainingBalance: 12,
-    lineManager: "N/A",
-    isManager: true,
-    approvalStatus: "pending_hr"
-  },
-  {
-    id: "LR008",
-    employeeName: "David Lee",
-    employeeId: "EMP008",
-    department: "Sales",
-    position: "Sales Representative",
-    leaveType: "Annual Leave",
-    startDate: new Date("2025-02-10"),
-    endDate: new Date("2025-02-14"),
-    days: 5,
-    reason: "Wedding anniversary celebration with spouse.",
-    appliedDate: new Date("2025-01-12"),
-    emergencyContact: "+1 234-567-8902",
-    remainingBalance: 15,
-    lineManager: "Lisa Wang",
-    isManager: false,
-    approvalStatus: "pending_hr",
-    managerApproval: {
-      approvedBy: "Lisa Wang",
-      approvedDate: new Date("2025-01-18"),
-      comments: "Approved. Congratulations on your anniversary!"
-    }
-  },
-  {
-    id: "LR009",
-    employeeName: "John Smith",
-    employeeId: "EMP009",
-    department: "Engineering",
-    position: "Engineering Manager",
-    leaveType: "Personal Leave",
-    startDate: new Date("2025-02-20"),
-    endDate: new Date("2025-02-22"),
-    days: 3,
-    reason: "Family emergency - need to travel to support elderly parent.",
-    appliedDate: new Date("2025-01-18"),
-    emergencyContact: "+1 234-567-8903",
-    handoverNotes: "Alice will lead team meetings. All critical decisions can wait until return.",
-    remainingBalance: 8,
-    lineManager: "N/A",
-    isManager: true,
-    approvalStatus: "pending_ceo",
-    hrApproval: {
-      approvedBy: "Carol Davis",
-      approvedDate: new Date("2025-01-20"),
-      comments: "HR approved. Forwarding to CEO for final approval."
-    }
-  }
-];
+import { usePendingApprovals, useLeaveRequests } from "@/hooks/useLeaveData";
 
 export function LeaveApprovals() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selectedRequest, setSelectedRequest] = useState<PendingLeaveRequest | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [approvalComments, setApprovalComments] = useState("");
   const [userRole] = useState<"manager" | "hr" | "ceo">("hr"); // In real app, get from auth context
 
-  const filteredRequests = mockPendingRequests.filter((request) => {
-    const matchesSearch = request.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         request.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         request.leaveType.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDepartment = departmentFilter === "all" || request.department === departmentFilter;
-    const matchesStatus = statusFilter === "all" || request.approvalStatus === statusFilter;
+  const { requests, loading, error, refetch } = usePendingApprovals(userRole);
+  const { updateRequestStatus } = useLeaveRequests();
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-center text-muted-foreground">Loading pending approvals...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-center text-red-600">Error: {error}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const filteredRequests = requests.filter((request) => {
+    const employeeName = `${request.employee?.first_name || ''} ${request.employee?.last_name || ''}`.trim();
+    const matchesSearch = employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         request.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (request.leave_type?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDepartment = departmentFilter === "all" || request.employee?.department === departmentFilter;
     
-    // Filter based on user role
-    let matchesRole = true;
-    if (userRole === "manager") {
-      matchesRole = request.approvalStatus === "pending_manager";
-    } else if (userRole === "hr") {
-      matchesRole = request.approvalStatus === "pending_hr";
-    } else if (userRole === "ceo") {
-      matchesRole = request.approvalStatus === "pending_ceo";
-    }
+    let statusToCheck = '';
+    if (userRole === 'manager') statusToCheck = request.manager_approval_status || 'pending';
+    else if (userRole === 'hr') statusToCheck = request.hr_approval_status || 'pending';
+    else if (userRole === 'ceo') statusToCheck = request.ceo_approval_status || 'pending';
     
-    return matchesSearch && matchesDepartment && matchesStatus && matchesRole;
+    const matchesStatus = statusFilter === "all" || statusToCheck === statusFilter;
+    
+    return matchesSearch && matchesDepartment && matchesStatus;
   });
 
   const handleApproval = async (requestId: string, action: "approve" | "reject", comments?: string) => {
     setIsProcessing(requestId);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const success = await updateRequestStatus(requestId, action === "approve" ? "approved" : "rejected", userRole, comments);
     
-    const request = mockPendingRequests.find(r => r.id === requestId);
-    if (!request) return;
-    
-    if (userRole === "manager") {
-      if (action === "approve") {
-        toast({
-          title: "Leave Request Approved by Manager",
-          description: `Request ${requestId} has been forwarded to HR for final approval.`,
-        });
-      } else {
-        toast({
-          title: "Leave Request Rejected",
-          description: `Request ${requestId} has been rejected by line manager.`,
-        });
-      }
-    } else if (userRole === "hr") {
-      if (action === "approve") {
-        if (request.isManager) {
-          toast({
-            title: "Manager Leave Request Approved by HR",
-            description: `Request ${requestId} has been forwarded to CEO for final approval.`,
-          });
-        } else {
-          toast({
-            title: "Leave Request Approved by HR",
-            description: `Request ${requestId} has been approved successfully. Employee will be notified.`,
-          });
-        }
-      } else {
-        toast({
-          title: "Leave Request Rejected by HR",
-          description: `Request ${requestId} has been rejected. Employee will be notified.`,
-        });
-      }
-    } else if (userRole === "ceo") {
-      toast({
-        title: action === "approve" ? "Manager Leave Request Approved by CEO" : "Manager Leave Request Rejected by CEO",
-        description: `Request ${requestId} has been ${action}d successfully. Manager will be notified.`,
-      });
+    if (success) {
+      setSelectedRequest(null);
+      setApprovalComments("");
+      refetch();
     }
     
     setIsProcessing(null);
-    setSelectedRequest(null);
-    setApprovalComments("");
   };
 
-  const getUrgencyBadge = (appliedDate: Date, startDate: Date) => {
-    const daysUntilLeave = differenceInDays(startDate, new Date());
-    const daysProcessing = differenceInDays(new Date(), appliedDate);
+  const getUrgencyBadge = (appliedDate: string, startDate: string) => {
+    const daysUntilLeave = differenceInDays(new Date(startDate), new Date());
+    const daysProcessing = differenceInDays(new Date(), new Date(appliedDate));
     
     if (daysUntilLeave <= 3) {
       return <Badge variant="destructive" className="text-xs">Urgent</Badge>;
@@ -252,12 +90,8 @@ export function LeaveApprovals() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "pending_manager":
-        return <Badge variant="outline" className="text-orange-600 border-orange-200">Pending Manager</Badge>;
-      case "pending_hr":
-        return <Badge variant="outline" className="text-blue-600 border-blue-200">Pending HR</Badge>;
-      case "pending_ceo":
-        return <Badge variant="outline" className="text-purple-600 border-purple-200">Pending CEO</Badge>;
+      case "pending":
+        return <Badge variant="outline" className="text-orange-600 border-orange-200">Pending</Badge>;
       case "approved":
         return <Badge variant="default" className="bg-green-600">Approved</Badge>;
       case "rejected":
@@ -266,6 +100,17 @@ export function LeaveApprovals() {
         return <Badge variant="outline">Unknown</Badge>;
     }
   };
+
+  const getCurrentApprovalStatus = (request: any) => {
+    if (userRole === 'manager') return request.manager_approval_status || 'pending';
+    if (userRole === 'hr') return request.hr_approval_status || 'pending';
+    if (userRole === 'ceo') return request.ceo_approval_status || 'pending';
+    return 'pending';
+  };
+
+  const uniqueDepartments = Array.from(
+    new Set(requests.map(r => r.employee?.department).filter(Boolean))
+  );
 
   return (
     <div className="space-y-6">
@@ -308,7 +153,7 @@ export function LeaveApprovals() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-destructive">
-              {filteredRequests.filter(r => differenceInDays(r.startDate, new Date()) <= 3).length}
+              {filteredRequests.filter(r => differenceInDays(new Date(r.start_date), new Date()) <= 3).length}
             </div>
             <p className="text-xs text-muted-foreground">
               Starting in ≤3 days
@@ -408,38 +253,39 @@ export function LeaveApprovals() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRequests.map((request) => (
+                {filteredRequests.map((request) => {
+                  const employeeName = `${request.employee?.first_name || ''} ${request.employee?.last_name || ''}`.trim();
+                  return (
                   <TableRow key={request.id}>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{request.employeeName}</div>
+                        <div className="font-medium">{employeeName}</div>
                         <div className="text-sm text-muted-foreground">
-                          {request.employeeId} • {request.department}
-                          {request.isManager && <Badge variant="outline" className="ml-2 text-xs">Manager</Badge>}
+                          {request.employee_id} • {request.employee?.department}
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>{request.leaveType}</TableCell>
-                    <TableCell>{request.days} day{request.days > 1 ? 's' : ''}</TableCell>
+                    <TableCell>{request.leave_type?.name}</TableCell>
+                    <TableCell>{request.total_days} day{request.total_days > 1 ? 's' : ''}</TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div>{format(request.startDate, "MMM dd, yyyy")}</div>
-                        {request.days > 1 && (
+                        <div>{format(new Date(request.start_date), "MMM dd, yyyy")}</div>
+                        {request.total_days > 1 && (
                           <div className="text-muted-foreground">
-                            to {format(request.endDate, "MMM dd, yyyy")}
+                            to {format(new Date(request.end_date), "MMM dd, yyyy")}
                           </div>
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>{format(request.appliedDate, "MMM dd")}</TableCell>
+                    <TableCell>{format(new Date(request.applied_date), "MMM dd")}</TableCell>
                     <TableCell>
-                      {getStatusBadge(request.approvalStatus)}
+                      {getStatusBadge(getCurrentApprovalStatus(request))}
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm">{request.lineManager}</span>
+                      <span className="text-sm">Manager</span>
                     </TableCell>
                     <TableCell>
-                      {getUrgencyBadge(request.appliedDate, request.startDate)}
+                      {getUrgencyBadge(request.applied_date, request.start_date)}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -458,7 +304,7 @@ export function LeaveApprovals() {
                             <DialogHeader>
                               <DialogTitle>Leave Request Details</DialogTitle>
                               <DialogDescription>
-                                Review and process {request.employeeName}'s leave request
+                                Review and process leave request
                               </DialogDescription>
                             </DialogHeader>
                             
@@ -581,7 +427,8 @@ export function LeaveApprovals() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
