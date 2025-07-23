@@ -7,6 +7,7 @@ import { PayrollProcessing } from "@/components/payroll/PayrollProcessing";
 import { PayrollHistory } from "@/components/payroll/PayrollHistory";
 import { PayslipViewer } from "@/components/payroll/PayslipViewer";
 import { PayslipGenerator } from "@/components/payroll/PayslipGenerator";
+import { P9FormGenerator } from "@/components/payroll/P9FormGenerator";
 
 export default function Payroll() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -24,6 +25,7 @@ export default function Payroll() {
           <TabsTrigger value="processing">Process Payroll</TabsTrigger>
           <TabsTrigger value="view-payslips">View Payslips</TabsTrigger>
           <TabsTrigger value="generate-payslips">Generate Payslips</TabsTrigger>
+          <TabsTrigger value="p9-forms">P9 Forms</TabsTrigger>
           <TabsTrigger value="history">Payroll History</TabsTrigger>
         </TabsList>
         
@@ -115,6 +117,10 @@ export default function Payroll() {
         
         <TabsContent value="generate-payslips">
           <PayslipGenerator />
+        </TabsContent>
+        
+        <TabsContent value="p9-forms">
+          <P9FormGenerator />
         </TabsContent>
         
         <TabsContent value="history">
