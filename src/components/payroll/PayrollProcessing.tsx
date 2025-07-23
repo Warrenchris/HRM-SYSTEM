@@ -691,7 +691,7 @@ export function PayrollProcessing() {
               </Button>
               <Button 
                 onClick={handleProcessPayments}
-                disabled={isProcessingPayments || currentStep < 5}
+                disabled={isProcessingPayments || selectedEmployees.length === 0}
                 className="animate-fade-in"
               >
                 {isProcessingPayments ? (
