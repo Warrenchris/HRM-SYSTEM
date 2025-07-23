@@ -456,10 +456,12 @@ export default function Employees() {
 
       {/* Employee Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList>
-          <TabsTrigger value="active">Active Employees</TabsTrigger>
-          <TabsTrigger value="exited">Exited Employees</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="w-full justify-start sm:justify-center">
+            <TabsTrigger value="active">Active Employees</TabsTrigger>
+            <TabsTrigger value="exited">Exited Employees</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="active" className="space-y-4">
           {/* Search and Filters */}

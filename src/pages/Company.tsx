@@ -16,13 +16,24 @@ export default function Company() {
       </div>
 
       <Tabs defaultValue="info" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="info">Company Info</TabsTrigger>
-          <TabsTrigger value="branches">Branches</TabsTrigger>
-          <TabsTrigger value="departments">Departments</TabsTrigger>
-          <TabsTrigger value="policies">Policies</TabsTrigger>
-          <TabsTrigger value="organization">Organization</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="w-full justify-start sm:justify-center min-w-fit">
+            <TabsTrigger value="info">
+              <span className="hidden sm:inline">Company Info</span>
+              <span className="sm:hidden">Info</span>
+            </TabsTrigger>
+            <TabsTrigger value="branches">Branches</TabsTrigger>
+            <TabsTrigger value="departments">
+              <span className="hidden sm:inline">Departments</span>
+              <span className="sm:hidden">Depts</span>
+            </TabsTrigger>
+            <TabsTrigger value="policies">Policies</TabsTrigger>
+            <TabsTrigger value="organization">
+              <span className="hidden sm:inline">Organization</span>
+              <span className="sm:hidden">Org</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="info" className="space-y-6">
           <CompanyInfo />

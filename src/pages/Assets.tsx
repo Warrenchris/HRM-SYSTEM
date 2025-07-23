@@ -40,24 +40,27 @@ export default function Assets() {
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Assets
-          </TabsTrigger>
-          <TabsTrigger value="maintenance" className="flex items-center gap-2">
-            <Wrench className="h-4 w-4" />
-            Maintenance
-          </TabsTrigger>
-          <TabsTrigger value="history" className="flex items-center gap-2">
-            <History className="h-4 w-4" />
-            History
-          </TabsTrigger>
-          <TabsTrigger value="calendar" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Schedule
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="w-full justify-start sm:justify-center min-w-fit">
+            <TabsTrigger value="overview" className="flex items-center gap-1 sm:gap-2">
+              <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
+              Assets
+            </TabsTrigger>
+            <TabsTrigger value="maintenance" className="flex items-center gap-1 sm:gap-2">
+              <Wrench className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Maintenance</span>
+              <span className="sm:hidden">Maint.</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-1 sm:gap-2">
+              <History className="h-3 w-3 sm:h-4 sm:w-4" />
+              History
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="flex items-center gap-1 sm:gap-2">
+              <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+              Schedule
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="overview">
           <AssetTable />

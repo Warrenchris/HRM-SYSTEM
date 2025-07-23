@@ -93,7 +93,7 @@ export function PayrollTable() {
             />
           </div>
           <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Filter by department" />
             </SelectTrigger>
             <SelectContent>
@@ -107,19 +107,19 @@ export function PayrollTable() {
           </Select>
         </div>
         
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead className="text-right">Basic Salary</TableHead>
-                <TableHead className="text-right">Gross Salary</TableHead>
-                <TableHead className="text-right">PAYE</TableHead>
-                <TableHead className="text-right">NSSF</TableHead>
-                <TableHead className="text-right">SHIF</TableHead>
-                <TableHead className="text-right">Net Salary</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className="min-w-[200px]">Employee</TableHead>
+                <TableHead className="min-w-[120px]">Department</TableHead>
+                <TableHead className="text-right min-w-[120px]">Basic Salary</TableHead>
+                <TableHead className="text-right min-w-[120px]">Gross Salary</TableHead>
+                <TableHead className="text-right min-w-[100px]">PAYE</TableHead>
+                <TableHead className="text-right min-w-[100px]">NSSF</TableHead>
+                <TableHead className="text-right min-w-[100px]">SHIF</TableHead>
+                <TableHead className="text-right min-w-[120px]">Net Salary</TableHead>
+                <TableHead className="min-w-[120px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -131,33 +131,33 @@ export function PayrollTable() {
                   <TableRow key={employee.id}>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{employee.first_name} {employee.last_name}</p>
-                        <p className="text-sm text-muted-foreground">{employee.position}</p>
+                        <p className="font-medium text-sm sm:text-base">{employee.first_name} {employee.last_name}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">{employee.position}</p>
                       </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{employee.department}</Badge>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right text-xs sm:text-sm">
                       KSh {(employee.basic_salary || employee.salary || 0).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right font-medium">
+                    <TableCell className="text-right font-medium text-xs sm:text-sm">
                       KSh {payroll.grossSalary.toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right text-red-600">
+                    <TableCell className="text-right text-red-600 text-xs sm:text-sm">
                       KSh {Math.round(payroll.paye).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right text-red-600">
+                    <TableCell className="text-right text-red-600 text-xs sm:text-sm">
                       KSh {Math.round(payroll.nssf).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right text-red-600">
+                    <TableCell className="text-right text-red-600 text-xs sm:text-sm">
                       KSh {payroll.shif.toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-right font-medium text-green-600">
+                    <TableCell className="text-right font-medium text-green-600 text-xs sm:text-sm">
                       KSh {Math.round(payroll.netSalary).toLocaleString()}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center gap-1">
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button 
@@ -165,7 +165,7 @@ export function PayrollTable() {
                               size="sm"
                               onClick={() => setSelectedEmployee(employee)}
                             >
-                              <Calculator className="h-4 w-4" />
+                              <Calculator className="h-3 w-3 sm:h-4 sm:w-4" />
                             </Button>
                           </DialogTrigger>
                           <DialogContent className="max-w-2xl">
@@ -245,10 +245,10 @@ export function PayrollTable() {
                         </Dialog>
                         
                         <Button variant="ghost" size="sm">
-                          <Eye className="h-4 w-4" />
+                          <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
                         </Button>
                         <Button variant="ghost" size="sm">
-                          <Download className="h-4 w-4" />
+                          <Download className="h-3 w-3 sm:h-4 sm:w-4" />
                         </Button>
                       </div>
                     </TableCell>

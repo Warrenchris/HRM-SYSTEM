@@ -249,29 +249,29 @@ export function PayrollProcessing() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Employees</CardTitle>
+            <Users className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalEmployees}</div>
+            <div className="text-lg sm:text-2xl font-bold">{stats.totalEmployees}</div>
             <p className="text-xs text-muted-foreground">
-              Selected for payroll processing
+              Selected for processing
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Gross Amount</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Gross Amount</CardTitle>
+            <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">KSh {stats.totalGross.toLocaleString()}</div>
+            <div className="text-lg sm:text-2xl font-bold">KSh {stats.totalGross.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               Before deductions
             </p>
@@ -280,26 +280,26 @@ export function PayrollProcessing() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Deductions</CardTitle>
-            <Calculator className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Total Deductions</CardTitle>
+            <Calculator className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+            <div className="text-lg sm:text-2xl font-bold text-red-600">
               KSh {Math.round(stats.totalDeductions).toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              Tax & statutory deductions
+              Tax & statutory
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Net Amount</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Net Amount</CardTitle>
+            <CreditCard className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">KSh {Math.round(stats.totalNet).toLocaleString()}</div>
+            <div className="text-lg sm:text-2xl font-bold text-green-600">KSh {Math.round(stats.totalNet).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               To be paid out
             </p>
@@ -307,10 +307,10 @@ export function PayrollProcessing() {
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Payroll Configuration</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">Payroll Configuration</CardTitle>
             <CardDescription>
               Set up the payroll period and processing date
             </CardDescription>
@@ -361,7 +361,7 @@ export function PayrollProcessing() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Processing Progress</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">Processing Progress</CardTitle>
             <CardDescription>
               Current payroll processing status
             </CardDescription>

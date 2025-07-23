@@ -85,24 +85,27 @@ export default function Attendance() {
 
       {/* Main Content */}
       <Tabs defaultValue="clock" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="clock" className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            Clock In/Out
-          </TabsTrigger>
-          <TabsTrigger value="history" className="flex items-center gap-2">
-            <History className="h-4 w-4" />
-            History
-          </TabsTrigger>
-          <TabsTrigger value="calendar" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Calendar
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Reports
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="w-full justify-start sm:justify-center min-w-fit">
+            <TabsTrigger value="clock" className="flex items-center gap-1 sm:gap-2">
+              <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Clock In/Out</span>
+              <span className="sm:hidden">Clock</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-1 sm:gap-2">
+              <History className="h-3 w-3 sm:h-4 sm:w-4" />
+              History
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="flex items-center gap-1 sm:gap-2">
+              <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+              Calendar
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="flex items-center gap-1 sm:gap-2">
+              <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
+              Reports
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="clock">
           <ClockInOut />

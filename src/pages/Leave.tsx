@@ -26,28 +26,34 @@ export default function Leave() {
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="request" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            New Request
-          </TabsTrigger>
-          <TabsTrigger value="history" className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            My Requests
-          </TabsTrigger>
-          <TabsTrigger value="calendar" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Team Calendar
-          </TabsTrigger>
-          <TabsTrigger value="approvals" className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4" />
-            Approvals
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList className="w-full justify-start sm:justify-center min-w-fit">
+            <TabsTrigger value="overview" className="flex items-center gap-1 sm:gap-2">
+              <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="request" className="flex items-center gap-1 sm:gap-2">
+              <FileText className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">New Request</span>
+              <span className="sm:hidden">Request</span>
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-1 sm:gap-2">
+              <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">My Requests</span>
+              <span className="sm:hidden">History</span>
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="flex items-center gap-1 sm:gap-2">
+              <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Team Calendar</span>
+              <span className="sm:hidden">Calendar</span>
+            </TabsTrigger>
+            <TabsTrigger value="approvals" className="flex items-center gap-1 sm:gap-2">
+              <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Approvals</span>
+              <span className="sm:hidden">Approve</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="overview" className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">

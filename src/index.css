@@ -259,3 +259,21 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  /* Hide scrollbar but maintain functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Ensure proper text wrapping on mobile */
+  .break-words {
+    word-wrap: break-word;
+    word-break: break-word;
+  }
+}
