@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Monitor, Moon, Sun, Globe, Clock, Calendar } from "lucide-react";
+import { Monitor, Moon, Sun, Globe, Clock, Calendar, Fingerprint, Shield } from "lucide-react";
 
 export function SystemSettings() {
   return (
@@ -214,6 +214,114 @@ export function SystemSettings() {
               </p>
             </div>
             <Switch defaultChecked />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Fingerprint className="h-5 w-5" />
+            Biometric Authentication
+          </CardTitle>
+          <CardDescription>
+            Configure biometric authentication settings for attendance
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Enable Biometric Authentication</Label>
+              <p className="text-sm text-muted-foreground">
+                Allow employees to use fingerprint or face recognition for attendance
+              </p>
+            </div>
+            <Switch />
+          </div>
+
+          <Separator />
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Require Biometric for Clock In</Label>
+              <p className="text-sm text-muted-foreground">
+                Make biometric authentication mandatory for clocking in
+              </p>
+            </div>
+            <Switch />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Require Biometric for Clock Out</Label>
+              <p className="text-sm text-muted-foreground">
+                Make biometric authentication mandatory for clocking out
+              </p>
+            </div>
+            <Switch />
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label>Biometric Authentication Timeout (Seconds)</Label>
+            <Input type="number" defaultValue="60" min="30" max="180" />
+            <p className="text-xs text-muted-foreground">
+              Maximum time to wait for biometric authentication
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Fallback to PIN/Password</Label>
+              <p className="text-sm text-muted-foreground">
+                Allow PIN or password if biometric authentication fails
+              </p>
+            </div>
+            <Switch defaultChecked />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Security & Privacy
+          </CardTitle>
+          <CardDescription>
+            Configure security settings for biometric data
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Store Biometric Templates Locally</Label>
+              <p className="text-sm text-muted-foreground">
+                Keep biometric templates on device only (recommended)
+              </p>
+            </div>
+            <Switch defaultChecked />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Audit Biometric Usage</Label>
+              <p className="text-sm text-muted-foreground">
+                Log all biometric authentication attempts
+              </p>
+            </div>
+            <Switch defaultChecked />
+          </div>
+
+          <Separator />
+
+          <div className="space-y-2">
+            <Label>Biometric Data Retention (Days)</Label>
+            <Input type="number" defaultValue="90" min="30" max="365" />
+            <p className="text-xs text-muted-foreground">
+              How long to keep biometric audit logs
+            </p>
           </div>
         </CardContent>
       </Card>

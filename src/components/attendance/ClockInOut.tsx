@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Clock, MapPin, Coffee, LogOut } from "lucide-react";
+import { Clock, MapPin, Coffee, LogOut, Fingerprint, Scan } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,6 +42,8 @@ export function ClockInOut() {
   const [employeeId, setEmployeeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string | null>(null);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricSupported, setBiometricSupported] = useState(false);
 
   // Update current time every second
   useEffect(() => {
@@ -90,6 +93,23 @@ export function ClockInOut() {
     
     fetchApiKey();
   }, [toast]);
+
+  // Check biometric support
+  useEffect(() => {
+    const checkBiometricSupport = async () => {
+      if ('PublicKeyCredential' in window && 'navigator' in window && 'credentials' in navigator) {
+        try {
+          const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+          setBiometricSupported(available);
+        } catch (error) {
+          console.log('Biometric check failed:', error);
+          setBiometricSupported(false);
+        }
+      }
+    };
+    
+    checkBiometricSupport();
+  }, []);
 
   // Get current user's employee ID
   useEffect(() => {
@@ -181,6 +201,41 @@ export function ClockInOut() {
     }
   }, []);
 
+  const authenticateWithBiometric = async (): Promise<boolean> => {
+    if (!biometricSupported || !biometricEnabled) return true;
+    
+    try {
+      const credential = await navigator.credentials.create({
+        publicKey: {
+          challenge: new Uint8Array(32),
+          rp: { name: "HRM Pro" },
+          user: {
+            id: new TextEncoder().encode(employeeId || 'user'),
+            name: user?.email || 'employee',
+            displayName: user?.email || 'Employee'
+          },
+          pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+          authenticatorSelection: {
+            authenticatorAttachment: "platform",
+            userVerification: "required"
+          },
+          timeout: 60000,
+          attestation: "direct"
+        }
+      });
+      
+      return !!credential;
+    } catch (error) {
+      console.error('Biometric authentication failed:', error);
+      toast({
+        title: "Biometric Authentication Failed",
+        description: "Please try again or contact your administrator",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const handleClockIn = async () => {
     if (!employeeId) {
       toast({
@@ -189,6 +244,12 @@ export function ClockInOut() {
         variant: "destructive",
       });
       return;
+    }
+
+    // Biometric authentication check
+    if (biometricEnabled && biometricSupported) {
+      const authenticated = await authenticateWithBiometric();
+      if (!authenticated) return;
     }
 
     setLoading(true);
@@ -229,6 +290,12 @@ export function ClockInOut() {
 
   const handleClockOut = async () => {
     if (!currentRecord) return;
+
+    // Biometric authentication check
+    if (biometricEnabled && biometricSupported) {
+      const authenticated = await authenticateWithBiometric();
+      if (!authenticated) return;
+    }
 
     setLoading(true);
     
@@ -453,6 +520,34 @@ export function ClockInOut() {
               <div className="text-xs text-orange-600">📍 Getting location...</div>
             )}
           </div>
+
+          {/* Biometric Authentication */}
+          {biometricSupported && (
+            <div className="space-y-4 p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/20">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Fingerprint className="h-4 w-4 text-blue-500" />
+                Biometric Authentication
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Enable Biometric Verification</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Use fingerprint or face recognition for attendance
+                  </p>
+                </div>
+                <Switch
+                  checked={biometricEnabled}
+                  onCheckedChange={setBiometricEnabled}
+                />
+              </div>
+              {biometricEnabled && (
+                <div className="text-xs text-green-600 flex items-center gap-1">
+                  <Scan className="h-3 w-3" />
+                  Biometric authentication enabled
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Notes */}
           <div className="space-y-2">
