@@ -17,6 +17,7 @@ import Procurement from "./pages/Procurement";
 import Expenses from "./pages/Expenses";
 import Payroll from "./pages/Payroll";
 import Loans from "./pages/Loans";
+import Welfare from "./pages/Welfare";
 import Timesheets from "./pages/Timesheets";
 import Performance from "./pages/Performance";
 import Recruitment from "./pages/Recruitment";
@@ -63,6 +64,7 @@ const App = () => (
                       <Route path="expenses" element={<Expenses />} />
                       <Route path="payroll" element={<Payroll />} />
                       <Route path="loans" element={<Loans />} />
+                      <Route path="welfare" element={<Welfare />} />
                       <Route path="timesheets" element={<Timesheets />} />
                       <Route path="performance" element={<Performance />} />
                       <Route path="recruitment" element={<Recruitment />} />
