@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+interface GPSLocation {
+  latitude: number;
+  longitude: number;
+  timestamp: Date;
+}
+
 export interface AttendanceRecord {
   id: string;
   employee_id: string;
@@ -64,17 +70,25 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
     }
   };
 
-  const clockIn = async (employeeId: string, location?: string, notes?: string) => {
+  const clockIn = async (employeeId: string, location?: string, notes?: string, gpsLocation?: GPSLocation) => {
     try {
+      const clockInData: any = {
+        employee_id: employeeId,
+        clock_in_time: new Date().toISOString(),
+        location,
+        notes,
+        status: 'clocked_in'
+      };
+
+      if (gpsLocation) {
+        clockInData.clock_in_latitude = gpsLocation.latitude;
+        clockInData.clock_in_longitude = gpsLocation.longitude;
+        clockInData.clock_in_gps_timestamp = gpsLocation.timestamp.toISOString();
+      }
+
       const { error } = await supabase
         .from('attendance_records')
-        .insert([{
-          employee_id: employeeId,
-          clock_in_time: new Date().toISOString(),
-          location,
-          notes,
-          status: 'clocked_in'
-        }]);
+        .insert([clockInData]);
 
       if (error) throw error;
 
@@ -95,16 +109,24 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
     }
   };
 
-  const clockOut = async (recordId: string, location?: string, notes?: string) => {
+  const clockOut = async (recordId: string, location?: string, notes?: string, gpsLocation?: GPSLocation) => {
     try {
+      const clockOutData: any = {
+        clock_out_time: new Date().toISOString(),
+        clock_out_location: location,
+        notes,
+        status: 'clocked_out'
+      };
+
+      if (gpsLocation) {
+        clockOutData.clock_out_latitude = gpsLocation.latitude;
+        clockOutData.clock_out_longitude = gpsLocation.longitude;
+        clockOutData.clock_out_gps_timestamp = gpsLocation.timestamp.toISOString();
+      }
+
       const { error } = await supabase
         .from('attendance_records')
-        .update({
-          clock_out_time: new Date().toISOString(),
-          clock_out_location: location,
-          notes,
-          status: 'clocked_out'
-        })
+        .update(clockOutData)
         .eq('id', recordId);
 
       if (error) throw error;

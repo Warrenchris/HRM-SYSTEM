@@ -293,9 +293,15 @@ export type Database = {
           break_duration: number | null
           break_end_time: string | null
           break_start_time: string | null
+          clock_in_gps_timestamp: string | null
+          clock_in_latitude: number | null
+          clock_in_longitude: number | null
           clock_in_time: string
+          clock_out_gps_timestamp: string | null
           clock_out_ip_address: unknown | null
+          clock_out_latitude: number | null
           clock_out_location: string | null
+          clock_out_longitude: number | null
           clock_out_time: string | null
           company_id: string | null
           created_at: string
@@ -314,9 +320,15 @@ export type Database = {
           break_duration?: number | null
           break_end_time?: string | null
           break_start_time?: string | null
+          clock_in_gps_timestamp?: string | null
+          clock_in_latitude?: number | null
+          clock_in_longitude?: number | null
           clock_in_time: string
+          clock_out_gps_timestamp?: string | null
           clock_out_ip_address?: unknown | null
+          clock_out_latitude?: number | null
           clock_out_location?: string | null
+          clock_out_longitude?: number | null
           clock_out_time?: string | null
           company_id?: string | null
           created_at?: string
@@ -335,9 +347,15 @@ export type Database = {
           break_duration?: number | null
           break_end_time?: string | null
           break_start_time?: string | null
+          clock_in_gps_timestamp?: string | null
+          clock_in_latitude?: number | null
+          clock_in_longitude?: number | null
           clock_in_time?: string
+          clock_out_gps_timestamp?: string | null
           clock_out_ip_address?: unknown | null
+          clock_out_latitude?: number | null
           clock_out_location?: string | null
+          clock_out_longitude?: number | null
           clock_out_time?: string | null
           company_id?: string | null
           created_at?: string
