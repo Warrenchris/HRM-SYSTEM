@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
-import { Users, Plus, Search, Filter, MoreHorizontal, Shield, Mail, Eye, EyeOff, Edit, Trash2 } from "lucide-react";
+import { Users, Plus, Search, Filter, MoreHorizontal, Shield, Mail, Eye, EyeOff, Edit, Trash2, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -37,12 +37,35 @@ interface User {
   emergencyPhone?: string;
 }
 
+interface Employee {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  department: string;
+  position: string;
+  employee_id: string;
+  phone?: string;
+  join_date?: string;
+  salary?: number;
+  address?: string;
+  date_of_birth?: string;
+  gender?: string;
+  marital_status?: string;
+  emergency_contact?: string;
+  emergency_phone?: string;
+}
+
 export function UserTable() {
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEmployeeSelectDialogOpen, setIsEmployeeSelectDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employeeSearchTerm, setEmployeeSearchTerm] = useState("");
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [userRole, setUserRole] = useState("");
@@ -67,6 +90,7 @@ export function UserTable() {
   // Fetch users from Supabase
   useEffect(() => {
     fetchUsers();
+    fetchEmployees();
   }, []);
 
   const fetchUsers = async () => {
@@ -144,6 +168,34 @@ export function UserTable() {
     }
   };
 
+  const fetchEmployees = async () => {
+    try {
+      // Get all employees who don't already have user accounts (excluding super admin accounts)
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('employee_id')
+        .not('employee_id', 'is', null);
+
+      const existingEmployeeIds = profiles?.map(p => p.employee_id) || [];
+
+      const { data: employeesData, error } = await supabase
+        .from('employees')
+        .select('*')
+        .eq('status', 'active')
+        .not('id', 'in', `(${existingEmployeeIds.join(',') || 'null'})`)
+        .order('first_name');
+
+      if (error) {
+        console.error('Error fetching employees:', error);
+        return;
+      }
+
+      setEmployees(employeesData || []);
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+    }
+  };
+
   const roles = ["Admin", "HR Manager", "Department Head", "Employee"];
   const departments = ["IT", "Engineering", "Human Resources", "Finance", "Design", "Marketing", "Sales"];
 
@@ -170,11 +222,29 @@ export function UserTable() {
     return <Badge className={roleColors[role] || "bg-gray-100 text-gray-800 hover:bg-gray-100"}>{role}</Badge>;
   };
 
+  const handleSelectEmployee = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setUserName(`${employee.first_name} ${employee.last_name}`);
+    setUserEmail(employee.email);
+    setUserDepartment(employee.department);
+    setUserPosition(employee.position);
+    setUserPhone(employee.phone || "");
+    setUserSalary(employee.salary?.toString() || "");
+    setUserAddress(employee.address || "");
+    setUserDateOfBirth(employee.date_of_birth || "");
+    setUserGender(employee.gender || "");
+    setUserMaritalStatus(employee.marital_status || "");
+    setUserEmergencyContact(employee.emergency_contact || "");
+    setUserEmergencyPhone(employee.emergency_phone || "");
+    setIsEmployeeSelectDialogOpen(false);
+    setIsDialogOpen(true);
+  };
+
   const handleCreateUser = async () => {
-    if (!userName || !userEmail || !userRole || !userDepartment || !userPassword) {
+    if (!selectedEmployee || !userRole || !userPassword) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields including password",
+        description: "Please select an employee, role, and password",
         variant: "destructive",
       });
       return;
@@ -184,7 +254,7 @@ export function UserTable() {
     try {
       // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: userEmail,
+        email: selectedEmployee.email,
         password: userPassword,
         options: {
           emailRedirectTo: `${window.location.origin}/dashboard`
@@ -209,36 +279,19 @@ export function UserTable() {
         return;
       }
 
-      // Create employee record
-      const [firstName, ...lastNameParts] = userName.split(' ');
-      const lastName = lastNameParts.join(' ') || '';
-      
+      // Update employee record with auth email
       const { error: employeeError } = await supabase
         .from('employees')
-        .insert({
-          first_name: firstName,
-          last_name: lastName,
-          email: userEmail,
-          auth_email: userEmail,
-          department: userDepartment,
-          position: userPosition || userRole,
-          employee_id: `EMP${Date.now()}`,
-          join_date: new Date().toISOString().split('T')[0],
-          phone: userPhone,
-          salary: userSalary ? parseFloat(userSalary) : null,
-          address: userAddress,
-          date_of_birth: userDateOfBirth || null,
-          gender: userGender,
-          marital_status: userMaritalStatus,
-          emergency_contact: userEmergencyContact,
-          emergency_phone: userEmergencyPhone,
-        });
+        .update({
+          auth_email: selectedEmployee.email,
+        })
+        .eq('id', selectedEmployee.id);
 
       if (employeeError) {
-        console.error('Error creating employee:', employeeError);
+        console.error('Error updating employee:', employeeError);
       }
 
-      // Update profile with role
+      // Update profile with role and employee link
       const roleMapping = {
         'Admin': 'admin',
         'HR Manager': 'hr', 
@@ -249,7 +302,8 @@ export function UserTable() {
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ 
-          role: roleMapping[userRole as keyof typeof roleMapping] || 'employee'
+          role: roleMapping[userRole as keyof typeof roleMapping] || 'employee',
+          employee_id: selectedEmployee.id
         })
         .eq('user_id', authData.user.id);
 
@@ -259,10 +313,11 @@ export function UserTable() {
 
       toast({
         title: "User Created",
-        description: `User ${userName} has been created successfully`,
+        description: `User account created for ${selectedEmployee.first_name} ${selectedEmployee.last_name}`,
       });
 
       // Reset form and refresh data
+      setSelectedEmployee(null);
       setUserName("");
       setUserEmail("");
       setUserRole("");
@@ -279,6 +334,7 @@ export function UserTable() {
       setUserEmergencyPhone("");
       setIsDialogOpen(false);
       fetchUsers();
+      fetchEmployees();
 
     } catch (error) {
       console.error('Error creating user:', error);
@@ -484,40 +540,122 @@ export function UserTable() {
                 <SelectItem value="pending">Pending</SelectItem>
               </SelectContent>
             </Select>
+            <div className="flex gap-2">
+              <Dialog open={isEmployeeSelectDialogOpen} onOpenChange={setIsEmployeeSelectDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="flex items-center gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    Create User from Employee
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl">
+                  <DialogHeader>
+                    <DialogTitle>Select Employee to Create User</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <Search className="h-4 w-4 absolute left-3 top-3 text-muted-foreground" />
+                      <Input
+                        placeholder="Search employees..."
+                        value={employeeSearchTerm}
+                        onChange={(e) => setEmployeeSearchTerm(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    <div className="rounded-md border max-h-96 overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Employee</TableHead>
+                            <TableHead>Employee ID</TableHead>
+                            <TableHead>Department</TableHead>
+                            <TableHead>Position</TableHead>
+                            <TableHead>Action</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {employees
+                            .filter(emp => 
+                              emp.first_name?.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
+                              emp.last_name?.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
+                              emp.email?.toLowerCase().includes(employeeSearchTerm.toLowerCase()) ||
+                              emp.employee_id?.toLowerCase().includes(employeeSearchTerm.toLowerCase())
+                            )
+                            .map((employee) => (
+                              <TableRow key={employee.id}>
+                                <TableCell>
+                                  <div className="flex items-center gap-3">
+                                    <Avatar>
+                                      <AvatarFallback>
+                                        {`${employee.first_name[0]}${employee.last_name[0]}`.toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                      <div className="font-medium">{employee.first_name} {employee.last_name}</div>
+                                      <div className="text-sm text-muted-foreground">{employee.email}</div>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>{employee.employee_id}</TableCell>
+                                <TableCell>{employee.department}</TableCell>
+                                <TableCell>{employee.position}</TableCell>
+                                <TableCell>
+                                  <Button 
+                                    size="sm" 
+                                    onClick={() => handleSelectEmployee(employee)}
+                                  >
+                                    Select
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="flex items-center gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add User
-                </Button>
-              </DialogTrigger>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>Create New User</DialogTitle>
+                  <DialogTitle>Create User Account</DialogTitle>
                 </DialogHeader>
-                  <div className="space-y-6 max-h-[70vh] overflow-y-auto">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="user-name">Full Name *</Label>
-                        <Input
-                          id="user-name"
-                          placeholder="Enter full name"
-                          value={userName}
-                          onChange={(e) => setUserName(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="user-email">Email *</Label>
-                        <Input
-                          id="user-email"
-                          type="email"
-                          placeholder="user@company.com"
-                          value={userEmail}
-                          onChange={(e) => setUserEmail(e.target.value)}
-                        />
+                <div className="space-y-6 max-h-[70vh] overflow-y-auto">
+                  {selectedEmployee && (
+                    <div className="p-4 bg-muted rounded-lg">
+                      <h3 className="font-medium mb-2">Selected Employee</h3>
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarFallback>
+                            {`${selectedEmployee.first_name[0]}${selectedEmployee.last_name[0]}`.toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium">{selectedEmployee.first_name} {selectedEmployee.last_name}</div>
+                          <div className="text-sm text-muted-foreground">{selectedEmployee.email}</div>
+                          <div className="text-sm text-muted-foreground">{selectedEmployee.department} • {selectedEmployee.position}</div>
+                        </div>
                       </div>
                     </div>
+                  )}
 
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Role *</Label>
+                      <Select value={userRole} onValueChange={setUserRole}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {roles.filter(role => role !== 'Admin').map((role) => (
+                            <SelectItem key={role} value={role}>
+                              {role}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div>
                       <Label htmlFor="user-password">Password *</Label>
                       <div className="relative">
@@ -543,150 +681,19 @@ export function UserTable() {
                         </Button>
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label>Role *</Label>
-                        <Select value={userRole} onValueChange={setUserRole}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {roles.map((role) => (
-                              <SelectItem key={role} value={role}>
-                                {role}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Department *</Label>
-                        <Select value={userDepartment} onValueChange={setUserDepartment}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select department" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {departments.map((dept) => (
-                              <SelectItem key={dept} value={dept}>
-                                {dept}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="user-position">Position</Label>
-                        <Input
-                          id="user-position"
-                          placeholder="Enter position/title"
-                          value={userPosition}
-                          onChange={(e) => setUserPosition(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="user-phone">Phone</Label>
-                        <Input
-                          id="user-phone"
-                          placeholder="Enter phone number"
-                          value={userPhone}
-                          onChange={(e) => setUserPhone(e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="user-salary">Salary</Label>
-                        <Input
-                          id="user-salary"
-                          type="number"
-                          placeholder="Enter salary"
-                          value={userSalary}
-                          onChange={(e) => setUserSalary(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="user-dob">Date of Birth</Label>
-                        <Input
-                          id="user-dob"
-                          type="date"
-                          value={userDateOfBirth}
-                          onChange={(e) => setUserDateOfBirth(e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label>Gender</Label>
-                        <Select value={userGender} onValueChange={setUserGender}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select gender" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="male">Male</SelectItem>
-                            <SelectItem value="female">Female</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Marital Status</Label>
-                        <Select value={userMaritalStatus} onValueChange={setUserMaritalStatus}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select marital status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="single">Single</SelectItem>
-                            <SelectItem value="married">Married</SelectItem>
-                            <SelectItem value="divorced">Divorced</SelectItem>
-                            <SelectItem value="widowed">Widowed</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="user-address">Address</Label>
-                      <Input
-                        id="user-address"
-                        placeholder="Enter address"
-                        value={userAddress}
-                        onChange={(e) => setUserAddress(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="user-emergency-contact">Emergency Contact</Label>
-                        <Input
-                          id="user-emergency-contact"
-                          placeholder="Emergency contact name"
-                          value={userEmergencyContact}
-                          onChange={(e) => setUserEmergencyContact(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="user-emergency-phone">Emergency Phone</Label>
-                        <Input
-                          id="user-emergency-phone"
-                          placeholder="Emergency contact phone"
-                          value={userEmergencyPhone}
-                          onChange={(e) => setUserEmergencyPhone(e.target.value)}
-                        />
-                      </div>
-                    </div>
+                  </div>
 
                   <div className="flex gap-2 justify-end">
-                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                    <Button variant="outline" onClick={() => {
+                      setIsDialogOpen(false);
+                      setSelectedEmployee(null);
+                      setUserRole("");
+                      setUserPassword("");
+                    }}>
                       Cancel
                     </Button>
-                    <Button onClick={handleCreateUser} disabled={creating}>
-                      {creating ? "Creating..." : "Create User"}
+                    <Button onClick={handleCreateUser} disabled={creating || !selectedEmployee}>
+                      {creating ? "Creating..." : "Create User Account"}
                     </Button>
                   </div>
                 </div>
