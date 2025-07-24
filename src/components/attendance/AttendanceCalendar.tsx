@@ -1,38 +1,57 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { Calendar as CalendarIcon, Clock, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
+import { useAttendanceRecords } from "@/hooks/useAttendanceData";
+import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 
 export function AttendanceCalendar() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const { employee } = useCurrentEmployee();
+  const { records, loading } = useAttendanceRecords(employee?.id);
 
-  // Mock attendance data for calendar
+  // Convert records to calendar data
   const attendanceData: Record<string, {
     status: "present" | "absent" | "late" | "weekend" | "holiday" | "leave";
     clockIn?: string;
     clockOut?: string;
     totalHours?: string;
     location?: string;
-  }> = {
-    "2024-01-15": { status: "present", clockIn: "09:00 AM", clockOut: "06:15 PM", totalHours: "9h 15m", location: "Main Office" },
-    "2024-01-14": { status: "weekend" },
-    "2024-01-13": { status: "weekend" },
-    "2024-01-12": { status: "present", clockIn: "09:15 AM", clockOut: "06:00 PM", totalHours: "8h 45m", location: "Main Office" },
-    "2024-01-11": { status: "late", clockIn: "09:30 AM", clockOut: "06:00 PM", totalHours: "8h 30m", location: "Remote" },
-    "2024-01-10": { status: "leave" },
-    "2024-01-09": { status: "present", clockIn: "08:45 AM", clockOut: "05:45 PM", totalHours: "9h", location: "Main Office" },
-    "2024-01-08": { status: "present", clockIn: "09:00 AM", clockOut: "06:00 PM", totalHours: "9h", location: "Main Office" },
-    "2024-01-05": { status: "weekend" },
-    "2024-01-06": { status: "weekend" },
-    "2024-01-04": { status: "absent" },
-    "2024-01-03": { status: "present", clockIn: "09:00 AM", clockOut: "06:00 PM", totalHours: "9h", location: "Main Office" },
-    "2024-01-02": { status: "present", clockIn: "09:00 AM", clockOut: "06:00 PM", totalHours: "9h", location: "Main Office" },
-    "2024-01-01": { status: "holiday" },
-  };
+  }> = {};
+
+  records.forEach(record => {
+    const dateKey = new Date(record.clock_in_time).toISOString().split('T')[0];
+    const clockInTime = new Date(record.clock_in_time);
+    const clockOutTime = record.clock_out_time ? new Date(record.clock_out_time) : null;
+    
+    // Determine status based on clock in time and other factors
+    let status: "present" | "absent" | "late" | "weekend" | "holiday" | "leave" = "present";
+    
+    // Check if late (after 9:15 AM)
+    const workStartTime = new Date(clockInTime);
+    workStartTime.setHours(9, 15, 0, 0);
+    if (clockInTime > workStartTime) {
+      status = "late";
+    }
+    
+    // Check if weekend
+    const dayOfWeek = clockInTime.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      status = "weekend";
+    }
+
+    attendanceData[dateKey] = {
+      status,
+      clockIn: clockInTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      clockOut: clockOutTime?.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      totalHours: record.total_hours ? `${Math.floor(record.total_hours)}h ${Math.round((record.total_hours % 1) * 60)}m` : undefined,
+      location: record.location || undefined
+    };
+  });
 
   const getDateKey = (date: Date) => {
     return date.toISOString().split('T')[0];
@@ -64,6 +83,24 @@ export function AttendanceCalendar() {
 
   const selectedDateData = selectedDate ? attendanceData[getDateKey(selectedDate)] : null;
 
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarIcon className="h-5 w-5" />
+            Attendance Calendar
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-muted-foreground">
+            Loading calendar data...
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="grid gap-6 md:grid-cols-3">
       {/* Calendar */}
@@ -74,7 +111,7 @@ export function AttendanceCalendar() {
             Attendance Calendar
           </CardTitle>
           <CardDescription>
-            Click on any date to view attendance details
+            Click on any date to view attendance details ({records.length} records loaded)
           </CardDescription>
         </CardHeader>
         <CardContent>

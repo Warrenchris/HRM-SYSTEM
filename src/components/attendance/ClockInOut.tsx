@@ -154,12 +154,13 @@ export function ClockInOut() {
                 On Break
               </Badge>
             )}
-            {todayRecord?.clock_in_time && (
-              <div className="text-sm text-muted-foreground mt-1">
-                Clocked in at {new Date(todayRecord.clock_in_time).toLocaleTimeString()}
-              </div>
-            )}
           </div>
+          
+          {todayRecord?.clock_in_time && (
+            <div className="text-sm text-muted-foreground mt-1">
+              Clocked in at {new Date(todayRecord.clock_in_time).toLocaleTimeString()}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 text-sm text-muted-foreground">

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { useAttendanceRecords } from "@/hooks/useAttendanceData";
+import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { 
   BarChart, 
   Bar, 
@@ -49,13 +51,31 @@ export function AttendanceReports() {
   const [selectedEmployee, setSelectedEmployee] = useState<string>("all");
   const [reportType, setReportType] = useState<string>("summary");
   const { toast } = useToast();
+  const { employee } = useCurrentEmployee();
+  const { records, loading } = useAttendanceRecords(employee?.id);
 
-  // Mock data for reports
-  const summaryData = [
-    { name: "Present", value: 82, color: "#10b981" },
-    { name: "Late", value: 12, color: "#f59e0b" },
-    { name: "Absent", value: 6, color: "#ef4444" }
-  ];
+  // Calculate real data for reports
+  const calculateSummaryData = () => {
+    if (!records.length) return [];
+    
+    const present = records.filter(r => r.clock_out_time).length;
+    const late = records.filter(r => {
+      const clockIn = new Date(r.clock_in_time);
+      const workStart = new Date(clockIn);
+      workStart.setHours(9, 15, 0, 0);
+      return clockIn > workStart;
+    }).length;
+    const total = records.length;
+    const absent = total - present;
+    
+    return [
+      { name: "Present", value: Math.round((present / total) * 100), color: "#10b981" },
+      { name: "Late", value: Math.round((late / total) * 100), color: "#f59e0b" },
+      { name: "Absent", value: Math.round((absent / total) * 100), color: "#ef4444" }
+    ];
+  };
+
+  const summaryData = calculateSummaryData();
 
   const weeklyTrendData = [
     { week: "Week 1", present: 45, late: 3, absent: 2 },

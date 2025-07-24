@@ -8,12 +8,18 @@ import { ClockInOut } from "@/components/attendance/ClockInOut";
 import { AttendanceHistory } from "@/components/attendance/AttendanceHistory";
 import { AttendanceCalendar } from "@/components/attendance/AttendanceCalendar";
 import { AttendanceReports } from "@/components/attendance/AttendanceReports";
-import { Clock, MapPin, Calendar, History, BarChart3 } from "lucide-react";
+import { AttendanceApprovals } from "@/components/attendance/AttendanceApprovals";
+import { Clock, MapPin, Calendar, History, BarChart3, CheckCircle } from "lucide-react";
+import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
+import { useTodayAttendance } from "@/hooks/useAttendanceData";
 
 export default function Attendance() {
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [isCheckedIn, setIsCheckedIn] = useState(false);
-  const [checkInTime, setCheckInTime] = useState<Date | null>(null);
+  const { employee } = useCurrentEmployee();
+  const { records } = useTodayAttendance(employee?.id);
+  
+  const todayRecord = records[0];
+  const isCheckedIn = todayRecord && !todayRecord.clock_out_time;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -70,10 +76,15 @@ export default function Attendance() {
             <Badge variant={isCheckedIn ? "default" : "secondary"} className="text-sm">
               {isCheckedIn ? "Checked In" : "Checked Out"}
             </Badge>
-            {checkInTime && (
+            {todayRecord?.location && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <MapPin className="h-4 w-4" />
-                <span>Office Location</span>
+                <span>{todayRecord.location}</span>
+              </div>
+            )}
+            {todayRecord?.clock_in_time && (
+              <div className="text-sm text-muted-foreground">
+                Since {new Date(todayRecord.clock_in_time).toLocaleTimeString()}
               </div>
             )}
           </div>
@@ -104,6 +115,10 @@ export default function Attendance() {
               <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
               Reports
             </TabsTrigger>
+            <TabsTrigger value="approvals" className="flex items-center gap-1 sm:gap-2">
+              <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+              Approvals
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -121,6 +136,10 @@ export default function Attendance() {
 
         <TabsContent value="reports">
           <AttendanceReports />
+        </TabsContent>
+
+        <TabsContent value="approvals">
+          <AttendanceApprovals />
         </TabsContent>
       </Tabs>
     </div>
