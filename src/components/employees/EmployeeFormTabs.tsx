@@ -27,15 +27,15 @@ const employeeFormSchema = z.object({
   permanentAddress: z.string().optional(),
   loginPassword: z.string().min(6, "Password must be at least 6 characters"),
 
-  // Company/Payment/Statutory
-  employeeId: z.string().min(3, "Employee ID is required"),
-  department: z.string().min(1, "Department is required"),
-  designation: z.string().min(1, "Designation is required"),
+  // Company/Payment/Statutory - Made optional for basic employee creation
+  employeeId: z.string().optional(),
+  department: z.string().optional(),
+  designation: z.string().optional(),
   reportingTo: z.string().optional(),
   role: z.string().default("employee"),
   officeBranch: z.string().optional(),
   siteProject: z.string().optional(),
-  dateOfJoining: z.string().min(1, "Date of joining is required"),
+  dateOfJoining: z.string().optional(),
   contractStartDate: z.string().optional(),
   contractEndDate: z.string().optional(),
   exitDate: z.string().optional(),
