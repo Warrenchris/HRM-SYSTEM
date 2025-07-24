@@ -31,21 +31,72 @@ export function useCurrentEmployee() {
         setLoading(true);
         
         // First get the user's profile to find their employee_id
-        const { data: profile, error: profileError } = await supabase
+        let { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('employee_id')
           .eq('user_id', user.id)
           .single();
 
-        if (profileError && profileError.code !== 'PGRST116') {
-          throw profileError;
+        if (profileError) {
+          console.error('Profile error:', profileError);
+          if (profileError.code === 'PGRST116') {
+            // No profile found, create one
+            const { data: newProfile, error: createError } = await supabase
+              .from('profiles')
+              .insert([{ user_id: user.id, role: 'employee' }])
+              .select('employee_id')
+              .single();
+            
+            if (createError) {
+              throw createError;
+            }
+            
+            // Try to find an employee with matching email
+            const { data: matchingEmployee } = await supabase
+              .from('employees')
+              .select('id')
+              .eq('email', user.email)
+              .single();
+            
+            if (matchingEmployee) {
+              // Update profile with employee_id
+              await supabase
+                .from('profiles')
+                .update({ employee_id: matchingEmployee.id })
+                .eq('user_id', user.id);
+              
+              profile = { employee_id: matchingEmployee.id };
+            } else {
+              setEmployee(null);
+              setLoading(false);
+              return;
+            }
+          } else {
+            throw profileError;
+          }
         }
 
         if (!profile?.employee_id) {
-          // No employee linked to this user
-          setEmployee(null);
-          setLoading(false);
-          return;
+          // Try to find an employee with matching email
+          const { data: matchingEmployee } = await supabase
+            .from('employees')
+            .select('id')
+            .eq('email', user.email)
+            .single();
+          
+          if (matchingEmployee) {
+            // Update profile with employee_id
+            await supabase
+              .from('profiles')
+              .update({ employee_id: matchingEmployee.id })
+              .eq('user_id', user.id);
+            
+            profile.employee_id = matchingEmployee.id;
+          } else {
+            setEmployee(null);
+            setLoading(false);
+            return;
+          }
         }
 
         // Get employee details
