@@ -28,7 +28,7 @@ import Tasks from "./pages/Tasks";
 import Company from "./pages/Company";
 import Settings from "./pages/Settings";
 import LandingLogin from "./pages/LandingLogin";
-import Onboarding from "./pages/Onboarding";
+
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,8 +45,6 @@ const App = () => (
               {/* Authentication Route */}
               <Route path="/auth" element={<LandingLogin />} />
               
-              {/* Onboarding Route */}
-              <Route path="/onboarding" element={<Onboarding />} />
               
               {/* Protected App Routes */}
               <Route path="/*" element={

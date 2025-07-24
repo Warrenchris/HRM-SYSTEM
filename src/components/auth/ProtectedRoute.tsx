@@ -10,18 +10,15 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading: authLoading } = useAuth();
-  const { needsOnboarding, loading: companyLoading } = useCompany();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/auth");
-    } else if (!authLoading && !companyLoading && user && needsOnboarding) {
-      navigate("/onboarding");
     }
-  }, [user, authLoading, companyLoading, needsOnboarding, navigate]);
+  }, [user, authLoading, navigate]);
 
-  if (authLoading || companyLoading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="flex h-screen">
@@ -53,7 +50,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!user || needsOnboarding) {
+  if (!user) {
     return null;
   }
 
