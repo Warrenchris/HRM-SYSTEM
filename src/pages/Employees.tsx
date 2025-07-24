@@ -604,6 +604,7 @@ export default function Employees() {
         isOpen={isAddDialogOpen}
         onClose={() => setIsAddDialogOpen(false)}
         onSubmit={handleAddEmployee}
+        onRefresh={() => setRefreshTrigger(prev => prev + 1)}
       />
     </div>
   );

@@ -78,7 +78,7 @@ const employeeFormSchema = z.object({
   emergencyContactNumber: z.string().optional(),
 });
 
-// Individual tab schemas for validation
+// Individual tab schemas for validation - made partial for lenient saving
 const personalInfoSchema = employeeFormSchema.pick({
   firstName: true,
   secondName: true,
@@ -92,7 +92,7 @@ const personalInfoSchema = employeeFormSchema.pick({
   localAddress: true,
   permanentAddress: true,
   loginPassword: true,
-});
+}).partial();
 
 const companyPaymentSchema = employeeFormSchema.pick({
   employeeId: true,
@@ -122,13 +122,13 @@ const companyPaymentSchema = employeeFormSchema.pick({
   shifNumber: true,
   nssfNumber: true,
   idNumber: true,
-});
+}).partial();
 
 const academicsSchema = employeeFormSchema.pick({
   achievements: true,
   coursesTaken: true,
   otherAcademics: true,
-});
+}).partial();
 
 const nextOfKinSchema = employeeFormSchema.pick({
   nextOfKinName: true,
@@ -137,7 +137,7 @@ const nextOfKinSchema = employeeFormSchema.pick({
   nextOfKinEmail: true,
   emergencyContactPerson: true,
   emergencyContactNumber: true,
-});
+}).partial();
 
 export type EmployeeFormData = z.infer<typeof employeeFormSchema>;
 

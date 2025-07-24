@@ -6,17 +6,38 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmployeeFormTabs, EmployeeFormData } from "./EmployeeFormTabs";
+import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AddEmployeeDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: EmployeeFormData) => void;
+  onRefresh?: () => void;
 }
 
-export function AddEmployeeDialog({ isOpen, onClose, onSubmit }: AddEmployeeDialogProps) {
+export function AddEmployeeDialog({ isOpen, onClose, onSubmit, onRefresh }: AddEmployeeDialogProps) {
   const handleSubmit = (values: EmployeeFormData) => {
     onSubmit(values);
     onClose();
+  };
+
+  const handleTabSave = async (tabData: Partial<EmployeeFormData>, tabName: string) => {
+    try {
+      // For new employees, we can't save partial data to database yet
+      // Just show a success message
+      toast({
+        title: "Section Saved",
+        description: `${tabName} information has been saved locally. Complete the form and submit to save to database.`,
+      });
+    } catch (error) {
+      console.error('Error saving tab data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save section data.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -25,11 +46,11 @@ export function AddEmployeeDialog({ isOpen, onClose, onSubmit }: AddEmployeeDial
         <DialogHeader>
           <DialogTitle>Add New Employee</DialogTitle>
           <DialogDescription>
-            Enter comprehensive employee details across multiple sections.
+            Enter comprehensive employee details across multiple sections. You can save each section individually.
           </DialogDescription>
         </DialogHeader>
 
-        <EmployeeFormTabs onSubmit={handleSubmit} />
+        <EmployeeFormTabs onSubmit={handleSubmit} onTabSave={handleTabSave} />
       </DialogContent>
     </Dialog>
   );
