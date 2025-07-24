@@ -8,9 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Calendar, Search, Filter, Eye, Edit, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { useLeaveRequests } from "@/hooks/useLeaveData";
-
-// Mock employee ID - in real app, get from auth context
-const MOCK_EMPLOYEE_ID = "123e4567-e89b-12d3-a456-426614174000";
+import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 
 const statusConfig = {
   pending: { color: "bg-yellow-500", label: "Pending" },
@@ -23,10 +21,11 @@ export function LeaveHistory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const { employee, loading: employeeLoading } = useCurrentEmployee();
   
-  const { requests, loading, error, cancelRequest } = useLeaveRequests(MOCK_EMPLOYEE_ID);
+  const { requests, loading, error, cancelRequest } = useLeaveRequests(employee?.id);
 
-  if (loading) {
+  if (loading || employeeLoading) {
     return (
       <Card>
         <CardContent className="pt-6">

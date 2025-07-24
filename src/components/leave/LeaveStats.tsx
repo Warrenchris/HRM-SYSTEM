@@ -4,14 +4,13 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, CheckCircle, AlertCircle } from "lucide-react";
 import { useLeaveBalances } from "@/hooks/useLeaveData";
-
-// Mock employee ID - in real app, get from auth context
-const MOCK_EMPLOYEE_ID = "123e4567-e89b-12d3-a456-426614174000";
+import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 
 export function LeaveStats() {
-  const { balances, loading, error } = useLeaveBalances(MOCK_EMPLOYEE_ID);
+  const { employee, loading: employeeLoading } = useCurrentEmployee();
+  const { balances, loading, error } = useLeaveBalances(employee?.id);
 
-  if (loading) {
+  if (loading || employeeLoading) {
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[...Array(4)].map((_, i) => (

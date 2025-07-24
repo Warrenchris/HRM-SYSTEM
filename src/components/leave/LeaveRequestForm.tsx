@@ -16,6 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useLeaveTypes, useLeaveRequests, calculateWorkingDays } from "@/hooks/useLeaveData";
+import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 
 const leaveRequestSchema = z.object({
   leaveType: z.string().min(1, "Leave type is required"),
@@ -31,10 +32,8 @@ const leaveRequestSchema = z.object({
 
 type LeaveRequestForm = z.infer<typeof leaveRequestSchema>;
 
-// Mock employee ID - in real app, get from auth context
-const MOCK_EMPLOYEE_ID = "123e4567-e89b-12d3-a456-426614174000";
-
 export function LeaveRequestForm() {
+  const { employee, loading: employeeLoading } = useCurrentEmployee();
   const { toast } = useToast();
   const { leaveTypes, loading: typesLoading } = useLeaveTypes();
   const { submitRequest } = useLeaveRequests();
@@ -62,7 +61,7 @@ export function LeaveRequestForm() {
       reason: data.reason,
       emergency_contact: data.emergencyContact || null,
       handover_notes: data.handoverNotes || null,
-      employee_id: MOCK_EMPLOYEE_ID,
+      employee_id: employee?.id || "",
     });
     
     if (success) {
@@ -82,7 +81,7 @@ export function LeaveRequestForm() {
     return 0;
   };
 
-  if (typesLoading) {
+  if (typesLoading || employeeLoading || !employee) {
     return (
       <Card>
         <CardContent className="pt-6">
