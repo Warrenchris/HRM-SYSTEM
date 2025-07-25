@@ -25,6 +25,7 @@ import {
 import { Check, X, Eye, FileText, Calendar, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { systemLogger } from "@/utils/systemLogger";
 
 interface PendingExpense {
   id: string;
@@ -150,6 +151,19 @@ export function ExpenseApprovals() {
 
       if (error) throw error;
 
+      // Log the expense approval
+      await systemLogger.info(
+        'expense_approved',
+        'expense',
+        {
+          expense_number: expenseNumber,
+          amount: selectedExpense?.amount,
+          employee_name: selectedExpense?.employee_name,
+          comments: comment || 'No comments provided'
+        },
+        expenseId
+      );
+
       toast({
         title: "Expense Approved",
         description: `Expense ${expenseNumber} has been approved successfully.`,
@@ -194,6 +208,19 @@ export function ExpenseApprovals() {
         .eq('id', expenseId);
 
       if (error) throw error;
+
+      // Log the expense rejection
+      await systemLogger.warning(
+        'expense_rejected',
+        'expense',
+        {
+          expense_number: expenseNumber,
+          amount: selectedExpense?.amount,
+          employee_name: selectedExpense?.employee_name,
+          rejection_reason: comment || 'No reason provided'
+        },
+        expenseId
+      );
 
       toast({
         title: "Expense Rejected",
