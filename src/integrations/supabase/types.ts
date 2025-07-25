@@ -799,6 +799,169 @@ export type Database = {
           },
         ]
       }
+      expense_approvals: {
+        Row: {
+          approval_level: number
+          approved_at: string | null
+          approver_id: string
+          comments: string | null
+          created_at: string
+          expense_id: string
+          id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approval_level?: number
+          approved_at?: string | null
+          approver_id: string
+          comments?: string | null
+          created_at?: string
+          expense_id: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approval_level?: number
+          approved_at?: string | null
+          approver_id?: string
+          comments?: string | null
+          created_at?: string
+          expense_id?: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_approvals_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          max_amount: number | null
+          name: string
+          requires_receipt: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          name: string
+          requires_receipt?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          max_amount?: number | null
+          name?: string
+          requires_receipt?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount: number
+          approval_comments: string | null
+          approved_at: string | null
+          approved_by: string | null
+          category_id: string
+          company_id: string | null
+          created_at: string
+          description: string | null
+          employee_id: string
+          expense_date: string
+          expense_number: string
+          id: string
+          merchant: string | null
+          payment_date: string | null
+          payment_reference: string | null
+          receipt_urls: Json | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
+          status: string
+          submitted_at: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          approval_comments?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          category_id: string
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          employee_id: string
+          expense_date: string
+          expense_number: string
+          id?: string
+          merchant?: string | null
+          payment_date?: string | null
+          payment_reference?: string | null
+          receipt_urls?: Json | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+          submitted_at?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          approval_comments?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          category_id?: string
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          employee_id?: string
+          expense_date?: string
+          expense_number?: string
+          id?: string
+          merchant?: string | null
+          payment_date?: string | null
+          payment_reference?: string | null
+          receipt_urls?: Json | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+          submitted_at?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "expense_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_balances: {
         Row: {
           allocated_days: number
@@ -1573,6 +1736,10 @@ export type Database = {
           company_display_name?: string
           user_email?: string
         }
+        Returns: string
+      }
+      generate_expense_number: {
+        Args: Record<PropertyKey, never>
         Returns: string
       }
       get_current_user_role: {
