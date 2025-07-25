@@ -109,16 +109,65 @@ export function SystemSettings() {
 
             <div className="space-y-2">
               <Label>Region</Label>
-              <Select defaultValue="us">
+              <Select defaultValue="ng">
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="us">United States</SelectItem>
-                  <SelectItem value="uk">United Kingdom</SelectItem>
-                  <SelectItem value="ca">Canada</SelectItem>
-                  <SelectItem value="au">Australia</SelectItem>
-                  <SelectItem value="de">Germany</SelectItem>
+                  <SelectItem value="dz">Algeria</SelectItem>
+                  <SelectItem value="ao">Angola</SelectItem>
+                  <SelectItem value="bj">Benin</SelectItem>
+                  <SelectItem value="bw">Botswana</SelectItem>
+                  <SelectItem value="bf">Burkina Faso</SelectItem>
+                  <SelectItem value="bi">Burundi</SelectItem>
+                  <SelectItem value="cv">Cabo Verde</SelectItem>
+                  <SelectItem value="cm">Cameroon</SelectItem>
+                  <SelectItem value="cf">Central African Republic</SelectItem>
+                  <SelectItem value="td">Chad</SelectItem>
+                  <SelectItem value="km">Comoros</SelectItem>
+                  <SelectItem value="cg">Congo</SelectItem>
+                  <SelectItem value="cd">Democratic Republic of the Congo</SelectItem>
+                  <SelectItem value="dj">Djibouti</SelectItem>
+                  <SelectItem value="eg">Egypt</SelectItem>
+                  <SelectItem value="gq">Equatorial Guinea</SelectItem>
+                  <SelectItem value="er">Eritrea</SelectItem>
+                  <SelectItem value="sz">Eswatini</SelectItem>
+                  <SelectItem value="et">Ethiopia</SelectItem>
+                  <SelectItem value="ga">Gabon</SelectItem>
+                  <SelectItem value="gm">Gambia</SelectItem>
+                  <SelectItem value="gh">Ghana</SelectItem>
+                  <SelectItem value="gn">Guinea</SelectItem>
+                  <SelectItem value="gw">Guinea-Bissau</SelectItem>
+                  <SelectItem value="ci">Ivory Coast</SelectItem>
+                  <SelectItem value="ke">Kenya</SelectItem>
+                  <SelectItem value="ls">Lesotho</SelectItem>
+                  <SelectItem value="lr">Liberia</SelectItem>
+                  <SelectItem value="ly">Libya</SelectItem>
+                  <SelectItem value="mg">Madagascar</SelectItem>
+                  <SelectItem value="mw">Malawi</SelectItem>
+                  <SelectItem value="ml">Mali</SelectItem>
+                  <SelectItem value="mr">Mauritania</SelectItem>
+                  <SelectItem value="mu">Mauritius</SelectItem>
+                  <SelectItem value="ma">Morocco</SelectItem>
+                  <SelectItem value="mz">Mozambique</SelectItem>
+                  <SelectItem value="na">Namibia</SelectItem>
+                  <SelectItem value="ne">Niger</SelectItem>
+                  <SelectItem value="ng">Nigeria</SelectItem>
+                  <SelectItem value="rw">Rwanda</SelectItem>
+                  <SelectItem value="st">São Tomé and Príncipe</SelectItem>
+                  <SelectItem value="sn">Senegal</SelectItem>
+                  <SelectItem value="sc">Seychelles</SelectItem>
+                  <SelectItem value="sl">Sierra Leone</SelectItem>
+                  <SelectItem value="so">Somalia</SelectItem>
+                  <SelectItem value="za">South Africa</SelectItem>
+                  <SelectItem value="ss">South Sudan</SelectItem>
+                  <SelectItem value="sd">Sudan</SelectItem>
+                  <SelectItem value="tz">Tanzania</SelectItem>
+                  <SelectItem value="tg">Togo</SelectItem>
+                  <SelectItem value="tn">Tunisia</SelectItem>
+                  <SelectItem value="ug">Uganda</SelectItem>
+                  <SelectItem value="zm">Zambia</SelectItem>
+                  <SelectItem value="zw">Zimbabwe</SelectItem>
                 </SelectContent>
               </Select>
             </div>
