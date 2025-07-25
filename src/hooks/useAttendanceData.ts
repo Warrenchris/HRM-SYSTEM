@@ -72,12 +72,26 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
 
   const clockIn = async (employeeId: string, location?: string, notes?: string, gpsLocation?: GPSLocation) => {
     try {
+      console.log('clockIn called with employeeId:', employeeId);
+      
+      // Get current user's company_id
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      if (profileError) {
+        console.error('Profile error:', profileError);
+      }
+
       const clockInData: any = {
         employee_id: employeeId,
         clock_in_time: new Date().toISOString(),
         location,
         notes,
-        status: 'clocked_in'
+        status: 'clocked_in',
+        company_id: profile?.company_id || null
       };
 
       if (gpsLocation) {
@@ -86,12 +100,18 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
         clockInData.clock_in_gps_timestamp = gpsLocation.timestamp.toISOString();
       }
 
-      const { error } = await supabase
+      console.log('Inserting clock in data:', clockInData);
+      const { data, error } = await supabase
         .from('attendance_records')
-        .insert([clockInData]);
+        .insert([clockInData])
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Clock in error:', error);
+        throw error;
+      }
 
+      console.log('Clock in successful, inserted data:', data);
       toast({
         title: "Clocked In",
         description: "Successfully clocked in for today.",
@@ -100,6 +120,7 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
       fetchRecords();
       return true;
     } catch (err) {
+      console.error('Clock in failed:', err);
       toast({
         title: "Error",
         description: err instanceof Error ? err.message : 'Failed to clock in',

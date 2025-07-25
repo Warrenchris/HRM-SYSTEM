@@ -110,6 +110,7 @@ export function useCurrentEmployee() {
           throw employeeError;
         }
 
+        console.log('Employee data loaded successfully:', employeeData);
         setEmployee(employeeData);
       } catch (err) {
         console.error('Error fetching current employee:', err);

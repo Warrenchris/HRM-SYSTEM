@@ -75,23 +75,40 @@ export function ClockInOut() {
   };
 
   const handleClockIn = async () => {
-    if (!employee?.id) return;
+    console.log('handleClockIn called - employee:', employee);
+    if (!employee?.id) {
+      console.log('No employee ID found');
+      toast({
+        title: "Error",
+        description: "Employee profile not found. Please contact HR.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     try {
+      console.log('Getting location...');
       const location = await getCurrentLocation();
-      await clockIn(employee.id, `${location.latitude}, ${location.longitude}`, 'GPS location captured', location);
-      toast({
-        title: "Clocked In",
-        description: "Successfully clocked in with GPS location.",
-      });
+      console.log('Location obtained:', location);
+      const result = await clockIn(employee.id, `${location.latitude}, ${location.longitude}`, 'GPS location captured', location);
+      console.log('Clock in result:', result);
+      if (result) {
+        toast({
+          title: "Clocked In",
+          description: "Successfully clocked in with GPS location.",
+        });
+      }
     } catch (error) {
+      console.log('Location error:', error);
       toast({
         title: "Location Error",
         description: error instanceof Error ? error.message : "Failed to get GPS location",
         variant: "destructive",
       });
       // Still allow clock in without GPS
-      await clockIn(employee.id, "Location unavailable", "GPS location failed");
+      console.log('Attempting clock in without GPS...');
+      const result = await clockIn(employee.id, "Location unavailable", "GPS location failed");
+      console.log('Clock in without GPS result:', result);
     }
   };
 
