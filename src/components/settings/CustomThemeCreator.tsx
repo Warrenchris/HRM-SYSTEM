@@ -288,7 +288,10 @@ export function CustomThemeCreator() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => setEditingTheme(theme)}
+                        onClick={() => {
+                          setEditingTheme(theme);
+                          setIsCreating(true);
+                        }}
                       >
                         Edit
                       </Button>
