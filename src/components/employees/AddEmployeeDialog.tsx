@@ -17,9 +17,14 @@ interface AddEmployeeDialogProps {
 }
 
 export function AddEmployeeDialog({ isOpen, onClose, onSubmit, onRefresh }: AddEmployeeDialogProps) {
-  const handleSubmit = (values: EmployeeFormData) => {
-    onSubmit(values);
-    onClose();
+  const handleSubmit = async (values: EmployeeFormData) => {
+    console.log('AddEmployeeDialog - handleSubmit called with:', values);
+    try {
+      await onSubmit(values);
+      onClose();
+    } catch (error) {
+      console.error('Error in AddEmployeeDialog handleSubmit:', error);
+    }
   };
 
   const handleTabSave = async (tabData: Partial<EmployeeFormData>, tabName: string) => {

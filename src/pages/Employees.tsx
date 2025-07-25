@@ -26,8 +26,17 @@ export default function Employees() {
   const { toast } = useToast();
 
   const handleAddEmployee = async (employeeData: EmployeeFormData) => {
+    console.log('Starting employee creation with data:', employeeData);
     try {
-      const { error } = await supabase
+      // Check authentication first
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        console.error('Authentication error:', authError);
+        throw new Error('Authentication required');
+      }
+      console.log('User authenticated:', user?.id);
+
+      const { data, error } = await supabase
         .from('employees')
         .insert({
           // Personal Information
@@ -99,9 +108,15 @@ export default function Employees() {
 
           // Default values
           status: 'active',
-        });
+        })
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database insert error:', error);
+        throw error;
+      }
+      
+      console.log('Employee created successfully:', data);
 
       toast({
         title: "Employee Added",
