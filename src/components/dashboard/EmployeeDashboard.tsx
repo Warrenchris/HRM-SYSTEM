@@ -258,6 +258,46 @@ export function EmployeeDashboard() {
         ))}
       </div>
 
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Quick Actions</CardTitle>
+          <CardDescription>Frequently used functions and shortcuts</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
+            {quickActions.map((action, index) => (
+              <Button
+                key={index}
+                asChild={action.href !== "#payslip"}
+                variant="outline"
+                className="h-20 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/20 transition-all duration-300"
+                onClick={action.href === "#payslip" ? () => {
+                  const payslipSection = document.getElementById('payslip-section');
+                  payslipSection?.scrollIntoView({ behavior: 'smooth' });
+                } : undefined}
+              >
+                {action.href !== "#payslip" ? (
+                  <Link to={action.href}>
+                    <div className={`w-8 h-8 ${action.color} rounded-lg flex items-center justify-center mb-1`}>
+                      <action.icon className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-xs text-center">{action.label}</span>
+                  </Link>
+                ) : (
+                  <>
+                    <div className={`w-8 h-8 ${action.color} rounded-lg flex items-center justify-center mb-1`}>
+                      <action.icon className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-xs text-center">{action.label}</span>
+                  </>
+                )}
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Task Progress */}
         <Card>
@@ -354,46 +394,6 @@ export function EmployeeDashboard() {
               <span>{leave.usedLeave}/{leave.totalLeave} days</span>
             </div>
             <Progress value={(leave.usedLeave / leave.totalLeave) * 100} className="h-2" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-          <CardDescription>Frequently used functions and shortcuts</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
-            {quickActions.map((action, index) => (
-              <Button
-                key={index}
-                asChild={action.href !== "#payslip"}
-                variant="outline"
-                className="h-20 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/20 transition-all duration-300"
-                onClick={action.href === "#payslip" ? () => {
-                  const payslipSection = document.getElementById('payslip-section');
-                  payslipSection?.scrollIntoView({ behavior: 'smooth' });
-                } : undefined}
-              >
-                {action.href !== "#payslip" ? (
-                  <Link to={action.href}>
-                    <div className={`w-8 h-8 ${action.color} rounded-lg flex items-center justify-center mb-1`}>
-                      <action.icon className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-xs text-center">{action.label}</span>
-                  </Link>
-                ) : (
-                  <>
-                    <div className={`w-8 h-8 ${action.color} rounded-lg flex items-center justify-center mb-1`}>
-                      <action.icon className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-xs text-center">{action.label}</span>
-                  </>
-                )}
-              </Button>
-            ))}
           </div>
         </CardContent>
       </Card>
