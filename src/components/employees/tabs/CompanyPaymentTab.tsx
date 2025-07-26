@@ -4,12 +4,23 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { EmployeeFormData } from "../EmployeeFormTabs";
+import { useDepartments, usePositions } from "@/hooks/usePositions";
 
 interface CompanyPaymentTabProps {
   form: UseFormReturn<EmployeeFormData>;
 }
 
 export function CompanyPaymentTab({ form }: CompanyPaymentTabProps) {
+  const { departments } = useDepartments();
+  const selectedDepartment = form.watch("department");
+  const { positions } = usePositions(selectedDepartment);
+
+  // Reset designation when department changes
+  const handleDepartmentChange = (value: string) => {
+    form.setValue("department", value);
+    form.setValue("designation", ""); // Reset designation when department changes
+  };
+
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-foreground">Company/Payment/Statutory Details</h3>
@@ -37,20 +48,18 @@ export function CompanyPaymentTab({ form }: CompanyPaymentTabProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Department *</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={handleDepartmentChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="engineering">Engineering</SelectItem>
-                    <SelectItem value="marketing">Marketing</SelectItem>
-                    <SelectItem value="sales">Sales</SelectItem>
-                    <SelectItem value="hr">Human Resources</SelectItem>
-                    <SelectItem value="finance">Finance</SelectItem>
-                    <SelectItem value="operations">Operations</SelectItem>
-                    <SelectItem value="it">IT Support</SelectItem>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept} value={dept}>
+                        {dept}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -66,9 +75,33 @@ export function CompanyPaymentTab({ form }: CompanyPaymentTabProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Designation *</FormLabel>
-                <FormControl>
-                  <Input placeholder="Software Engineer" {...field} />
-                </FormControl>
+                <Select 
+                  onValueChange={field.onChange} 
+                  value={field.value}
+                  disabled={!selectedDepartment}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={
+                        selectedDepartment 
+                          ? "Select position" 
+                          : "First select a department"
+                      } />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {positions.map((position) => (
+                      <SelectItem key={position.id} value={position.title}>
+                        {position.title}
+                        {position.description && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            - {position.description}
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

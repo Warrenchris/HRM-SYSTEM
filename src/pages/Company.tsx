@@ -4,6 +4,7 @@ import { BranchManagement } from "@/components/company/BranchManagement";
 import { DepartmentSetup } from "@/components/company/DepartmentSetup";
 import { CompanyPolicies } from "@/components/company/CompanyPolicies";
 import { OrganizationChart } from "@/components/company/OrganizationChart";
+import { PositionManagement } from "@/components/company/PositionManagement";
 
 export default function Company() {
   return (
@@ -27,6 +28,10 @@ export default function Company() {
               <span className="hidden sm:inline">Departments</span>
               <span className="sm:hidden">Depts</span>
             </TabsTrigger>
+            <TabsTrigger value="positions">
+              <span className="hidden sm:inline">Positions</span>
+              <span className="sm:hidden">Pos</span>
+            </TabsTrigger>
             <TabsTrigger value="policies">Policies</TabsTrigger>
             <TabsTrigger value="organization">
               <span className="hidden sm:inline">Organization</span>
@@ -45,6 +50,10 @@ export default function Company() {
 
         <TabsContent value="departments" className="space-y-6">
           <DepartmentSetup />
+        </TabsContent>
+
+        <TabsContent value="positions" className="space-y-6">
+          <PositionManagement />
         </TabsContent>
 
         <TabsContent value="policies" className="space-y-6">
