@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { EmployeeTable } from "@/components/employees/EmployeeTable";
 import { EmployeeStats } from "@/components/employees/EmployeeStats";
 import { AddEmployeeDialog } from "@/components/employees/AddEmployeeDialog";
+import { ImportEmployeesDialog } from "@/components/employees/ImportEmployeesDialog";
 import { EmployeeFormData } from "@/components/employees/EmployeeFormTabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +23,7 @@ export default function Employees() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [activeTab, setActiveTab] = useState("active");
   const { toast } = useToast();
@@ -150,10 +152,11 @@ export default function Employees() {
   };
 
   const handleImportEmployees = () => {
-    toast({
-      title: "Import Feature",
-      description: "CSV import functionality will be implemented with backend integration.",
-    });
+    setIsImportDialogOpen(true);
+  };
+
+  const handleImportComplete = () => {
+    setRefreshTrigger(prev => prev + 1);
   };
 
   const generateCSV = (employees: any[]) => {
@@ -634,6 +637,12 @@ export default function Employees() {
         onClose={() => setIsAddDialogOpen(false)}
         onSubmit={handleAddEmployee}
         onRefresh={() => setRefreshTrigger(prev => prev + 1)}
+      />
+
+      <ImportEmployeesDialog
+        isOpen={isImportDialogOpen}
+        onClose={() => setIsImportDialogOpen(false)}
+        onImportComplete={handleImportComplete}
       />
     </div>
   );
