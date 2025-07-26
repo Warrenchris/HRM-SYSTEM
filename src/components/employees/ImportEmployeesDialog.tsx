@@ -454,7 +454,7 @@ export function ImportEmployeesDialog({ isOpen, onClose, onImportComplete }: Imp
           )}
 
           {/* Progress */}
-          {isImporting && (
+          {isImporting && !importResult && (
             <div className="space-y-2">
               <Label>Import Progress</Label>
               <Progress value={progress} />
