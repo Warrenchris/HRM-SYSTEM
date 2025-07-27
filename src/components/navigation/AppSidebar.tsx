@@ -17,7 +17,8 @@ import {
   Settings,
   ShoppingCart,
   Ticket,
-  CheckSquare
+  CheckSquare,
+  Megaphone
 } from "lucide-react";
 
 import {
@@ -37,6 +38,7 @@ const mainModules = [
   { title: "Dashboard", url: "/", icon: Home },
   { title: "My Dashboard", url: "/employee-dashboard", icon: User },
   { title: "Employees", url: "/employees", icon: Users },
+  { title: "Announcements", url: "/announcements", icon: Megaphone },
   { title: "Attendance", url: "/attendance", icon: Clock },
   { title: "Leave Management", url: "/leave", icon: Calendar },
   { title: "Asset Management", url: "/assets", icon: Package },

@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      announcements: {
+        Row: {
+          author_id: string
+          company_id: string | null
+          content: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_pinned: boolean
+          priority: string
+          published_at: string | null
+          status: string
+          target_audience: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          company_id?: string | null
+          content: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_pinned?: boolean
+          priority?: string
+          published_at?: string | null
+          status?: string
+          target_audience?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          company_id?: string | null
+          content?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_pinned?: boolean
+          priority?: string
+          published_at?: string | null
+          status?: string
+          target_audience?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       appraisal_objectives: {
         Row: {
           actual_value: string | null
