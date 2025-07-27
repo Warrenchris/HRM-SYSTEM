@@ -37,17 +37,17 @@ export interface LeaveRequest {
   reason: string;
   emergency_contact: string | null;
   handover_notes: string | null;
-  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
-  approval_workflow: 'manager_hr' | 'hr_only' | 'manager_hr_ceo';
-  manager_approval_status: 'pending' | 'approved' | 'rejected';
+  status: string;
+  approval_workflow: string;
+  manager_approval_status: string;
   manager_approved_by: string | null;
   manager_approved_date: string | null;
   manager_comments: string | null;
-  hr_approval_status: 'pending' | 'approved' | 'rejected';
+  hr_approval_status: string;
   hr_approved_by: string | null;
   hr_approved_date: string | null;
   hr_comments: string | null;
-  ceo_approval_status: 'pending' | 'approved' | 'rejected';
+  ceo_approval_status: string;
   ceo_approved_by: string | null;
   ceo_approved_date: string | null;
   ceo_comments: string | null;
@@ -103,18 +103,28 @@ export function useLeaveBalances(employeeId?: string) {
     const fetchBalances = async () => {
       try {
         const currentYear = new Date().getFullYear();
-        const { data, error } = await supabase
+        const { data: balancesData, error } = await supabase
           .from('leave_balances')
-          .select(`
-            *,
-            leave_type:leave_types(*)
-          `)
+          .select('*')
           .eq('employee_id', employeeId)
           .eq('year', currentYear);
 
         if (error) throw error;
-        setBalances(data || []);
+        
+        // Fetch leave types separately
+        const { data: leaveTypesData } = await supabase
+          .from('leave_types')
+          .select('*');
+        
+        // Transform the data to match our interface
+        const transformedData = (balancesData || []).map(item => ({
+          ...item,
+          leave_type: leaveTypesData?.find(lt => lt.id === item.leave_type_id)
+        })) as LeaveBalance[];
+        
+        setBalances(transformedData);
       } catch (err) {
+        console.error('Leave balances fetch error:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch leave balances');
       } finally {
         setLoading(false);
@@ -143,9 +153,7 @@ export function useLeaveRequests(employeeId?: string) {
       let query = supabase
         .from('leave_requests')
         .select(`
-          *,
-          leave_type:leave_types(*),
-          employee:employees(first_name, last_name, department, position)
+          *
         `)
         .order('created_at', { ascending: false });
 
@@ -153,11 +161,29 @@ export function useLeaveRequests(employeeId?: string) {
         query = query.eq('employee_id', employeeId);
       }
 
-      const { data, error } = await query;
+      const { data: requestsData, error } = await query;
 
       if (error) throw error;
-      setRequests((data || []) as unknown as LeaveRequest[]);
+      
+      // Fetch leave types and employees separately to avoid join issues
+      const { data: leaveTypesData } = await supabase
+        .from('leave_types')
+        .select('*');
+        
+      const { data: employeesData } = await supabase
+        .from('employees')
+        .select('id, first_name, last_name, department, position');
+      
+      // Transform the data to match our interface
+      const transformedData = (requestsData || []).map(item => ({
+        ...item,
+        leave_type: leaveTypesData?.find(lt => lt.id === item.leave_type_id),
+        employee: employeesData?.find(emp => emp.id === item.employee_id)
+      })) as unknown as LeaveRequest[];
+      
+      setRequests(transformedData);
     } catch (err) {
+      console.error('Leave requests fetch error:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch leave requests');
     } finally {
       setLoading(false);
@@ -312,30 +338,44 @@ export function usePendingApprovals(userRole: 'manager' | 'hr' | 'ceo') {
   const fetchPendingApprovals = async () => {
     try {
       setLoading(true);
-      let statusFilter: string;
       
+      let filterCondition = '';
       if (userRole === 'manager') {
-        statusFilter = 'pending_manager';
+        filterCondition = 'manager_approval_status.eq.pending';
       } else if (userRole === 'hr') {
-        statusFilter = 'pending_hr';
+        filterCondition = 'hr_approval_status.eq.pending';
       } else {
-        statusFilter = 'pending_ceo';
+        filterCondition = 'ceo_approval_status.eq.pending';
       }
 
-      const { data, error } = await supabase
+      const { data: requestsData, error } = await supabase
         .from('leave_requests')
-        .select(`
-          *,
-          leave_type:leave_types(*),
-          employee:employees(first_name, last_name, department, position)
-        `)
-        .or(`manager_approval_status.eq.${statusFilter.replace('pending_', '')},hr_approval_status.eq.${statusFilter.replace('pending_', '')},ceo_approval_status.eq.${statusFilter.replace('pending_', '')}`)
+        .select('*')
+        .or(filterCondition)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setRequests((data || []) as unknown as LeaveRequest[]);
+      
+      // Fetch leave types and employees separately
+      const { data: leaveTypesData } = await supabase
+        .from('leave_types')
+        .select('*');
+        
+      const { data: employeesData } = await supabase
+        .from('employees')
+        .select('id, first_name, last_name, department, position');
+      
+      // Transform the data to match our interface
+      const transformedData = (requestsData || []).map(item => ({
+        ...item,
+        leave_type: leaveTypesData?.find(lt => lt.id === item.leave_type_id),
+        employee: employeesData?.find(emp => emp.id === item.employee_id)
+      })) as unknown as LeaveRequest[];
+      
+      setRequests(transformedData);
     } catch (err) {
+      console.error('Pending approvals fetch error:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch pending approvals');
     } finally {
       setLoading(false);
