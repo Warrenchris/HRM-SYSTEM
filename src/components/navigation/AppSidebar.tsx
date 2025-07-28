@@ -18,7 +18,8 @@ import {
   ShoppingCart,
   Ticket,
   CheckSquare,
-  Megaphone
+  Megaphone,
+  Rocket
 } from "lucide-react";
 
 import {
@@ -61,6 +62,7 @@ const managementModules = [
 const adminModules = [
   { title: "User Management", url: "/users", icon: Shield },
   { title: "Company Setup", url: "/company", icon: Building },
+  { title: "Company Onboarding", url: "/onboarding", icon: Rocket },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
