@@ -51,11 +51,15 @@ export function PlanSelector({
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
 
+  console.log('PlanSelector: Component rendering, loading:', loading, 'plans count:', plans.length);
+
   useEffect(() => {
+    console.log('PlanSelector: useEffect triggered');
     fetchPlans();
   }, []);
 
   const fetchPlans = async () => {
+    console.log('PlanSelector: Starting to fetch plans...');
     try {
       const { data, error } = await supabase
         .from('subscription_plans')
@@ -63,13 +67,17 @@ export function PlanSelector({
         .eq('is_active', true)
         .order('sort_order');
 
+      console.log('PlanSelector: Supabase response:', { data, error });
+      
       if (error) throw error;
       setPlans((data as SubscriptionPlan[]) || []);
+      console.log('PlanSelector: Plans set:', data);
     } catch (error: any) {
       console.error('Error fetching plans:', error);
       toast.error('Failed to load subscription plans');
     } finally {
       setLoading(false);
+      console.log('PlanSelector: Loading set to false');
     }
   };
 
