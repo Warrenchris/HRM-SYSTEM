@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Building2, Users, ArrowRight } from "lucide-react";
+import { Building2, Users, ArrowRight, CreditCard } from "lucide-react";
+import { PlanSelector } from "@/components/subscription/PlanSelector";
 
 interface CompanyData {
   name: string;
@@ -21,6 +22,8 @@ interface CompanyData {
   website: string;
   phone: string;
   email: string;
+  selectedPlanId: string;
+  billingCycle: 'monthly' | 'yearly';
 }
 
 export default function Onboarding() {
@@ -37,7 +40,9 @@ export default function Onboarding() {
     country: "",
     website: "",
     phone: "",
-    email: ""
+    email: "",
+    selectedPlanId: "",
+    billingCycle: "monthly"
   });
 
   const industries = [
@@ -60,6 +65,11 @@ export default function Onboarding() {
       return;
     }
 
+    if (!companyData.selectedPlanId) {
+      toast.error("Please select a subscription plan");
+      return;
+    }
+
     setLoading(true);
     try {
       // Call the database function to create company and assign owner
@@ -67,7 +77,8 @@ export default function Onboarding() {
         'create_company_with_owner',
         {
           company_name: companyData.name,
-          company_display_name: companyData.display_name || companyData.name
+          company_display_name: companyData.display_name || companyData.name,
+          selected_plan_id: companyData.selectedPlanId
         }
       );
 
@@ -122,6 +133,13 @@ export default function Onboarding() {
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 border rounded-lg">
+                <CreditCard className="w-5 h-5 text-primary" />
+                <div>
+                  <h3 className="font-medium">Plan Selection</h3>
+                  <p className="text-sm text-muted-foreground">Choose the right plan for your needs</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 border rounded-lg">
                 <Users className="w-5 h-5 text-primary" />
                 <div>
                   <h3 className="font-medium">Team Management</h3>
@@ -137,6 +155,46 @@ export default function Onboarding() {
               Get Started
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (step === 2) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5 flex items-center justify-center p-4">
+        <Card className="w-full max-w-6xl">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Choose Your Plan</CardTitle>
+            <CardDescription>
+              Select the subscription plan that best fits your organization's needs
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <PlanSelector
+              selectedPlanId={companyData.selectedPlanId}
+              onPlanSelect={(planId) => handleInputChange("selectedPlanId", planId)}
+              billingCycle={companyData.billingCycle}
+              onBillingCycleChange={(cycle) => handleInputChange("billingCycle", cycle)}
+            />
+            <div className="flex gap-4 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setStep(1)}
+                className="flex-1"
+              >
+                Back
+              </Button>
+              <Button
+                onClick={() => setStep(3)}
+                disabled={!companyData.selectedPlanId}
+                className="flex-1"
+              >
+                Continue to Company Details
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -270,7 +328,7 @@ export default function Onboarding() {
           <div className="flex gap-4 pt-4">
             <Button
               variant="outline"
-              onClick={() => setStep(1)}
+              onClick={() => setStep(2)}
               className="flex-1"
             >
               Back
@@ -280,7 +338,7 @@ export default function Onboarding() {
               disabled={loading || !companyData.name.trim()}
               className="flex-1"
             >
-              {loading ? "Creating..." : "Create Company"}
+              {loading ? "Creating Company..." : "Create Company"}
             </Button>
           </div>
         </CardContent>

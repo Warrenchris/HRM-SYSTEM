@@ -533,6 +533,7 @@ export type Database = {
           logo_url: string | null
           name: string
           phone: string | null
+          plan_id: string | null
           timezone: string | null
           updated_at: string
           website: string | null
@@ -553,6 +554,7 @@ export type Database = {
           logo_url?: string | null
           name: string
           phone?: string | null
+          plan_id?: string | null
           timezone?: string | null
           updated_at?: string
           website?: string | null
@@ -573,11 +575,20 @@ export type Database = {
           logo_url?: string | null
           name?: string
           phone?: string | null
+          plan_id?: string | null
           timezone?: string | null
           updated_at?: string
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "companies_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_members: {
         Row: {
@@ -640,6 +651,57 @@ export type Database = {
           label?: string
         }
         Relationships: []
+      }
+      company_subscriptions: {
+        Row: {
+          billing_cycle: string
+          company_id: string
+          created_at: string
+          id: string
+          next_billing_date: string | null
+          plan_id: string
+          status: string
+          trial_ends_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          billing_cycle?: string
+          company_id: string
+          created_at?: string
+          id?: string
+          next_billing_date?: string | null
+          plan_id: string
+          status?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billing_cycle?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          next_billing_date?: string | null
+          plan_id?: string
+          status?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_subscriptions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       employees: {
         Row: {
@@ -1462,6 +1524,54 @@ export type Database = {
           },
         ]
       }
+      subscription_plans: {
+        Row: {
+          band: string
+          created_at: string
+          description: string | null
+          display_name: string
+          features: Json
+          id: string
+          is_active: boolean
+          max_employees: number | null
+          name: string
+          price_monthly: number
+          price_yearly: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          band: string
+          created_at?: string
+          description?: string | null
+          display_name: string
+          features?: Json
+          id?: string
+          is_active?: boolean
+          max_employees?: number | null
+          name: string
+          price_monthly?: number
+          price_yearly?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          band?: string
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          features?: Json
+          id?: string
+          is_active?: boolean
+          max_employees?: number | null
+          name?: string
+          price_monthly?: number
+          price_yearly?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       system_logs: {
         Row: {
           action: string
@@ -1846,11 +1956,18 @@ export type Database = {
         Returns: number
       }
       create_company_with_owner: {
-        Args: {
-          company_name: string
-          company_display_name?: string
-          user_email?: string
-        }
+        Args:
+          | {
+              company_name: string
+              company_display_name?: string
+              user_email?: string
+            }
+          | {
+              company_name: string
+              company_display_name?: string
+              user_email?: string
+              selected_plan_id?: string
+            }
         Returns: string
       }
       generate_expense_number: {

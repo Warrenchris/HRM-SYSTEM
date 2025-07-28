@@ -5,6 +5,7 @@ import { DepartmentSetup } from "@/components/company/DepartmentSetup";
 import { CompanyPolicies } from "@/components/company/CompanyPolicies";
 import { OrganizationChart } from "@/components/company/OrganizationChart";
 import { PositionManagement } from "@/components/company/PositionManagement";
+import { SubscriptionInfo } from "@/components/subscription/SubscriptionInfo";
 
 export default function Company() {
   return (
@@ -37,6 +38,10 @@ export default function Company() {
               <span className="hidden sm:inline">Organization</span>
               <span className="sm:hidden">Org</span>
             </TabsTrigger>
+            <TabsTrigger value="subscription">
+              <span className="hidden sm:inline">Subscription</span>
+              <span className="sm:hidden">Sub</span>
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -62,6 +67,10 @@ export default function Company() {
 
         <TabsContent value="organization" className="space-y-6">
           <OrganizationChart />
+        </TabsContent>
+
+        <TabsContent value="subscription" className="space-y-6">
+          <SubscriptionInfo />
         </TabsContent>
       </Tabs>
     </div>
