@@ -29,6 +29,7 @@ import Tasks from "./pages/Tasks";
 import Company from "./pages/Company";
 import Settings from "./pages/Settings";
 import LandingLogin from "./pages/LandingLogin";
+import Onboarding from "./pages/Onboarding";
 
 import NotFound from "./pages/NotFound";
 
@@ -73,6 +74,7 @@ const App = () => (
                       <Route path="tickets" element={<Tickets />} />
                       <Route path="tasks" element={<Tasks />} />
                       <Route path="company" element={<Company />} />
+                      <Route path="onboarding" element={<Onboarding />} />
                       <Route path="settings" element={<Settings />} />
                     </Route>
                     <Route path="*" element={<NotFound />} />
