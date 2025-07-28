@@ -20,8 +20,14 @@ const employeeFormSchema = z.object({
   officeEmail: z.string().email("Valid office email is required"),
   personalEmail: z.string().email("Valid personal email is required").optional().or(z.literal("")),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
-  gender: z.string().min(1, "Gender is required"),
-  maritalStatus: z.string().min(1, "Marital status is required"),
+  gender: z.enum(["male", "female", "other", "prefer_not_to_say"], {
+    required_error: "Gender is required",
+    invalid_type_error: "Please select a valid gender option"
+  }),
+  maritalStatus: z.enum(["single", "married", "divorced", "widowed", "separated"], {
+    required_error: "Marital status is required",
+    invalid_type_error: "Please select a valid marital status"
+  }),
   phone: z.string().min(10, "Phone number is required"),
   localAddress: z.string().optional(),
   permanentAddress: z.string().optional(),
@@ -163,8 +169,8 @@ export function EmployeeFormTabs({ onSubmit, onTabSave, initialData, isEdit = fa
       officeEmail: "",
       personalEmail: "",
       dateOfBirth: "",
-      gender: "",
-      maritalStatus: "",
+      gender: "male" as const,
+      maritalStatus: "single" as const,
       phone: "",
       localAddress: "",
       permanentAddress: "",
