@@ -361,10 +361,8 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <Badge variant={birthday.daysUntil === 0 ? 'default' : 'secondary'} className="text-xs">
-                      {birthday.daysUntil === 0 ? 'Today!' : 
-                       birthday.daysUntil === 1 ? 'Tomorrow' : 
-                       `${birthday.daysUntil} days`}
+                    <Badge variant="secondary" className="text-xs">
+                      {birthday.daysUntil === 0 ? 'Today!' : `${birthday.daysUntil} days`}
                     </Badge>
                   </div>
                 </div>
@@ -399,29 +397,13 @@ export default function Dashboard() {
                     </Badge>
                   </div>
                   <p className="font-medium text-sm">{action.employee}</p>
-                  <p className="text-xs text-muted-foreground">{action.department} • {action.date}</p>
-                  {action.days && <p className="text-xs text-muted-foreground">{action.days} days</p>}
-                  {action.amount && <p className="text-xs text-muted-foreground">{action.amount}</p>}
+                  <p className="text-xs text-muted-foreground">{action.department}</p>
                 </div>
-                <div className="flex gap-2">
-                  <Button asChild size="sm" variant="outline" className="hover-scale">
-                    <Link to={
-                      action.type === "Leave Request" ? "/leave" :
-                      action.type === "Expense Claim" ? "/expenses" :
-                      action.type === "Loan Application" ? "/loans" : "/employees"
-                    }>
-                      Review
-                    </Link>
-                  </Button>
-                  <Button asChild size="sm" className="hover-scale">
-                    <Link to={
-                      action.type === "Leave Request" ? "/leave" :
-                      action.type === "Expense Claim" ? "/expenses" :
-                      action.type === "Loan Application" ? "/loans" : "/employees"
-                    }>
-                      Approve
-                    </Link>
-                  </Button>
+                <div className="text-right">
+                  <p className="text-sm font-medium">
+                    {action.amount || `${action.days} days`}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{action.date}</p>
                 </div>
               </div>
             ))}
@@ -432,22 +414,22 @@ export default function Dashboard() {
         <Card className="shadow-soft">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-blue-500" />
+              <CheckCircle className="w-5 h-5 text-green-500" />
               Recent Activities
             </CardTitle>
             <CardDescription>
-              Latest updates from your team
+              Latest updates across the organization
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {recentActivities.map((activity, index) => (
-              <div key={index} className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg">
-                <activity.icon className={`w-4 h-4 mt-0.5 ${activity.color}`} />
+              <div key={index} className="flex items-start gap-3">
+                <div className={`w-8 h-8 rounded-full bg-muted flex items-center justify-center`}>
+                  <activity.icon className={`w-4 h-4 ${activity.color}`} />
+                </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">{activity.action}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {activity.employee} • {activity.department}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{activity.employee} • {activity.department}</p>
                   <p className="text-xs text-muted-foreground">{activity.time}</p>
                 </div>
               </div>
@@ -461,11 +443,11 @@ export default function Dashboard() {
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
           <CardDescription>
-            Frequently used functions
+            Common tasks and shortcuts
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {[
               { label: "Clock In/Out", icon: Clock, href: "/attendance" },
               { label: "Request Leave", icon: Calendar, href: "/leave" },
