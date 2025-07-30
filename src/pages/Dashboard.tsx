@@ -2,7 +2,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
 import { 
   Users, 
   Clock, 
@@ -10,173 +9,42 @@ import {
   DollarSign, 
   TrendingUp, 
   UserCheck, 
-  AlertCircle,
-  CheckCircle,
-  XCircle,
-  FileText,
   AlertTriangle,
+  CheckCircle,
   Cake,
-  MapPin
+  AlertCircle,
+  FileText
 } from "lucide-react";
-import { useEmployeeStats } from "@/hooks/useEmployeeStats";
-import { supabase } from "@/integrations/supabase/client";
-
-interface UpcomingBirthday {
-  id: string;
-  first_name: string;
-  last_name: string;
-  date_of_birth: string;
-  department: string;
-  daysUntil: number;
-}
-
-interface TodayAttendance {
-  id: string;
-  employee_id: string;
-  employee_name: string;
-  department: string;
-  clock_in_time: string;
-  clock_out_time?: string;
-  status: string;
-  total_hours?: number;
-}
+import { useEmployeeStatsQuery } from "@/hooks/queries/useEmployeesQuery";
+import { useUpcomingBirthdaysQuery, useTodayAttendanceQuery } from "@/hooks/queries/useDashboardQueries";
 
 export default function Dashboard() {
-  const { totalEmployees, activeEmployees, exitedEmployees, loading, error } = useEmployeeStats();
-  const [upcomingBirthdays, setUpcomingBirthdays] = useState<UpcomingBirthday[]>([]);
-  const [todayAttendance, setTodayAttendance] = useState<TodayAttendance[]>([]);
-  const [attendanceStats, setAttendanceStats] = useState({
+  // Use optimized queries with caching
+  const { data: employeeStats, isLoading: statsLoading } = useEmployeeStatsQuery();
+  const { data: upcomingBirthdays = [], isLoading: birthdaysLoading } = useUpcomingBirthdaysQuery();
+  const { data: attendanceData, isLoading: attendanceLoading } = useTodayAttendanceQuery();
+
+  const todayAttendance = attendanceData?.attendance || [];
+  const attendanceStats = attendanceData?.stats || {
     clockedIn: 0,
     clockedOut: 0,
     late: 0,
     onBreak: 0
-  });
-
-  useEffect(() => {
-    fetchUpcomingBirthdays();
-    fetchTodayAttendance();
-  }, []);
-
-  const fetchUpcomingBirthdays = async () => {
-    try {
-      const today = new Date();
-      const twoWeeksLater = new Date();
-      twoWeeksLater.setDate(today.getDate() + 14);
-
-      const { data, error } = await supabase
-        .from('employees')
-        .select('id, first_name, last_name, date_of_birth, department')
-        .not('date_of_birth', 'is', null)
-        .eq('status', 'active');
-
-      if (error) throw error;
-
-      const birthdaysWithDays = data
-        .map(employee => {
-          if (!employee.date_of_birth) return null;
-          
-          const birthDate = new Date(employee.date_of_birth);
-          const currentYear = today.getFullYear();
-          const thisYearBirthday = new Date(currentYear, birthDate.getMonth(), birthDate.getDate());
-          
-          if (thisYearBirthday < today) {
-            thisYearBirthday.setFullYear(currentYear + 1);
-          }
-          
-          const daysUntil = Math.ceil((thisYearBirthday.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          
-          return {
-            ...employee,
-            daysUntil
-          };
-        })
-        .filter(employee => employee && employee.daysUntil <= 14)
-        .sort((a, b) => a!.daysUntil - b!.daysUntil)
-        .slice(0, 5) as UpcomingBirthday[];
-
-      setUpcomingBirthdays(birthdaysWithDays);
-    } catch (error) {
-      console.error('Error fetching birthdays:', error);
-    }
-  };
-
-  const fetchTodayAttendance = async () => {
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      
-      // First get attendance records for today
-      const { data: attendanceData, error: attendanceError } = await supabase
-        .from('attendance_records')
-        .select('*')
-        .gte('clock_in_time', `${today}T00:00:00`)
-        .lte('clock_in_time', `${today}T23:59:59`)
-        .order('clock_in_time', { ascending: false });
-
-      if (attendanceError) throw attendanceError;
-
-      // Get employee details for each attendance record
-      const employeeIds = [...new Set(attendanceData.map(record => record.employee_id))];
-      const { data: employeesData, error: employeesError } = await supabase
-        .from('employees')
-        .select('id, first_name, last_name, department')
-        .in('id', employeeIds);
-
-      if (employeesError) throw employeesError;
-
-      // Create a map of employee data for quick lookup
-      const employeeMap = employeesData.reduce((acc, emp) => {
-        acc[emp.id] = emp;
-        return acc;
-      }, {} as Record<string, any>);
-
-      const formattedAttendanceData = attendanceData.map(record => {
-        const employee = employeeMap[record.employee_id];
-        return {
-          id: record.id,
-          employee_id: record.employee_id,
-          employee_name: employee ? `${employee.first_name} ${employee.last_name}` : 'Unknown Employee',
-          department: employee?.department || 'Unknown',
-          clock_in_time: record.clock_in_time,
-          clock_out_time: record.clock_out_time,
-          status: record.status,
-          total_hours: record.total_hours
-        };
-      });
-
-      setTodayAttendance(formattedAttendanceData.slice(0, 10));
-
-      // Calculate attendance stats
-      const stats = {
-        clockedIn: formattedAttendanceData.filter(a => a.status === 'clocked_in').length,
-        clockedOut: formattedAttendanceData.filter(a => a.status === 'clocked_out').length,
-        late: formattedAttendanceData.filter(a => {
-          const clockInTime = new Date(a.clock_in_time);
-          const workStartTime = new Date();
-          workStartTime.setHours(9, 0, 0, 0); // 9 AM
-          return clockInTime > workStartTime;
-        }).length,
-        onBreak: formattedAttendanceData.filter(a => a.status === 'on_break').length
-      };
-
-      setAttendanceStats(stats);
-    } catch (error) {
-      console.error('Error fetching attendance:', error);
-    }
   };
 
   const stats = [
     {
       title: "Total Employees",
-      value: loading ? "..." : totalEmployees.toString(),
-      change: `${activeEmployees} active`,
+      value: statsLoading ? "..." : (employeeStats?.totalEmployees || 0).toString(),
+      change: `${employeeStats?.activeEmployees || 0} active`,
       trend: "up",
       icon: Users,
       color: "bg-blue-500"
     },
     {
       title: "Active Employees",
-      value: loading ? "..." : activeEmployees.toString(),
-      change: `${exitedEmployees} exited`,
+      value: statsLoading ? "..." : (employeeStats?.activeEmployees || 0).toString(),
+      change: `${employeeStats?.exitedEmployees || 0} exited`,
       trend: "up",
       icon: UserCheck,
       color: "bg-green-500"

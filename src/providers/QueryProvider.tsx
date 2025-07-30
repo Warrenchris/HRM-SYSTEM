@@ -4,18 +4,18 @@ import { ReactNode } from 'react';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000, // 10 minutes (previously cacheTime)
+      staleTime: 10 * 60 * 1000, // 10 minutes - longer cache
+      gcTime: 30 * 60 * 1000, // 30 minutes cache retention
       retry: (failureCount, error: any) => {
         // Don't retry on 4xx errors
         if (error?.status >= 400 && error?.status < 500) {
           return false;
         }
-        return failureCount < 3;
+        return failureCount < 2; // Reduce retries
       },
       refetchOnWindowFocus: false,
-      refetchOnMount: false,
-      refetchOnReconnect: 'always',
+      refetchOnMount: 'always', // Changed to always for dashboard
+      refetchOnReconnect: true, // Changed to boolean
     },
     mutations: {
       retry: 1,
