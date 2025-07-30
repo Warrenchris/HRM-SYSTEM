@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, PlusIcon, XIcon } from "lucide-react";
+import { CalendarIcon, PlusIcon, XIcon, Check, ChevronsUpDown } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -18,6 +19,7 @@ export function TaskAssignment() {
   const [dueDate, setDueDate] = useState<Date>();
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
+  const [employeeComboOpen, setEmployeeComboOpen] = useState(false);
   const { toast } = useToast();
   
   // Use optimized employee query
@@ -123,22 +125,48 @@ export function TaskAssignment() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Assign To</label>
-              <Select 
-                value={formData.assigned_to} 
-                onValueChange={(value) => setFormData({ ...formData, assigned_to: value })}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select employee" />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.id}>
-                      {employee.first_name} {employee.last_name} - {employee.position}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={employeeComboOpen} onOpenChange={setEmployeeComboOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={employeeComboOpen}
+                    className="w-full justify-between"
+                  >
+                    {formData.assigned_to
+                      ? employees.find((employee) => employee.id === formData.assigned_to)
+                          ? `${employees.find((employee) => employee.id === formData.assigned_to)?.first_name} ${employees.find((employee) => employee.id === formData.assigned_to)?.last_name} - ${employees.find((employee) => employee.id === formData.assigned_to)?.position}`
+                          : "Select employee..."
+                      : "Select employee..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput placeholder="Search employees..." />
+                    <CommandEmpty>No employee found.</CommandEmpty>
+                    <CommandGroup>
+                      {employees.map((employee) => (
+                        <CommandItem
+                          key={employee.id}
+                          value={`${employee.first_name} ${employee.last_name} ${employee.position}`}
+                          onSelect={() => {
+                            setFormData({ ...formData, assigned_to: employee.id });
+                            setEmployeeComboOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              formData.assigned_to === employee.id ? "opacity-100" : "opacity-0"
+                            }`}
+                          />
+                          {employee.first_name} {employee.last_name} - {employee.position}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
