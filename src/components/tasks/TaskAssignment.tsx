@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,22 +11,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-
-interface Employee {
-  id: string;
-  first_name: string;
-  last_name: string;
-  department: string;
-  position: string;
-}
+import { useEmployeesList } from "@/hooks/queries/useEmployeesQuery";
+import { useCreateTaskMutation } from "@/hooks/queries/useTasksQuery";
 
 export function TaskAssignment() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(false);
   const [dueDate, setDueDate] = useState<Date>();
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
   const { toast } = useToast();
+  
+  // Use optimized employee query
+  const { data: employees = [], isLoading: employeesLoading } = useEmployeesList({ status: 'active' });
+  const createTaskMutation = useCreateTaskMutation();
 
   const [formData, setFormData] = useState({
     title: "",
@@ -38,33 +34,9 @@ export function TaskAssignment() {
     department: "",
   });
 
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
-
-  const fetchEmployees = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('employees')
-        .select('id, first_name, last_name, department, position')
-        .eq('status', 'active')
-        .order('first_name');
-
-      if (error) throw error;
-      setEmployees(data || []);
-    } catch (error) {
-      console.error('Error fetching employees:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load employees",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
 
     try {
       // Get current user's employee ID
@@ -83,17 +55,16 @@ export function TaskAssignment() {
         assigned_by: profile.employee_id,
         priority: formData.priority,
         complexity_level: formData.complexity_level,
-        estimated_hours: formData.estimated_hours ? parseInt(formData.estimated_hours) : null,
+        estimated_hours: formData.estimated_hours ? parseInt(formData.estimated_hours) : undefined,
         department: formData.department,
-        due_date: dueDate?.toISOString(),
+        due_date: dueDate?.toISOString() || '',
         tags: tags,
+        status: 'pending',
+        progress_percentage: 0,
+        attachments: [],
       };
 
-      const { error } = await supabase
-        .from('tasks')
-        .insert([taskData]);
-
-      if (error) throw error;
+      await createTaskMutation.mutateAsync(taskData);
 
       toast({
         title: "Success",
@@ -119,8 +90,6 @@ export function TaskAssignment() {
         description: "Failed to assign task",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -289,8 +258,8 @@ export function TaskAssignment() {
             )}
           </div>
 
-          <Button type="submit" disabled={loading} className="w-full">
-            {loading ? "Assigning..." : "Assign Task"}
+          <Button type="submit" disabled={createTaskMutation.isPending || employeesLoading} className="w-full">
+            {createTaskMutation.isPending ? "Assigning..." : "Assign Task"}
           </Button>
         </form>
       </CardContent>
