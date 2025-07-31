@@ -18,35 +18,39 @@ export function useUserRole() {
       }
 
       try {
-        // Check if user has a profile with role
-        const { data: profile } = await supabase
+        // First check if user exists in employees table
+        const { data: employee, error: employeeError } = await supabase
+          .from('employees')
+          .select('id, email')
+          .eq('email', user.email)
+          .maybeSingle();
+
+        if (employee) {
+          setRole('employee');
+          setIsEmployee(true);
+          setLoading(false);
+          return;
+        }
+
+        // If not an employee, check profiles table for admin role
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('role, employee_id')
+          .select('role')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
-        if (profile) {
+        if (profile?.role) {
           setRole(profile.role);
-          setIsEmployee(profile.role === 'employee' || !!profile.employee_id);
+          setIsEmployee(profile.role === 'employee');
         } else {
-          // Check if user exists in employees table
-          const { data: employee } = await supabase
-            .from('employees')
-            .select('id')
-            .eq('email', user.email)
-            .single();
-
-          if (employee) {
-            setRole('employee');
-            setIsEmployee(true);
-          } else {
-            setRole('admin');
-            setIsEmployee(false);
-          }
+          // Default to admin if no specific role found
+          setRole('admin');
+          setIsEmployee(false);
         }
       } catch (error) {
         console.error('Error checking user role:', error);
-        setRole('admin'); // Default to admin if uncertain
+        // Default to admin if any error occurs
+        setRole('admin');
         setIsEmployee(false);
       }
 
