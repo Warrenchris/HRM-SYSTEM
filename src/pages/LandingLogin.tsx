@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, Building2, Users, Clock, Shield, TrendingUp, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Link } from "react-router-dom";
 
 export default function LandingLogin() {
   const [isLoading, setIsLoading] = useState(false);
@@ -355,16 +354,6 @@ export default function LandingLogin() {
                   </Tabs>
                 </CardContent>
               </Card>
-              
-              {/* Employee Login Link */}
-              <div className="mt-6 text-center">
-                <p className="text-sm text-muted-foreground">
-                  Employee?{" "}
-                  <Link to="/employee-login" className="text-primary hover:underline font-medium">
-                    Access Employee Portal
-                  </Link>
-                </p>
-              </div>
             </div>
           </div>
         </div>

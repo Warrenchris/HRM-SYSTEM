@@ -4,21 +4,21 @@ import { ReactNode } from 'react';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 15 * 60 * 1000, // 15 minutes - longer cache for better performance
-      gcTime: 60 * 60 * 1000, // 1 hour cache retention
+      staleTime: 10 * 60 * 1000, // 10 minutes - longer cache
+      gcTime: 30 * 60 * 1000, // 30 minutes cache retention
       retry: (failureCount, error: any) => {
         // Don't retry on 4xx errors
         if (error?.status >= 400 && error?.status < 500) {
           return false;
         }
-        return failureCount < 1; // Reduce retries further
+        return failureCount < 2; // Reduce retries
       },
       refetchOnWindowFocus: false,
-      refetchOnMount: false, // Changed to false for better performance
-      refetchOnReconnect: false, // Prevent unnecessary refetches
+      refetchOnMount: 'always', // Changed to always for dashboard
+      refetchOnReconnect: true, // Changed to boolean
     },
     mutations: {
-      retry: 0, // No retries for mutations
+      retry: 1,
     },
   },
 });

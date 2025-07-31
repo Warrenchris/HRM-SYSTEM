@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { User, Lock, Clock, MapPin } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 
 export default function EmployeeLogin() {
   const [employeeId, setEmployeeId] = useState("");
@@ -16,61 +14,24 @@ export default function EmployeeLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user } = useAuth();
-
-  // Redirect if already logged in
-  useEffect(() => {
-    if (user) {
-      navigate("/employee-dashboard");
-    }
-  }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    try {
-      // First, find the employee by employee_id to get their email
-      const { data: employee, error: employeeError } = await supabase
-        .from('employees')
-        .select('email, first_name, last_name')
-        .eq('employee_id', employeeId)
-        .eq('status', 'active')
-        .single();
+    // Simulate login process
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-      if (employeeError || !employee) {
-        toast({
-          title: "Login Failed",
-          description: "Invalid employee ID. Please check and try again.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      // Authenticate with Supabase using the employee's email
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: employee.email,
-        password: password,
+    if (employeeId && password) {
+      toast({
+        title: "Welcome back!",
+        description: "Successfully logged in to employee portal.",
       });
-
-      if (authError) {
-        toast({
-          title: "Login Failed",
-          description: "Invalid password. Please check and try again.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Welcome back!",
-          description: `Successfully logged in, ${employee.first_name}!`,
-        });
-        navigate("/employee-dashboard");
-      }
-    } catch (error) {
+      navigate("/attendance"); // Redirect to attendance for employees
+    } else {
       toast({
         title: "Login Failed",
-        description: "An error occurred. Please try again.",
+        description: "Please check your credentials and try again.",
         variant: "destructive",
       });
     }
@@ -178,7 +139,7 @@ export default function EmployeeLogin() {
         <div className="text-center">
           <p className="text-sm text-muted-foreground">
             Administrator?{" "}
-            <Link to="/auth" className="text-primary hover:underline font-medium">
+            <Link to="/admin-login" className="text-primary hover:underline font-medium">
               Switch to Admin Portal
             </Link>
           </p>
