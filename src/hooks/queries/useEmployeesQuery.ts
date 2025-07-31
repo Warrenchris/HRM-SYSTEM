@@ -65,7 +65,10 @@ export function useEmployeesList(options?: {
       if (error) throw error;
       return data || [];
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes for employee lists
+    staleTime: 30 * 60 * 1000, // 30 minutes for better performance
+    gcTime: 2 * 60 * 60 * 1000, // 2 hours retention
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -175,7 +178,10 @@ export function useEmployeeStatsQuery() {
         exitedEmployees: exitedResult.count || 0,
       };
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes for stats
+    staleTime: 15 * 60 * 1000, // 15 minutes for stats
+    gcTime: 60 * 60 * 1000, // 1 hour retention
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 }
 
