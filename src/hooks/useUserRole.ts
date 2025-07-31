@@ -10,7 +10,9 @@ export function useUserRole() {
 
   useEffect(() => {
     async function checkUserRole() {
+      console.log('useUserRole: checkUserRole called with user:', user?.email);
       if (!user) {
+        console.log('useUserRole: No user found, setting defaults');
         setRole(null);
         setIsEmployee(false);
         setLoading(false);
@@ -26,11 +28,13 @@ export function useUserRole() {
           .maybeSingle();
 
         if (employee) {
+          console.log('useUserRole: Found employee, setting role to employee');
           setRole('employee');
           setIsEmployee(true);
           setLoading(false);
           return;
         }
+        console.log('useUserRole: No employee found, checking profiles table');
 
         // If not an employee, check profiles table for admin role
         const { data: profile, error: profileError } = await supabase
@@ -40,20 +44,23 @@ export function useUserRole() {
           .maybeSingle();
 
         if (profile?.role) {
+          console.log('useUserRole: Found profile with role:', profile.role);
           setRole(profile.role);
           setIsEmployee(profile.role === 'employee');
         } else {
           // Default to admin if no specific role found
+          console.log('useUserRole: No profile found, defaulting to admin');
           setRole('admin');
           setIsEmployee(false);
         }
       } catch (error) {
-        console.error('Error checking user role:', error);
+        console.error('useUserRole: Error checking user role:', error);
         // Default to admin if any error occurs
         setRole('admin');
         setIsEmployee(false);
       }
 
+      console.log('useUserRole: Setting loading to false');
       setLoading(false);
     }
 

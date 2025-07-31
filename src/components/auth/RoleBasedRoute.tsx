@@ -29,8 +29,11 @@ import NotFound from "@/pages/NotFound";
 
 export function RoleBasedRoute() {
   const { isEmployee, loading } = useUserRole();
+  
+  console.log('RoleBasedRoute: isEmployee =', isEmployee, 'loading =', loading);
 
   if (loading) {
+    console.log('RoleBasedRoute: Showing loading skeleton');
     return (
       <div className="min-h-screen bg-background">
         <div className="flex h-screen">
@@ -53,6 +56,7 @@ export function RoleBasedRoute() {
 
   // Employee routes - restricted access
   if (isEmployee) {
+    console.log('RoleBasedRoute: Rendering employee routes');
     return (
       <Routes>
         <Route path="/" element={<EmployeeLayout />}>
@@ -68,6 +72,7 @@ export function RoleBasedRoute() {
   }
 
   // Admin routes - full access
+  console.log('RoleBasedRoute: Rendering admin routes');
   return (
     <Routes>
       <Route path="/" element={<AppLayout />}>
