@@ -4,7 +4,6 @@ import { EmployeeLayout } from "@/components/layouts/EmployeeLayout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Routes, Route } from "react-router-dom";
 import Dashboard from "@/pages/Dashboard";
-import EmployeeDashboard from "@/pages/EmployeeDashboard";
 import Employees from "@/pages/Employees";
 import Announcements from "@/pages/Announcements";
 import Attendance from "@/pages/Attendance";
@@ -60,8 +59,7 @@ export function RoleBasedRoute() {
     return (
       <Routes>
         <Route path="/" element={<EmployeeLayout />}>
-          <Route index element={<EmployeeDashboard />} />
-          <Route path="employee-dashboard" element={<EmployeeDashboard />} />
+          <Route index element={<Dashboard />} />
           <Route path="attendance" element={<Attendance />} />
           <Route path="leave" element={<Leave />} />
           <Route path="timesheets" element={<Timesheets />} />
@@ -78,7 +76,7 @@ export function RoleBasedRoute() {
       <Route path="/" element={<AppLayout />}>
         <Route index element={<Dashboard />} />
         <Route path="dashboard" element={<Dashboard />} />
-        <Route path="employee-dashboard" element={<EmployeeDashboard />} />
+        
         <Route path="employees" element={<Employees />} />
         <Route path="announcements" element={<Announcements />} />
         <Route path="attendance" element={<Attendance />} />
