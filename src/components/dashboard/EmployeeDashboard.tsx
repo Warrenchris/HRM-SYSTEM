@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,61 +18,163 @@ import {
   Megaphone
 } from "lucide-react";
 import { AnnouncementList } from "@/components/announcements/AnnouncementList";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { Progress } from "@/components/ui/progress";
 import { PayslipSection } from "@/components/employees/PayslipSection";
-import { Skeleton } from "@/components/ui/skeleton";
+
+interface EmployeeProfile {
+  employee_id: string;
+  role: string;
+  employee?: {
+    first_name: string;
+    last_name: string;
+    department: string;
+    position: string;
+  };
+}
+
+interface AttendanceData {
+  totalHours: number;
+  daysPresent: number;
+  avgHoursPerDay: number;
+}
+
+interface LeaveData {
+  totalLeave: number;
+  usedLeave: number;
+  pendingRequests: number;
+}
+
+interface TaskData {
+  totalTasks: number;
+  completedTasks: number;
+  pendingTasks: number;
+  overdueTasks: number;
+}
 
 export function EmployeeDashboard() {
   const { user } = useAuth();
-  const { employee, loading: employeeLoading, error } = useCurrentEmployee();
+  const [profile, setProfile] = useState<EmployeeProfile | null>(null);
+  const [attendance, setAttendance] = useState<AttendanceData>({
+    totalHours: 0,
+    daysPresent: 0,
+    avgHoursPerDay: 0
+  });
+  const [leave, setLeave] = useState<LeaveData>({
+    totalLeave: 20,
+    usedLeave: 0,
+    pendingRequests: 0
+  });
+  const [tasks, setTasks] = useState<TaskData>({
+    totalTasks: 0,
+    completedTasks: 0,
+    pendingTasks: 0,
+    overdueTasks: 0
+  });
+  const [loading, setLoading] = useState(true);
 
-  // Mock data for now to ensure the dashboard displays
-  const mockStats = {
-    attendance: {
-      totalHours: 156.5,
-      daysPresent: 18,
-      avgHoursPerDay: 8.7
-    },
-    leave: {
-      totalLeave: 20,
-      usedLeave: 3,
-      pendingRequests: 1
-    },
-    tasks: {
-      totalTasks: 12,
-      completedTasks: 8,
-      pendingTasks: 4,
-      overdueTasks: 1
+  useEffect(() => {
+    if (user) {
+      fetchEmployeeData();
+    }
+  }, [user]);
+
+  const fetchEmployeeData = async () => {
+    if (!user) return;
+    
+    try {
+      // Get employee profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select(`
+          employee_id,
+          role,
+          employees (
+            first_name,
+            last_name,
+            department,
+            position
+          )
+        `)
+        .eq('user_id', user.id)
+        .single();
+
+      if (profileError) throw profileError;
+      setProfile(profileData);
+
+      if (profileData?.employee_id) {
+        // Fetch attendance data for this month
+        const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+        const { data: attendanceData } = await supabase
+          .from('attendance_records')
+          .select('total_hours, clock_in_time')
+          .eq('employee_id', profileData.employee_id)
+          .gte('clock_in_time', startOfMonth.toISOString());
+
+        if (attendanceData) {
+          const totalHours = attendanceData.reduce((sum, record) => sum + (record.total_hours || 0), 0);
+          const daysPresent = attendanceData.length;
+          setAttendance({
+            totalHours,
+            daysPresent,
+            avgHoursPerDay: daysPresent > 0 ? totalHours / daysPresent : 0
+          });
+        }
+
+        // Fetch tasks assigned to this employee
+        const { data: taskData } = await supabase
+          .from('tasks')
+          .select('status, due_date')
+          .eq('assigned_to', profileData.employee_id);
+
+        if (taskData) {
+          const now = new Date();
+          const completedTasks = taskData.filter(task => task.status === 'completed').length;
+          const overdueTasks = taskData.filter(task => 
+            task.status !== 'completed' && task.due_date && new Date(task.due_date) < now
+          ).length;
+          
+          setTasks({
+            totalTasks: taskData.length,
+            completedTasks,
+            pendingTasks: taskData.length - completedTasks,
+            overdueTasks
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching employee data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const stats = [
     {
       title: "Hours This Month",
-      value: `${mockStats.attendance.totalHours}h`,
-      change: `${mockStats.attendance.daysPresent} days present`,
+      value: loading ? "..." : `${attendance.totalHours.toFixed(1)}h`,
+      change: `${attendance.daysPresent} days present`,
       icon: Clock,
       color: "text-blue-500"
     },
     {
       title: "Leave Balance",
-      value: `${mockStats.leave.totalLeave - mockStats.leave.usedLeave}`,
-      change: `${mockStats.leave.usedLeave} days used`,
+      value: `${leave.totalLeave - leave.usedLeave}`,
+      change: `${leave.usedLeave} days used`,
       icon: Calendar,
       color: "text-green-500"
     },
     {
       title: "Active Tasks",
-      value: `${mockStats.tasks.pendingTasks}`,
-      change: `${mockStats.tasks.completedTasks} completed`,
+      value: `${tasks.pendingTasks}`,
+      change: `${tasks.completedTasks} completed`,
       icon: CheckSquare,
       color: "text-orange-500"
     },
     {
       title: "Performance",
-      value: mockStats.tasks.totalTasks > 0 ? `${Math.round((mockStats.tasks.completedTasks / mockStats.tasks.totalTasks) * 100)}%` : "0%",
+      value: tasks.totalTasks > 0 ? `${Math.round((tasks.completedTasks / tasks.totalTasks) * 100)}%` : "0%",
       change: "Task completion rate",
       icon: TrendingUp,
       color: "text-purple-500"
@@ -110,82 +212,24 @@ export function EmployeeDashboard() {
     { label: "Performance", icon: TrendingUp, href: "/performance", color: "bg-pink-500" }
   ];
 
-  // Loading state
-  if (employeeLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-start">
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-4 w-48" />
-            <Skeleton className="h-3 w-56" />
-          </div>
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-6 w-20" />
-            <Skeleton className="h-8 w-32" />
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-32" />
-          ))}
-        </div>
-        
-        <Skeleton className="h-40" />
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-500" />
-              Unable to Load Dashboard
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">
-              We're having trouble loading your dashboard data. You can still access the basic features.
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {quickActions.slice(0, 4).map((action, index) => (
-                <Button key={index} asChild variant="outline" className="h-16 flex flex-col gap-1">
-                  <Link to={action.href}>
-                    <action.icon className="w-4 h-4" />
-                    <span className="text-xs">{action.label}</span>
-                  </Link>
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold text-foreground">
-            Welcome back, {employee?.first_name || 'Employee'}!
+            Welcome back, {profile?.employee?.first_name || 'Employee'}!
           </h1>
           <p className="text-muted-foreground">
-            {employee?.position} • {employee?.department}
+            {profile?.employee?.position} • {profile?.employee?.department}
           </p>
           <p className="text-sm text-muted-foreground mt-1">
             Here's your personal dashboard overview
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant="secondary">
-            Employee
+          <Badge variant="secondary" className="capitalize">
+            {profile?.role || 'Employee'}
           </Badge>
           <Button asChild variant="outline" size="sm">
             <Link to="/attendance">
@@ -283,19 +327,19 @@ export function EmployeeDashboard() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Completed Tasks</span>
               <span className="text-sm text-muted-foreground">
-                {mockStats.tasks.completedTasks}/{mockStats.tasks.totalTasks}
+                {tasks.completedTasks}/{tasks.totalTasks}
               </span>
             </div>
             <Progress 
-              value={mockStats.tasks.totalTasks > 0 ? (mockStats.tasks.completedTasks / mockStats.tasks.totalTasks) * 100 : 0} 
+              value={tasks.totalTasks > 0 ? (tasks.completedTasks / tasks.totalTasks) * 100 : 0} 
               className="h-2"
             />
             
-            {mockStats.tasks.overdueTasks > 0 && (
+            {tasks.overdueTasks > 0 && (
               <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
                 <AlertCircle className="w-4 h-4 text-red-500" />
                 <span className="text-sm text-red-700">
-                  {mockStats.tasks.overdueTasks} overdue task{mockStats.tasks.overdueTasks > 1 ? 's' : ''}
+                  {tasks.overdueTasks} overdue task{tasks.overdueTasks > 1 ? 's' : ''}
                 </span>
                 <Button asChild variant="destructive" size="sm" className="ml-auto">
                   <Link to="/tasks">View Tasks</Link>
@@ -347,24 +391,24 @@ export function EmployeeDashboard() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center p-4 bg-muted/30 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{mockStats.leave.totalLeave - mockStats.leave.usedLeave}</div>
+              <div className="text-2xl font-bold text-green-600">{leave.totalLeave - leave.usedLeave}</div>
               <div className="text-sm text-muted-foreground">Days Remaining</div>
             </div>
             <div className="text-center p-4 bg-muted/30 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{mockStats.leave.usedLeave}</div>
+              <div className="text-2xl font-bold text-blue-600">{leave.usedLeave}</div>
               <div className="text-sm text-muted-foreground">Days Used</div>
             </div>
             <div className="text-center p-4 bg-muted/30 rounded-lg">
-              <div className="text-2xl font-bold text-orange-600">{mockStats.leave.pendingRequests}</div>
+              <div className="text-2xl font-bold text-orange-600">{leave.pendingRequests}</div>
               <div className="text-sm text-muted-foreground">Pending Requests</div>
             </div>
           </div>
           <div className="mt-4">
             <div className="flex justify-between text-sm mb-2">
               <span>Annual Leave Progress</span>
-              <span>{mockStats.leave.usedLeave}/{mockStats.leave.totalLeave} days</span>
+              <span>{leave.usedLeave}/{leave.totalLeave} days</span>
             </div>
-            <Progress value={(mockStats.leave.usedLeave / mockStats.leave.totalLeave) * 100} className="h-2" />
+            <Progress value={(leave.usedLeave / leave.totalLeave) * 100} className="h-2" />
           </div>
         </CardContent>
       </Card>
