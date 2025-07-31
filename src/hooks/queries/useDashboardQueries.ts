@@ -79,34 +79,43 @@ export function useUpcomingBirthdaysQuery() {
   });
 }
 
-// Optimized today's attendance query
+// Optimized today's attendance query - separate queries but cached
 export function useTodayAttendanceQuery() {
   return useQuery({
     queryKey: dashboardKeys.todayAttendance,
     queryFn: async (): Promise<{ attendance: TodayAttendance[]; stats: AttendanceStats }> => {
       const today = new Date().toISOString().split('T')[0];
       
-      // Get attendance records for today
+      // Get attendance records for today (limit to reduce load)
       const { data: attendanceData, error: attendanceError } = await supabase
         .from('attendance_records')
-        .select('*')
+        .select('id, employee_id, clock_in_time, clock_out_time, status, total_hours')
         .gte('clock_in_time', `${today}T00:00:00`)
-        .lte('clock_in_time', `${today}T23:59:59`)
-        .order('clock_in_time', { ascending: false });
+        .lt('clock_in_time', `${today}T23:59:59`)
+        .order('clock_in_time', { ascending: false })
+        .limit(15);
 
       if (attendanceError) throw attendanceError;
 
-      // Get employee details for each attendance record
+      if (!attendanceData || attendanceData.length === 0) {
+        return {
+          attendance: [],
+          stats: { clockedIn: 0, clockedOut: 0, late: 0, onBreak: 0 }
+        };
+      }
+
+      // Get unique employee IDs and their details
       const employeeIds = [...new Set(attendanceData.map(record => record.employee_id))];
       const { data: employeesData, error: employeesError } = await supabase
         .from('employees')
         .select('id, first_name, last_name, department')
-        .in('id', employeeIds);
+        .in('id', employeeIds)
+        .eq('status', 'active');
 
       if (employeesError) throw employeesError;
 
-      // Create a map of employee data for quick lookup
-      const employeeMap = employeesData.reduce((acc, emp) => {
+      // Create employee map for quick lookup
+      const employeeMap = (employeesData || []).reduce((acc, emp) => {
         acc[emp.id] = emp;
         return acc;
       }, {} as Record<string, any>);
@@ -139,12 +148,13 @@ export function useTodayAttendanceQuery() {
       };
 
       return {
-        attendance: formattedAttendanceData.slice(0, 10),
+        attendance: formattedAttendanceData.slice(0, 8),
         stats
       };
     },
-    staleTime: 2 * 60 * 1000, // 2 minutes for real-time feel
-    refetchInterval: 5 * 60 * 1000, // Auto-refresh every 5 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    refetchInterval: false, // Disable auto-refresh to reduce load
+    enabled: true,
   });
 }
 
