@@ -1,9 +1,12 @@
 import { Users, UserCheck, UserX, UserPlus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useEmployeeStats } from "@/hooks/useEmployeeStats";
+import { useEmployeeStatsQuery } from "@/hooks/queries/useEmployeesQuery";
 
 export function EmployeeStats() {
-  const { totalEmployees, activeEmployees, exitedEmployees, loading, error } = useEmployeeStats();
+  const { data: employeeStats, isLoading: loading } = useEmployeeStatsQuery();
+  const totalEmployees = employeeStats?.totalEmployees || 0;
+  const activeEmployees = employeeStats?.activeEmployees || 0;
+  const exitedEmployees = employeeStats?.exitedEmployees || 0;
 
   const stats = [
     {

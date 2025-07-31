@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import { useEmployeesQuery, useInvalidateEmployees } from "@/hooks/queries/useEmployeesQuery";
 import { supabase } from "@/integrations/supabase/client";
 
 interface EmployeeTableProps {
@@ -37,55 +38,27 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger, 
   const [viewEmployee, setViewEmployee] = useState<any>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { invalidateAll } = useInvalidateEmployees();
 
-  // Fetch employees from Supabase
+  // Use React Query to fetch employees with proper caching and error handling
+  const { data: employeeData, isLoading, error } = useEmployeesQuery({
+    status: showExited ? undefined : 'active',
+    search: searchTerm,
+    limit: 100
+  });
+
+  const employees = employeeData?.employees || [];
+
+  // Show error if query failed
   useEffect(() => {
-    fetchEmployees();
-  }, []);
-
-  // Refetch when refreshTrigger or showExited changes
-  useEffect(() => {
-    if (refreshTrigger && refreshTrigger > 0) {
-      fetchEmployees();
-    }
-  }, [refreshTrigger]);
-
-  // Refetch when showExited changes
-  useEffect(() => {
-    fetchEmployees();
-  }, [showExited]);
-
-  const fetchEmployees = async () => {
-    try {
-      let query = supabase
-        .from('employees')
-        .select('*');
-      
-      if (showExited) {
-        // Show employees with exit_date or status = 'inactive'
-        query = query.or('exit_date.not.is.null,status.eq.inactive');
-      } else {
-        // Show active employees (no exit_date and status = 'active')
-        query = query.is('exit_date', null).eq('status', 'active');
-      }
-      
-      const { data, error } = await query.order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setEmployees(data || []);
-    } catch (error) {
-      console.error('Error fetching employees:', error);
+    if (error) {
       toast({
         title: "Error",
         description: "Failed to fetch employees",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [error, toast]);
 
   const filteredEmployees = employees.filter(employee => {
     const matchesSearch = 
@@ -217,8 +190,8 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger, 
         description: `Successfully updated ${employeeData.firstName} ${employeeData.secondName || employeeData.otherName || employeeData.firstName}`,
       });
       
-      // Refresh the employee list
-      await fetchEmployees();
+      // Invalidate employee queries to refresh data
+      invalidateAll();
     } catch (error) {
       console.error('Error updating employee:', error);
       toast({
@@ -246,8 +219,8 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger, 
         description: `Successfully deleted ${employee.first_name} ${employee.last_name}`,
       });
       
-      // Refresh the employee list
-      await fetchEmployees();
+      // Invalidate employee queries to refresh data
+      invalidateAll();
     } catch (error) {
       console.error('Error deleting employee:', error);
       toast({
@@ -276,8 +249,8 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger, 
         description: `${employee.first_name} ${employee.last_name} has been marked as exited`,
       });
       
-      // Refresh the employee list
-      await fetchEmployees();
+      // Invalidate employee queries to refresh data
+      invalidateAll();
     } catch (error) {
       console.error('Error marking employee as exited:', error);
       toast({
@@ -306,8 +279,8 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger, 
         description: `${employee.first_name} ${employee.last_name} has been reactivated`,
       });
       
-      // Refresh the employee list
-      await fetchEmployees();
+      // Invalidate employee queries to refresh data
+      invalidateAll();
     } catch (error) {
       console.error('Error reactivating employee:', error);
       toast({
@@ -378,12 +351,12 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger, 
             <TableRow key={employee.id} className="hover:bg-muted/50">
               <TableCell>
                 <div className="flex items-center gap-3">
-                   <Avatar className="w-10 h-10">
-                     <AvatarImage src={employee.passport_photo_url || ""} />
-                     <AvatarFallback className="bg-primary/10 text-primary">
-                       {employee.first_name?.[0]}{employee.last_name?.[0]}
-                     </AvatarFallback>
-                   </Avatar>
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src={""} />
+                      <AvatarFallback className="bg-primary/10 text-primary">
+                        {employee.first_name?.[0]}{employee.last_name?.[0]}
+                      </AvatarFallback>
+                    </Avatar>
                    <div>
                       <div className="font-medium text-foreground">
                         {employee.first_name} {employee.last_name}
@@ -400,10 +373,10 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger, 
                     <Mail className="w-3 h-3 text-muted-foreground" />
                      <span className="text-foreground">{employee.email}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Phone className="w-3 h-3 text-muted-foreground" />
-                     <span className="text-muted-foreground">{employee.phone}</span>
-                  </div>
+                   <div className="flex items-center gap-2 text-sm">
+                     <Phone className="w-3 h-3 text-muted-foreground" />
+                      <span className="text-muted-foreground">N/A</span>
+                   </div>
                 </div>
               </TableCell>
               <TableCell>
@@ -412,17 +385,14 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger, 
               <TableCell>
                 <span className="text-foreground">{employee.position}</span>
               </TableCell>
-              <TableCell>
-                {getStatusBadge(employee.status, employee.exit_date)}
-              </TableCell>
                <TableCell>
-                 <span className="text-muted-foreground">
-                   {showExited && employee.exit_date 
-                     ? new Date(employee.exit_date).toLocaleDateString()
-                     : employee.join_date ? new Date(employee.join_date).toLocaleDateString() : 'N/A'
-                   }
-                 </span>
+                 {getStatusBadge(employee.status)}
                </TableCell>
+                <TableCell>
+                  <span className="text-muted-foreground">
+                    {employee.join_date ? new Date(employee.join_date).toLocaleDateString() : 'N/A'}
+                  </span>
+                </TableCell>
               <TableCell className="text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -467,7 +437,13 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger, 
         </TableBody>
       </Table>
       
-      {filteredEmployees.length === 0 && (
+      {isLoading && (
+        <div className="text-center py-8 text-muted-foreground">
+          Loading employees...
+        </div>
+      )}
+      
+      {!isLoading && filteredEmployees.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
           No employees found matching your criteria.
         </div>
@@ -492,7 +468,7 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger, 
           setEditEmployee(null);
         }}
         onSubmit={handleEditEmployee}
-        onRefresh={fetchEmployees}
+        onRefresh={() => invalidateAll()}
         employee={editEmployee}
       />
     </div>
