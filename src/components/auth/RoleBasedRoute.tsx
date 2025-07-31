@@ -4,6 +4,7 @@ import { EmployeeLayout } from "@/components/layouts/EmployeeLayout";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Routes, Route } from "react-router-dom";
 import Dashboard from "@/pages/Dashboard";
+import EmployeeDashboard from "@/pages/EmployeeDashboard";
 import Employees from "@/pages/Employees";
 import Announcements from "@/pages/Announcements";
 import Attendance from "@/pages/Attendance";
@@ -28,11 +29,8 @@ import NotFound from "@/pages/NotFound";
 
 export function RoleBasedRoute() {
   const { isEmployee, loading } = useUserRole();
-  
-  console.log('RoleBasedRoute: isEmployee =', isEmployee, 'loading =', loading);
 
   if (loading) {
-    console.log('RoleBasedRoute: Showing loading skeleton');
     return (
       <div className="min-h-screen bg-background">
         <div className="flex h-screen">
@@ -55,11 +53,11 @@ export function RoleBasedRoute() {
 
   // Employee routes - restricted access
   if (isEmployee) {
-    console.log('RoleBasedRoute: Rendering employee routes');
     return (
       <Routes>
         <Route path="/" element={<EmployeeLayout />}>
-          <Route index element={<Dashboard />} />
+          <Route index element={<EmployeeDashboard />} />
+          <Route path="employee-dashboard" element={<EmployeeDashboard />} />
           <Route path="attendance" element={<Attendance />} />
           <Route path="leave" element={<Leave />} />
           <Route path="timesheets" element={<Timesheets />} />
@@ -70,13 +68,12 @@ export function RoleBasedRoute() {
   }
 
   // Admin routes - full access
-  console.log('RoleBasedRoute: Rendering admin routes');
   return (
     <Routes>
       <Route path="/" element={<AppLayout />}>
         <Route index element={<Dashboard />} />
         <Route path="dashboard" element={<Dashboard />} />
-        
+        <Route path="employee-dashboard" element={<EmployeeDashboard />} />
         <Route path="employees" element={<Employees />} />
         <Route path="announcements" element={<Announcements />} />
         <Route path="attendance" element={<Attendance />} />
