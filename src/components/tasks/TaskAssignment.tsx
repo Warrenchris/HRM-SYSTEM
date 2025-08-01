@@ -146,26 +146,28 @@ export function TaskAssignment() {
                     <CommandInput placeholder="Search employees..." />
                     <CommandEmpty>No employee found.</CommandEmpty>
                     <CommandGroup>
-                      {employees && employees.length > 0 ? employees.map((employee) => (
-                        <CommandItem
-                          key={employee.id}
-                          value={`${employee.first_name} ${employee.last_name} ${employee.position}`}
-                          onSelect={() => {
-                            setFormData({ ...formData, assigned_to: employee.id });
-                            setEmployeeComboOpen(false);
-                          }}
-                        >
-                          <Check
-                            className={`mr-2 h-4 w-4 ${
-                              formData.assigned_to === employee.id ? "opacity-100" : "opacity-0"
-                            }`}
-                          />
-                          {employee.first_name} {employee.last_name} - {employee.position}
-                        </CommandItem>
-                      )) : (
-                        <CommandItem disabled>
-                          {employeesLoading ? "Loading employees..." : "No employees found"}
-                        </CommandItem>
+                      {employeesLoading ? (
+                        <CommandItem disabled>Loading employees...</CommandItem>
+                      ) : employees?.length > 0 ? (
+                        employees.map((employee) => (
+                          <CommandItem
+                            key={employee.id}
+                            value={`${employee.first_name} ${employee.last_name} ${employee.position}`}
+                            onSelect={() => {
+                              setFormData({ ...formData, assigned_to: employee.id });
+                              setEmployeeComboOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={`mr-2 h-4 w-4 ${
+                                formData.assigned_to === employee.id ? "opacity-100" : "opacity-0"
+                              }`}
+                            />
+                            {employee.first_name} {employee.last_name} - {employee.position}
+                          </CommandItem>
+                        ))
+                      ) : (
+                        <CommandItem disabled>No employees found</CommandItem>
                       )}
                     </CommandGroup>
                   </Command>
