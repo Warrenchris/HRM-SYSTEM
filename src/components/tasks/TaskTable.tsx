@@ -180,15 +180,9 @@ export function TaskTable({ viewType }: TaskTableProps) {
 
       if (error) throw error;
 
-      // Add comment if provided
+      // Note: Task comments functionality removed
       if (comment.trim()) {
-        await supabase
-          .from('task_comments')
-          .insert([{
-            task_id: selectedTask.id,
-            user_id: user.user.id,
-            comment: comment.trim(),
-          }]);
+        console.log(`Comment for task ${selectedTask.id}: ${comment.trim()}`);
       }
 
       toast({

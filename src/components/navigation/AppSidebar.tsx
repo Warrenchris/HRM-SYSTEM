@@ -9,13 +9,11 @@ import {
   DollarSign,
   FileText,
   TrendingUp,
-  UserPlus,
   BarChart3,
   Shield,
   Building,
   Home,
   Settings,
-  ShoppingCart,
   Ticket,
   CheckSquare,
   Megaphone,
@@ -43,11 +41,8 @@ const mainModules = [
   { title: "Attendance", url: "/attendance", icon: Clock },
   { title: "Leave Management", url: "/leave", icon: Calendar },
   { title: "Asset Management", url: "/assets", icon: Package },
-  { title: "Procurement", url: "/procurement", icon: ShoppingCart },
   { title: "Expenses", url: "/expenses", icon: CreditCard },
   { title: "Payroll", url: "/payroll", icon: DollarSign },
-  { title: "Loans", url: "/loans", icon: FileText },
-  { title: "Welfare", url: "/welfare", icon: CreditCard },
   { title: "Timesheets", url: "/timesheets", icon: FileText },
   { title: "Task Management", url: "/tasks", icon: CheckSquare },
   { title: "Tickets", url: "/tickets", icon: Ticket },
@@ -55,7 +50,6 @@ const mainModules = [
 
 const managementModules = [
   { title: "Performance", url: "/performance", icon: TrendingUp },
-  { title: "Recruitment", url: "/recruitment", icon: UserPlus },
   { title: "Reports", url: "/reports", icon: BarChart3 },
 ];
 

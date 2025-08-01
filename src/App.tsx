@@ -17,14 +17,10 @@ const Announcements = lazy(() => import("./pages/Announcements"));
 const Attendance = lazy(() => import("./pages/Attendance"));
 const Leave = lazy(() => import("./pages/Leave"));
 const Assets = lazy(() => import("./pages/Assets"));
-const Procurement = lazy(() => import("./pages/Procurement"));
 const Expenses = lazy(() => import("./pages/Expenses"));
 const Payroll = lazy(() => import("./pages/Payroll"));
-const Loans = lazy(() => import("./pages/Loans"));
-const Welfare = lazy(() => import("./pages/Welfare"));
 const Timesheets = lazy(() => import("./pages/Timesheets"));
 const Performance = lazy(() => import("./pages/Performance"));
-const Recruitment = lazy(() => import("./pages/Recruitment"));
 const Reports = lazy(() => import("./pages/Reports"));
 const Users = lazy(() => import("./pages/Users"));
 const Tickets = lazy(() => import("./pages/Tickets"));
@@ -87,14 +83,10 @@ const App = () => (
                         <Route path="attendance" element={<Attendance />} />
                         <Route path="leave" element={<Leave />} />
                         <Route path="assets" element={<Assets />} />
-                        <Route path="procurement" element={<Procurement />} />
                         <Route path="expenses" element={<Expenses />} />
                         <Route path="payroll" element={<Payroll />} />
-                        <Route path="loans" element={<Loans />} />
-                        <Route path="welfare" element={<Welfare />} />
                         <Route path="timesheets" element={<Timesheets />} />
                         <Route path="performance" element={<Performance />} />
-                        <Route path="recruitment" element={<Recruitment />} />
                         <Route path="reports" element={<Reports />} />
                         <Route path="users" element={<Users />} />
                         <Route path="tickets" element={<Tickets />} />

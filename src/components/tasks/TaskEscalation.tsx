@@ -151,16 +151,8 @@ export function TaskEscalation() {
 
       if (error) throw error;
 
-      // Add resolution comment
-      const { data: user } = await supabase.auth.getUser();
-      await supabase
-        .from('task_comments')
-        .insert([{
-          task_id: taskId,
-          user_id: user.user?.id,
-          comment: `Escalation resolved: ${resolution}`,
-          is_internal: false,
-        }]);
+      // Note: Task comments functionality removed
+      console.log(`Escalation resolved for task ${taskId}: ${resolution}`);
 
       toast({
         title: "Success",
