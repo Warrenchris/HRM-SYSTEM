@@ -67,16 +67,8 @@ export function CompanySwitcher() {
           <CommandList>
             <CommandEmpty>No companies found.</CommandEmpty>
             <CommandGroup heading="Companies">
-              {(() => {
-                console.log('CompanySwitcher - userCompanies:', userCompanies);
-                console.log('CompanySwitcher - userCompanies type:', typeof userCompanies);
-                console.log('CompanySwitcher - userCompanies length:', userCompanies?.length);
-                
-                if (!userCompanies || !Array.isArray(userCompanies)) {
-                  return <CommandItem disabled>No companies available</CommandItem>;
-                }
-                
-                return userCompanies.map((company) => (
+              {Array.isArray(userCompanies) && userCompanies.length > 0 ? (
+                userCompanies.map((company) => (
                   <CommandItem
                     key={company.id}
                     onSelect={() => handleSwitchCompany(company.id)}
@@ -105,8 +97,10 @@ export function CompanySwitcher() {
                       )}
                     />
                   </CommandItem>
-                ));
-              })()}
+                ))
+              ) : (
+                <CommandItem disabled>No companies available</CommandItem>
+              )}
             </CommandGroup>
             <CommandSeparator />
             <CommandGroup>
