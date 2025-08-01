@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Timeline } from "@/components/ui/timeline";
+// Timeline component removed - using simple list instead
 import { Search, Filter, History, MapPin, User, Wrench, Package, DollarSign } from "lucide-react";
 import { format } from "date-fns";
 
@@ -155,52 +155,7 @@ export function AssetHistory() {
     }).format(amount);
   };
 
-  const timelineItems = filteredEvents.map((event) => ({
-    date: event.date,
-    title: event.description,
-    description: (
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          {getEventBadge(event.eventType)}
-          <span className="text-sm font-medium">{event.assetName}</span>
-          <span className="text-xs text-muted-foreground">({event.assetTag})</span>
-        </div>
-        
-        {event.previousValue && event.newValue && (
-          <div className="text-sm">
-            <span className="text-muted-foreground">Changed from: </span>
-            <span className="font-medium">{event.previousValue}</span>
-            <span className="text-muted-foreground"> → </span>
-            <span className="font-medium">{event.newValue}</span>
-          </div>
-        )}
-        
-        {event.cost && (
-          <div className="flex items-center gap-1 text-sm">
-            <DollarSign className="h-3 w-3 text-green-600" />
-            <span className="font-medium text-green-600">{formatCurrency(event.cost)}</span>
-          </div>
-        )}
-        
-        {event.location && (
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <MapPin className="h-3 w-3" />
-            <span>{event.location}</span>
-          </div>
-        )}
-        
-        <div className="text-xs text-muted-foreground">
-          Performed by: {event.performedBy}
-        </div>
-        
-        {event.notes && (
-          <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-            {event.notes}
-          </div>
-        )}
-      </div>
-    )
-  }));
+  // Events list is now rendered directly
 
   return (
     <Card>
@@ -290,9 +245,23 @@ export function AssetHistory() {
           Showing {filteredEvents.length} events
         </div>
 
-        {/* Timeline */}
+        {/* Events List */}
         {filteredEvents.length > 0 ? (
-          <Timeline items={timelineItems} />
+          <div className="space-y-4">
+            {filteredEvents.map((event) => (
+              <div key={event.id} className="border-l-2 border-muted pl-4 pb-4">
+                <div className="flex items-center gap-2 mb-1">
+                  {getEventBadge(event.eventType)}
+                  <span className="text-sm font-medium">{event.assetName}</span>
+                  <span className="text-xs text-muted-foreground">({event.assetTag})</span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-1">{event.description}</p>
+                <div className="text-xs text-muted-foreground">
+                  {format(new Date(event.date), "PPP 'at' p")}
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground">
             No events found matching your filters.

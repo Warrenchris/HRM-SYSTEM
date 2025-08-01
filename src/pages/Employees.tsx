@@ -14,7 +14,7 @@ import { ImportEmployeesDialog } from "@/components/employees/ImportEmployeesDia
 import { EmployeeFormData } from "@/components/employees/EmployeeFormTabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { systemLogger } from "@/utils/systemLogger";
+// Removed systemLogger - logging disabled for performance
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -121,18 +121,7 @@ export default function Employees() {
       
       console.log('Employee created successfully:', data);
 
-      // Log the employee creation
-      await systemLogger.info(
-        'employee_created',
-        'employee',
-        {
-          employee_name: `${employeeData.firstName} ${employeeData.secondName || employeeData.otherName || ''}`,
-          department: employeeData.department,
-          position: employeeData.designation,
-          employee_id: employeeData.employeeId
-        },
-        data[0]?.id
-      );
+      // Employee created successfully
 
       toast({
         title: "Employee Added",
