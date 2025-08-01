@@ -146,7 +146,7 @@ export function TaskAssignment() {
                     <CommandInput placeholder="Search employees..." />
                     <CommandEmpty>No employee found.</CommandEmpty>
                     <CommandGroup>
-                      {employees.map((employee) => (
+                      {employees && employees.length > 0 ? employees.map((employee) => (
                         <CommandItem
                           key={employee.id}
                           value={`${employee.first_name} ${employee.last_name} ${employee.position}`}
@@ -162,7 +162,11 @@ export function TaskAssignment() {
                           />
                           {employee.first_name} {employee.last_name} - {employee.position}
                         </CommandItem>
-                      ))}
+                      )) : (
+                        <CommandItem disabled>
+                          {employeesLoading ? "Loading employees..." : "No employees found"}
+                        </CommandItem>
+                      )}
                     </CommandGroup>
                   </Command>
                 </PopoverContent>
