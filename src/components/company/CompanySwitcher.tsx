@@ -21,7 +21,7 @@ import { useCompany } from "@/contexts/CompanyContext";
 import { toast } from "sonner";
 
 export function CompanySwitcher() {
-  const { currentCompany, userCompanies, switchCompany, currentMembership } = useCompany();
+  const { currentCompany, userCompanies, switchCompany, currentMembership, loading } = useCompany();
   const [open, setOpen] = useState(false);
 
   const handleSwitchCompany = async (companyId: string) => {
@@ -62,61 +62,67 @@ export function CompanySwitcher() {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0">
-        <Command>
-          <CommandInput placeholder="Search companies..." />
-          <CommandList>
-            <CommandEmpty>No companies found.</CommandEmpty>
-            <CommandGroup heading="Companies">
-              {Array.isArray(userCompanies) && userCompanies.length > 0 ? (
-                userCompanies.map((company) => (
-                  <CommandItem
-                    key={company.id}
-                    onSelect={() => handleSwitchCompany(company.id)}
-                    className="text-sm"
-                  >
-                    <div className="flex items-center gap-2 flex-1">
-                      <Building2 className="h-4 w-4" />
-                      <div className="flex-1 truncate">
-                        <div className="truncate">{company.display_name || company.name}</div>
-                        {company.industry && (
-                          <div className="text-xs text-muted-foreground truncate">
-                            {company.industry}
-                          </div>
+        {!loading ? (
+          <Command>
+            <CommandInput placeholder="Search companies..." />
+            <CommandList>
+              <CommandEmpty>No companies found.</CommandEmpty>
+              <CommandGroup heading="Companies">
+                {Array.isArray(userCompanies) && userCompanies.length > 0 ? (
+                  userCompanies.map((company) => (
+                    <CommandItem
+                      key={company.id}
+                      onSelect={() => handleSwitchCompany(company.id)}
+                      className="text-sm"
+                    >
+                      <div className="flex items-center gap-2 flex-1">
+                        <Building2 className="h-4 w-4" />
+                        <div className="flex-1 truncate">
+                          <div className="truncate">{company.display_name || company.name}</div>
+                          {company.industry && (
+                            <div className="text-xs text-muted-foreground truncate">
+                              {company.industry}
+                            </div>
+                          )}
+                        </div>
+                        {currentMembership && (
+                          <Badge variant="secondary" className="text-xs">
+                            {currentMembership.role}
+                          </Badge>
                         )}
                       </div>
-                      {currentMembership && (
-                        <Badge variant="secondary" className="text-xs">
-                          {currentMembership.role}
-                        </Badge>
-                      )}
-                    </div>
-                    <Check
-                      className={cn(
-                        "ml-auto h-4 w-4",
-                        currentCompany.id === company.id ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                  </CommandItem>
-                ))
-              ) : (
-                <CommandItem disabled>No companies available</CommandItem>
-              )}
-            </CommandGroup>
-            <CommandSeparator />
-            <CommandGroup>
-              <CommandItem
-                onSelect={() => {
-                  setOpen(false);
-                  // Navigate to create company page
-                  window.location.href = "/onboarding";
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Create Company
-              </CommandItem>
-            </CommandGroup>
-          </CommandList>
-        </Command>
+                      <Check
+                        className={cn(
+                          "ml-auto h-4 w-4",
+                          currentCompany.id === company.id ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                    </CommandItem>
+                  ))
+                ) : (
+                  <CommandItem disabled>No companies available</CommandItem>
+                )}
+              </CommandGroup>
+              <CommandSeparator />
+              <CommandGroup>
+                <CommandItem
+                  onSelect={() => {
+                    setOpen(false);
+                    // Navigate to create company page
+                    window.location.href = "/onboarding";
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Company
+                </CommandItem>
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        ) : (
+          <div className="p-4 text-center text-sm text-muted-foreground">
+            Loading companies...
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );

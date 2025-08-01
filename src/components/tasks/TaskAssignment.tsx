@@ -142,35 +142,39 @@ export function TaskAssignment() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0">
-                  <Command>
-                    <CommandInput placeholder="Search employees..." />
-                    <CommandEmpty>No employee found.</CommandEmpty>
-                    <CommandGroup>
-                      {employeesLoading ? (
-                        <CommandItem disabled>Loading employees...</CommandItem>
-                      ) : employees && employees.length > 0 ? (
-                        employees.map((employee) => (
-                          <CommandItem
-                            key={employee.id}
-                            value={`${employee.first_name} ${employee.last_name} ${employee.position}`}
-                            onSelect={() => {
-                              setFormData({ ...formData, assigned_to: employee.id });
-                              setEmployeeComboOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={`mr-2 h-4 w-4 ${
-                                formData.assigned_to === employee.id ? "opacity-100" : "opacity-0"
-                              }`}
-                            />
-                            {employee.first_name} {employee.last_name} - {employee.position}
-                          </CommandItem>
-                        ))
-                      ) : (
-                        <CommandItem disabled>No employees found</CommandItem>
-                      )}
-                    </CommandGroup>
-                  </Command>
+                  {!employeesLoading ? (
+                    <Command>
+                      <CommandInput placeholder="Search employees..." />
+                      <CommandEmpty>No employee found.</CommandEmpty>
+                      <CommandGroup>
+                        {employees && employees.length > 0 ? (
+                          employees.map((employee) => (
+                            <CommandItem
+                              key={employee.id}
+                              value={`${employee.first_name} ${employee.last_name} ${employee.position}`}
+                              onSelect={() => {
+                                setFormData({ ...formData, assigned_to: employee.id });
+                                setEmployeeComboOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={`mr-2 h-4 w-4 ${
+                                  formData.assigned_to === employee.id ? "opacity-100" : "opacity-0"
+                                }`}
+                              />
+                              {employee.first_name} {employee.last_name} - {employee.position}
+                            </CommandItem>
+                          ))
+                        ) : (
+                          <CommandItem disabled>No employees found</CommandItem>
+                        )}
+                      </CommandGroup>
+                    </Command>
+                  ) : (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      Loading employees...
+                    </div>
+                  )}
                 </PopoverContent>
               </Popover>
             </div>
