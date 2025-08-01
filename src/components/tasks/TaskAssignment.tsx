@@ -146,10 +146,21 @@ export function TaskAssignment() {
                     <CommandInput placeholder="Search employees..." />
                     <CommandEmpty>No employee found.</CommandEmpty>
                     <CommandGroup>
-                      {employeesLoading ? (
-                        <CommandItem disabled>Loading employees...</CommandItem>
-                      ) : employees?.length > 0 ? (
-                        employees.map((employee) => (
+                      {(() => {
+                        console.log('TaskAssignment - employees:', employees);
+                        console.log('TaskAssignment - employeesLoading:', employeesLoading);
+                        console.log('TaskAssignment - employees type:', typeof employees);
+                        console.log('TaskAssignment - employees length:', employees?.length);
+                        
+                        if (employeesLoading) {
+                          return <CommandItem disabled>Loading employees...</CommandItem>;
+                        }
+                        
+                        if (!employees || employees.length === 0) {
+                          return <CommandItem disabled>No employees found</CommandItem>;
+                        }
+                        
+                        return employees.map((employee) => (
                           <CommandItem
                             key={employee.id}
                             value={`${employee.first_name} ${employee.last_name} ${employee.position}`}
@@ -165,10 +176,8 @@ export function TaskAssignment() {
                             />
                             {employee.first_name} {employee.last_name} - {employee.position}
                           </CommandItem>
-                        ))
-                      ) : (
-                        <CommandItem disabled>No employees found</CommandItem>
-                      )}
+                        ));
+                      })()}
                     </CommandGroup>
                   </Command>
                 </PopoverContent>

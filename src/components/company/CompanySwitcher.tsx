@@ -67,36 +67,46 @@ export function CompanySwitcher() {
           <CommandList>
             <CommandEmpty>No companies found.</CommandEmpty>
             <CommandGroup heading="Companies">
-              {userCompanies.map((company) => (
-                <CommandItem
-                  key={company.id}
-                  onSelect={() => handleSwitchCompany(company.id)}
-                  className="text-sm"
-                >
-                  <div className="flex items-center gap-2 flex-1">
-                    <Building2 className="h-4 w-4" />
-                    <div className="flex-1 truncate">
-                      <div className="truncate">{company.display_name || company.name}</div>
-                      {company.industry && (
-                        <div className="text-xs text-muted-foreground truncate">
-                          {company.industry}
-                        </div>
+              {(() => {
+                console.log('CompanySwitcher - userCompanies:', userCompanies);
+                console.log('CompanySwitcher - userCompanies type:', typeof userCompanies);
+                console.log('CompanySwitcher - userCompanies length:', userCompanies?.length);
+                
+                if (!userCompanies || !Array.isArray(userCompanies)) {
+                  return <CommandItem disabled>No companies available</CommandItem>;
+                }
+                
+                return userCompanies.map((company) => (
+                  <CommandItem
+                    key={company.id}
+                    onSelect={() => handleSwitchCompany(company.id)}
+                    className="text-sm"
+                  >
+                    <div className="flex items-center gap-2 flex-1">
+                      <Building2 className="h-4 w-4" />
+                      <div className="flex-1 truncate">
+                        <div className="truncate">{company.display_name || company.name}</div>
+                        {company.industry && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {company.industry}
+                          </div>
+                        )}
+                      </div>
+                      {currentMembership && (
+                        <Badge variant="secondary" className="text-xs">
+                          {currentMembership.role}
+                        </Badge>
                       )}
                     </div>
-                    {currentMembership && (
-                      <Badge variant="secondary" className="text-xs">
-                        {currentMembership.role}
-                      </Badge>
-                    )}
-                  </div>
-                  <Check
-                    className={cn(
-                      "ml-auto h-4 w-4",
-                      currentCompany.id === company.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                </CommandItem>
-              ))}
+                    <Check
+                      className={cn(
+                        "ml-auto h-4 w-4",
+                        currentCompany.id === company.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                  </CommandItem>
+                ));
+              })()}
             </CommandGroup>
             <CommandSeparator />
             <CommandGroup>
