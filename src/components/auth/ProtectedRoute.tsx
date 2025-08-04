@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCompany } from "@/contexts/CompanyContext";
-import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface ProtectedRouteProps {
@@ -11,46 +10,15 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading: authLoading } = useAuth();
-  const [roleLoading, setRoleLoading] = useState(true);
   const navigate = useNavigate();
-  const location = useLocation();
 
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/auth");
-      return;
     }
+  }, [user, authLoading, navigate]);
 
-    // Check user role and redirect to appropriate dashboard
-    const checkUserRoleAndRedirect = async () => {
-      if (!user || authLoading) return;
-
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('user_id', user.id)
-          .single();
-
-        const userRole = profile?.role || 'employee';
-        
-        // If employee is trying to access root path, redirect to employee dashboard
-        if (userRole === 'employee' && (location.pathname === '/' || location.pathname === '/dashboard')) {
-          navigate('/employee-dashboard', { replace: true });
-        }
-      } catch (error) {
-        console.error('Error checking user role:', error);
-      } finally {
-        setRoleLoading(false);
-      }
-    };
-
-    if (!authLoading && user) {
-      checkUserRoleAndRedirect();
-    }
-  }, [user, authLoading, navigate, location.pathname]);
-
-  if (authLoading || roleLoading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="flex h-screen">

@@ -1,4 +1,4 @@
-import { Bell, Search, User, LogOut, Settings, Home } from "lucide-react";
+import { Bell, Search, User, LogOut, Settings, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,18 +18,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { CompanySwitcher } from "@/components/company/CompanySwitcher";
-import { supabase } from "@/integrations/supabase/client";
 
 export function AppHeader() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const { toast } = useToast();
-  const [userRole, setUserRole] = useState<string>('employee');
   const [notifications, setNotifications] = useState([
     {
       id: 1,
@@ -55,28 +52,6 @@ export function AppHeader() {
   ]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
-  const isEmployeeDashboard = location.pathname === '/employee-dashboard';
-
-  useEffect(() => {
-    const fetchUserRole = async () => {
-      if (!user) return;
-
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('user_id', user.id)
-          .single();
-
-        setUserRole(profile?.role || 'employee');
-      } catch (error) {
-        console.error('Error fetching user role:', error);
-        setUserRole('employee');
-      }
-    };
-
-    fetchUserRole();
-  }, [user]);
 
   const handleLogout = async () => {
     try {
@@ -129,21 +104,12 @@ export function AppHeader() {
     <header className="h-16 border-b bg-card px-6 flex items-center justify-between">
       {/* Left Section */}
       <div className="flex items-center gap-4">
-        {/* Show sidebar trigger only for admin/hr/manager */}
-        {userRole !== 'employee' && <SidebarTrigger />}
-        
-        {/* Show home button for employees */}
-        {isEmployeeDashboard && (
-          <div className="flex items-center gap-2">
-            <Home className="h-5 w-5 text-primary" />
-            <span className="font-semibold text-lg">My Dashboard</span>
-          </div>
-        )}
+        <SidebarTrigger />
         
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder={isEmployeeDashboard ? "Search..." : "Search employees, records..."}
+            placeholder="Search employees, records..."
             className="pl-10 w-80"
           />
         </div>
@@ -151,8 +117,8 @@ export function AppHeader() {
 
       {/* Right Section */}
       <div className="flex items-center gap-4">
-        {/* Company Switcher - only for admin/hr/manager */}
-        {userRole !== 'employee' && <CompanySwitcher />}
+        {/* Company Switcher */}
+        <CompanySwitcher />
         
         {/* Notifications */}
         <Popover>
