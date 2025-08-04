@@ -146,7 +146,11 @@ export function TaskAssignment() {
                     <div className="p-4 text-center text-sm text-muted-foreground">
                       Loading employees...
                     </div>
-                  ) : employees && employees.length > 0 ? (
+                  ) : !employees || employees.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      No employees found
+                    </div>
+                  ) : (
                     <Command>
                       <CommandInput placeholder="Search employees..." />
                       <CommandEmpty>No employee found.</CommandEmpty>
@@ -170,10 +174,6 @@ export function TaskAssignment() {
                         ))}
                       </CommandGroup>
                     </Command>
-                  ) : (
-                    <div className="p-4 text-center text-sm text-muted-foreground">
-                      No employees found
-                    </div>
                   )}
                 </PopoverContent>
               </Popover>
