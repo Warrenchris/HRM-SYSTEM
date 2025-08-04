@@ -18,7 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { CompanySwitcher } from "@/components/company/CompanySwitcher";
@@ -55,7 +55,8 @@ export function AppHeader() {
   ]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
-  const isEmployeeDashboard = location.pathname === '/employee-dashboard';
+  const isEmployeeDashboard = location.pathname === '/app/employee-dashboard';
+  const isEmployeeModule = location.pathname.startsWith('/app/') && !isEmployeeDashboard;
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -132,12 +133,22 @@ export function AppHeader() {
         {/* Show sidebar trigger only for admin/hr/manager */}
         {userRole !== 'employee' && <SidebarTrigger />}
         
-        {/* Show home button for employees */}
+        {/* Show home button for employees on dashboard */}
         {isEmployeeDashboard && (
           <div className="flex items-center gap-2">
             <Home className="h-5 w-5 text-primary" />
             <span className="font-semibold text-lg">My Dashboard</span>
           </div>
+        )}
+        
+        {/* Show back to dashboard button for employee modules */}
+        {isEmployeeModule && userRole === 'employee' && (
+          <Button asChild variant="outline" size="sm">
+            <Link to="/app/employee-dashboard" className="flex items-center gap-2">
+              <Home className="h-4 w-4" />
+              Dashboard
+            </Link>
+          </Button>
         )}
         
         <div className="relative max-w-md">
