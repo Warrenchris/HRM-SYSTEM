@@ -269,32 +269,31 @@ export function EmployeeDashboard() {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
             {quickActions.map((action, index) => (
-              <Button
-                key={index}
-                asChild={action.href !== "#payslip"}
-                variant="outline"
-                className="h-20 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/20 transition-all duration-300"
-                onClick={action.href === "#payslip" ? () => {
-                  const payslipSection = document.getElementById('payslip-section');
-                  payslipSection?.scrollIntoView({ behavior: 'smooth' });
-                } : undefined}
-              >
-                {action.href !== "#payslip" ? (
-                  <Link to={action.href}>
+              action.href === "#payslip" ? (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className="h-20 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/20 transition-all duration-300"
+                  onClick={() => {
+                    const payslipSection = document.getElementById('payslip-section');
+                    payslipSection?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  <div className={`w-8 h-8 ${action.color} rounded-lg flex items-center justify-center mb-1`}>
+                    <action.icon className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-xs text-center">{action.label}</span>
+                </Button>
+              ) : (
+                <Button key={index} asChild variant="outline" className="h-20 hover:bg-primary/5 hover:border-primary/20 transition-all duration-300">
+                  <Link to={action.href} className="flex flex-col gap-2 items-center justify-center">
                     <div className={`w-8 h-8 ${action.color} rounded-lg flex items-center justify-center mb-1`}>
                       <action.icon className="w-4 h-4 text-white" />
                     </div>
                     <span className="text-xs text-center">{action.label}</span>
                   </Link>
-                ) : (
-                  <>
-                    <div className={`w-8 h-8 ${action.color} rounded-lg flex items-center justify-center mb-1`}>
-                      <action.icon className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-xs text-center">{action.label}</span>
-                  </>
-                )}
-              </Button>
+                </Button>
+              )
             ))}
           </div>
         </CardContent>
