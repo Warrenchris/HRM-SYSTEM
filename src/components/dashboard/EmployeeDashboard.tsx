@@ -22,6 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Progress } from "@/components/ui/progress";
 import { PayslipSection } from "@/components/employees/PayslipSection";
+import { QuickClockInOut } from "@/components/attendance/QuickClockInOut";
 
 interface EmployeeProfile {
   employee_id: string;
@@ -232,7 +233,7 @@ export function EmployeeDashboard() {
             {profile?.role || 'Employee'}
           </Badge>
           <Button asChild variant="outline" size="sm">
-            <Link to="/app/attendance">
+            <Link to="/app/employee/attendance">
               <Clock className="w-4 h-4 mr-2" />
               Quick Clock In
             </Link>
@@ -298,6 +299,9 @@ export function EmployeeDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Quick Clock In/Out Widget */}
+      <QuickClockInOut />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Announcements */}
