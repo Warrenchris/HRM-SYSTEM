@@ -98,20 +98,7 @@ export function useLeaveRequestsQuery(options?: {
     queryFn: async () => {
       let query = supabase
         .from('leave_requests')
-        .select(`
-          *,
-          leave_types (
-            name,
-            color,
-            max_days_per_year
-          ),
-          employees (
-            first_name,
-            last_name,
-            department,
-            position
-          )
-        `, { count: 'exact' });
+        .select('*', { count: 'exact' });
 
       if (options?.employeeId) {
         query = query.eq('employee_id', options.employeeId);
@@ -149,15 +136,7 @@ export function useLeaveBalancesQuery(employeeId?: string, year?: number) {
     queryFn: async () => {
       let query = supabase
         .from('leave_balances')
-        .select(`
-          *,
-          leave_types (
-            name,
-            color,
-            max_days_per_year,
-            carry_over_allowed
-          )
-        `)
+        .select('*')
         .eq('year', currentYear);
 
       if (employeeId) {
@@ -180,20 +159,7 @@ export function usePendingApprovalsQuery(userRole: 'manager' | 'hr' | 'ceo' | 'a
     queryFn: async () => {
       let query = supabase
         .from('leave_requests')
-        .select(`
-          *,
-          leave_types (
-            name,
-            color
-          ),
-          employees (
-            first_name,
-            last_name,
-            department,
-            position,
-            employee_id
-          )
-        `);
+        .select('*');
 
       // Filter based on approval workflow and user role
       if (userRole === 'manager') {

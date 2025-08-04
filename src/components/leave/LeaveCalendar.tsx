@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { ChevronLeft, ChevronRight, Users, Calendar as CalendarIcon } from "lucide-react";
 import { format, isSameDay, isWithinInterval, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
+import { useLeaveRequestsQuery } from "@/hooks/queries/useLeaveQuery";
 
 interface LeaveEvent {
   id: string;
@@ -76,11 +77,26 @@ export function LeaveCalendar() {
   const [viewType, setViewType] = useState("team");
   const [departmentFilter, setDepartmentFilter] = useState("all");
 
+  const { data: requestsData } = useLeaveRequestsQuery({
+    status: 'approved'
+  });
+
+  const leaveEvents = (requestsData?.requests || []).map(request => ({
+    id: request.id,
+    employeeName: `${request.employee_id}`, // Use employee_id as placeholder
+    employeeId: request.employee_id,
+    leaveType: 'Leave Request', // Generic type
+    startDate: new Date(request.start_date),
+    endDate: new Date(request.end_date),
+    status: request.status as "approved" | "pending",
+    color: 'bg-blue-500' // Generic color
+  }));
+
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
 
   const getEventsForDate = (date: Date) => {
-    return mockLeaveEvents.filter(event => 
+    return leaveEvents.filter(event => 
       isWithinInterval(date, { start: event.startDate, end: event.endDate })
     );
   };
@@ -259,7 +275,7 @@ export function LeaveCalendar() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {mockLeaveEvents
+            {leaveEvents
               .filter(event => event.startDate >= new Date() && event.status === "approved")
               .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
               .slice(0, 5)

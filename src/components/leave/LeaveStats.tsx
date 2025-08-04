@@ -3,14 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, CheckCircle, AlertCircle } from "lucide-react";
-import { useLeaveBalances } from "@/hooks/useLeaveData";
+import { useLeaveBalancesQuery } from "@/hooks/queries/useLeaveQuery";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 
 export function LeaveStats() {
   const { employee, loading: employeeLoading } = useCurrentEmployee();
-  const { balances, loading, error } = useLeaveBalances(employee?.id);
+  const { data: balances = [], isLoading, error } = useLeaveBalancesQuery(employee?.id);
 
-  if (loading || employeeLoading) {
+  if (isLoading || employeeLoading) {
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[...Array(4)].map((_, i) => (
@@ -39,7 +39,7 @@ export function LeaveStats() {
     return (
       <Card>
         <CardContent className="pt-6">
-          <p className="text-center text-muted-foreground">Failed to load leave balances: {error}</p>
+          <p className="text-center text-muted-foreground">Failed to load leave balances: {error.message}</p>
         </CardContent>
       </Card>
     );
@@ -64,12 +64,12 @@ export function LeaveStats() {
         const available = balance.allocated_days - balance.used_days - balance.pending_days + balance.carried_over_days;
         const totalAllocated = balance.allocated_days + balance.carried_over_days;
         const usagePercentage = totalAllocated > 0 ? ((balance.used_days + balance.pending_days) / totalAllocated) * 100 : 0;
-        const Icon = getLeaveIcon(balance.leave_type?.name || '');
+        const Icon = getLeaveIcon('Leave'); // Generic icon
 
         return (
           <Card key={balance.id}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{balance.leave_type?.name}</CardTitle>
+              <CardTitle className="text-sm font-medium">Leave Balance</CardTitle>
               <Icon className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
