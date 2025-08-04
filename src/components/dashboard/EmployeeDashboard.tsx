@@ -203,13 +203,13 @@ export function EmployeeDashboard() {
   ];
 
   const quickActions = [
-    { label: "Clock In/Out", icon: Timer, href: "/attendance", color: "bg-blue-500" },
-    { label: "Request Leave", icon: CalendarDays, href: "/leave", color: "bg-green-500" },
-    { label: "Submit Expense", icon: CreditCard, href: "/expenses", color: "bg-purple-500" },
-    { label: "View Tasks", icon: CheckSquare, href: "/tasks", color: "bg-orange-500" },
-    { label: "Timesheets", icon: FileText, href: "/timesheets", color: "bg-indigo-500" },
+    { label: "Clock In/Out", icon: Timer, href: "/app/attendance", color: "bg-blue-500" },
+    { label: "Request Leave", icon: CalendarDays, href: "/app/leave", color: "bg-green-500" },
+    { label: "Submit Expense", icon: CreditCard, href: "/app/expenses", color: "bg-purple-500" },
+    { label: "View Tasks", icon: CheckSquare, href: "/app/tasks", color: "bg-orange-500" },
+    { label: "Timesheets", icon: FileText, href: "/app/timesheets", color: "bg-indigo-500" },
     { label: "Generate Payslip", icon: FileText, href: "#payslip", color: "bg-teal-500" },
-    { label: "Performance", icon: TrendingUp, href: "/performance", color: "bg-pink-500" }
+    { label: "Performance", icon: TrendingUp, href: "/app/performance", color: "bg-pink-500" }
   ];
 
   return (
@@ -232,7 +232,7 @@ export function EmployeeDashboard() {
             {profile?.role || 'Employee'}
           </Badge>
           <Button asChild variant="outline" size="sm">
-            <Link to="/attendance">
+            <Link to="/app/attendance">
               <Clock className="w-4 h-4 mr-2" />
               Quick Clock In
             </Link>
@@ -342,7 +342,7 @@ export function EmployeeDashboard() {
                   {tasks.overdueTasks} overdue task{tasks.overdueTasks > 1 ? 's' : ''}
                 </span>
                 <Button asChild variant="destructive" size="sm" className="ml-auto">
-                  <Link to="/tasks">View Tasks</Link>
+                  <Link to="/app/tasks">View Tasks</Link>
                 </Button>
               </div>
             )}
