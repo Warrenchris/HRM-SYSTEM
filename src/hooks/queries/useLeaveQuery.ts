@@ -266,8 +266,8 @@ export function useSubmitLeaveRequestMutation() {
         .insert(request)
         .select(`
           *,
-          employees!leave_requests_employee_id_fkey(first_name, last_name),
-          leave_types!leave_requests_leave_type_id_fkey(name)
+          employees!employee_id(first_name, last_name),
+          leave_types!leave_type_id(name)
         `)
         .single();
 

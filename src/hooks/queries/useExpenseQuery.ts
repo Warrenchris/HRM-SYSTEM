@@ -153,8 +153,8 @@ export function useSubmitExpenseMutation() {
         }])
         .select(`
           *,
-          employees!expenses_employee_id_fkey(first_name, last_name),
-          expense_categories!expenses_category_id_fkey(name)
+          employees!employee_id(first_name, last_name),
+          expense_categories!category_id(name)
         `)
         .single();
 

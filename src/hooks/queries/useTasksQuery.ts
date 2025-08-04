@@ -261,8 +261,8 @@ export function useCreateTaskMutation() {
         .insert(task)
         .select(`
           *,
-          employee_assigned:employees!tasks_assigned_to_fkey(first_name, last_name),
-          employee_assigner:employees!tasks_assigned_by_fkey(first_name, last_name)
+          employee_assigned:employees!assigned_to(first_name, last_name),
+          employee_assigner:employees!assigned_by(first_name, last_name)
         `)
         .single();
 
