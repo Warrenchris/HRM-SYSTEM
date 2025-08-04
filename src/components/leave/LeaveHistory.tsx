@@ -167,10 +167,15 @@ export function LeaveHistory() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredRequests.map((request) => (
+              {filteredRequests.map((request) => {
+                const employeeName = request.employees 
+                  ? `${request.employees.first_name} ${request.employees.last_name}`
+                  : 'Unknown Employee';
+                const leaveTypeName = request.leave_types?.name || 'Leave Request';
+                return (
                 <TableRow key={request.id}>
                   <TableCell className="font-medium">{request.id.slice(0, 8)}</TableCell>
-                  <TableCell>Leave Request</TableCell>
+                  <TableCell>{leaveTypeName}</TableCell>
                   <TableCell>{request.total_days} day{request.total_days > 1 ? 's' : ''}</TableCell>
                   <TableCell>
                     <div className="text-sm">
@@ -207,7 +212,8 @@ export function LeaveHistory() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </div>

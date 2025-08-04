@@ -46,7 +46,9 @@ export function LeaveApprovals() {
   }
 
   const filteredRequests = requests.filter((request) => {
-    const employeeName = request.employee_id; // Use employee_id as placeholder
+    const employeeName = request.employees 
+      ? `${request.employees.first_name} ${request.employees.last_name}`
+      : 'Unknown Employee';
     const matchesSearch = employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          request.id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDepartment = departmentFilter === "all"; // No department filtering for now
@@ -273,18 +275,22 @@ export function LeaveApprovals() {
               </TableHeader>
               <TableBody>
               {filteredRequests.map((request) => {
-                const employeeName = request.employee_id; // Use employee_id as placeholder
+                const employeeName = request.employees 
+                  ? `${request.employees.first_name} ${request.employees.last_name}`
+                  : 'Unknown Employee';
+                const employeeNumber = request.employees?.employee_id || request.employee_id;
+                const leaveTypeName = request.leave_types?.name || 'Leave Request';
                 return (
                 <TableRow key={request.id}>
                   <TableCell>
                     <div>
                       <div className="font-medium">{employeeName}</div>
                       <div className="text-sm text-muted-foreground">
-                        {request.employee_id}
+                        {employeeNumber}
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>Leave Request</TableCell>
+                  <TableCell>{leaveTypeName}</TableCell>
                     <TableCell>{request.total_days} day{request.total_days > 1 ? 's' : ''}</TableCell>
                     <TableCell>
                       <div className="text-sm">

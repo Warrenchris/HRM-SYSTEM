@@ -19,6 +19,19 @@ export interface LeaveRequest {
   manager_comments?: string;
   hr_comments?: string;
   ceo_comments?: string;
+  // Joined data from employees table
+  employees?: {
+    first_name: string;
+    last_name: string;
+    employee_id: string;
+    department: string;
+    position: string;
+  };
+  // Joined data from leave_types table  
+  leave_types?: {
+    name: string;
+    color?: string;
+  };
 }
 
 export interface LeaveType {
@@ -112,12 +125,35 @@ export function useLeaveRequestsQuery(options?: {
         .order('created_at', { ascending: false })
         .range(from, to);
 
-      const { data, error, count } = await query;
+      const { data: requests, error, count } = await query;
 
       if (error) throw error;
 
+      // Fetch employee details separately to avoid foreign key issues
+      const requestsWithEmployees = await Promise.all(
+        (requests || []).map(async (request) => {
+          const { data: employee } = await supabase
+            .from('employees')
+            .select('first_name, last_name, employee_id, department, position')
+            .eq('id', request.employee_id)
+            .maybeSingle();
+
+          const { data: leaveType } = await supabase
+            .from('leave_types')
+            .select('name, color')
+            .eq('id', request.leave_type_id)
+            .maybeSingle();
+
+          return {
+            ...request,
+            employees: employee,
+            leave_types: leaveType
+          };
+        })
+      );
+
       return {
-        requests: data || [],
+        requests: requestsWithEmployees,
         total: count || 0,
         page,
         limit,
@@ -175,10 +211,34 @@ export function usePendingApprovalsQuery(userRole: 'manager' | 'hr' | 'ceo' | 'a
         .eq('status', 'pending')
         .order('applied_date', { ascending: true });
 
-      const { data, error } = await query;
+      const { data: requests, error } = await query;
 
       if (error) throw error;
-      return data || [];
+
+      // Fetch employee details separately to avoid foreign key issues
+      const requestsWithEmployees = await Promise.all(
+        (requests || []).map(async (request) => {
+          const { data: employee } = await supabase
+            .from('employees')
+            .select('first_name, last_name, employee_id, department, position')
+            .eq('id', request.employee_id)
+            .maybeSingle();
+
+          const { data: leaveType } = await supabase
+            .from('leave_types')
+            .select('name, color')
+            .eq('id', request.leave_type_id)
+            .maybeSingle();
+
+          return {
+            ...request,
+            employees: employee,
+            leave_types: leaveType
+          };
+        })
+      );
+
+      return requestsWithEmployees;
     },
     enabled: ['manager', 'hr', 'ceo', 'admin'].includes(userRole),
   });
