@@ -15,7 +15,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useLeaveTypes, useLeaveRequests, calculateWorkingDays } from "@/hooks/useLeaveData";
+import { useLeaveTypesQuery, useSubmitLeaveRequestMutation } from "@/hooks/queries/useLeaveQuery";
+import { calculateWorkingDays } from "@/hooks/useLeaveData";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 
 const leaveRequestSchema = z.object({
@@ -35,8 +36,8 @@ type LeaveRequestForm = z.infer<typeof leaveRequestSchema>;
 export function LeaveRequestForm() {
   const { employee, loading: employeeLoading } = useCurrentEmployee();
   const { toast } = useToast();
-  const { leaveTypes, loading: typesLoading } = useLeaveTypes();
-  const { submitRequest } = useLeaveRequests();
+  const { data: leaveTypes = [], isLoading: typesLoading } = useLeaveTypesQuery();
+  const submitRequestMutation = useSubmitLeaveRequestMutation();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<LeaveRequestForm>({
@@ -49,26 +50,45 @@ export function LeaveRequestForm() {
   });
 
   const onSubmit = async (data: LeaveRequestForm) => {
+    if (!employee?.id) {
+      toast({
+        title: "Error",
+        description: "Employee information not found. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     
-    const workingDays = calculateWorkingDays(data.startDate, data.endDate);
-    
-    const success = await submitRequest({
-      leave_type_id: data.leaveType,
-      start_date: format(data.startDate, 'yyyy-MM-dd'),
-      end_date: format(data.endDate, 'yyyy-MM-dd'),
-      total_days: workingDays,
-      reason: data.reason,
-      emergency_contact: data.emergencyContact || null,
-      handover_notes: data.handoverNotes || null,
-      employee_id: employee?.id || "",
-    });
-    
-    if (success) {
+    try {
+      const workingDays = calculateWorkingDays(data.startDate, data.endDate);
+      
+      await submitRequestMutation.mutateAsync({
+        leave_type_id: data.leaveType,
+        start_date: format(data.startDate, 'yyyy-MM-dd'),
+        end_date: format(data.endDate, 'yyyy-MM-dd'),
+        total_days: workingDays,
+        reason: data.reason,
+        emergency_contact: data.emergencyContact || null,
+        handover_notes: data.handoverNotes || null,
+        employee_id: employee.id,
+      });
+      
       form.reset();
+      toast({
+        title: "Success",
+        description: "Leave request submitted successfully!",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to submit leave request. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    setIsSubmitting(false);
   };
 
   const calculateDuration = () => {
