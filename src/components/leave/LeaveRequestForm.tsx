@@ -50,7 +50,10 @@ export function LeaveRequestForm() {
   });
 
   const onSubmit = async (data: LeaveRequestForm) => {
+    console.log('Leave form submission started', { data, employee });
+    
     if (!employee?.id) {
+      console.error('No employee found:', employee);
       toast({
         title: "Error",
         description: "Employee information not found. Please try again.",
@@ -63,8 +66,9 @@ export function LeaveRequestForm() {
     
     try {
       const workingDays = calculateWorkingDays(data.startDate, data.endDate);
+      console.log('Calculated working days:', workingDays);
       
-      await submitRequestMutation.mutateAsync({
+      const requestData = {
         leave_type_id: data.leaveType,
         start_date: format(data.startDate, 'yyyy-MM-dd'),
         end_date: format(data.endDate, 'yyyy-MM-dd'),
@@ -73,17 +77,23 @@ export function LeaveRequestForm() {
         emergency_contact: data.emergencyContact || null,
         handover_notes: data.handoverNotes || null,
         employee_id: employee.id,
-      });
+      };
+      
+      console.log('Submitting leave request with data:', requestData);
+      
+      await submitRequestMutation.mutateAsync(requestData);
       
       form.reset();
       toast({
         title: "Success",
         description: "Leave request submitted successfully!",
       });
+      console.log('Leave request submitted successfully');
     } catch (error) {
+      console.error('Leave submission error:', error);
       toast({
         title: "Error",
-        description: "Failed to submit leave request. Please try again.",
+        description: `Failed to submit leave request: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: "destructive",
       });
     } finally {

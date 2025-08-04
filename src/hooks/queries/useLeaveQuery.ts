@@ -259,6 +259,8 @@ export function useSubmitLeaveRequestMutation() {
       emergency_contact?: string;
       handover_notes?: string;
     }) => {
+      console.log('Submitting leave request to database:', request);
+      
       const { data, error } = await supabase
         .from('leave_requests')
         .insert(request)
@@ -269,7 +271,12 @@ export function useSubmitLeaveRequestMutation() {
         `)
         .single();
 
-      if (error) throw error;
+      console.log('Database response:', { data, error });
+
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
       return data;
     },
     onSuccess: (data) => {
