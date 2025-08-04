@@ -29,6 +29,7 @@ const Tickets = lazy(() => import("./pages/Tickets"));
 const Tasks = lazy(() => import("./pages/Tasks"));
 const Company = lazy(() => import("./pages/Company"));
 const Settings = lazy(() => import("./pages/Settings"));
+const Landing = lazy(() => import("./pages/Landing"));
 const LandingLogin = lazy(() => import("./pages/LandingLogin"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -69,6 +70,9 @@ const App = () => (
           <CompanyProvider>
             <Suspense fallback={<PageLoader />}>
               <Routes>
+                {/* Public Landing Page */}
+                <Route path="/landing" element={<Landing />} />
+                
                 {/* Authentication Route */}
                 <Route path="/auth" element={<LandingLogin />} />
                 
