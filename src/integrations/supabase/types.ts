@@ -427,95 +427,6 @@ export type Database = {
           },
         ]
       }
-      attendance_settings: {
-        Row: {
-          allowed_ip_addresses: string[] | null
-          break_duration_minutes: number | null
-          company_name: string | null
-          created_at: string
-          id: string
-          ip_restriction_enabled: boolean | null
-          late_threshold_minutes: number | null
-          location_tracking_enabled: boolean | null
-          overtime_threshold_hours: number | null
-          updated_at: string
-          weekend_work_allowed: boolean | null
-          work_end_time: string
-          work_start_time: string
-        }
-        Insert: {
-          allowed_ip_addresses?: string[] | null
-          break_duration_minutes?: number | null
-          company_name?: string | null
-          created_at?: string
-          id?: string
-          ip_restriction_enabled?: boolean | null
-          late_threshold_minutes?: number | null
-          location_tracking_enabled?: boolean | null
-          overtime_threshold_hours?: number | null
-          updated_at?: string
-          weekend_work_allowed?: boolean | null
-          work_end_time?: string
-          work_start_time?: string
-        }
-        Update: {
-          allowed_ip_addresses?: string[] | null
-          break_duration_minutes?: number | null
-          company_name?: string | null
-          created_at?: string
-          id?: string
-          ip_restriction_enabled?: boolean | null
-          late_threshold_minutes?: number | null
-          location_tracking_enabled?: boolean | null
-          overtime_threshold_hours?: number | null
-          updated_at?: string
-          weekend_work_allowed?: boolean | null
-          work_end_time?: string
-          work_start_time?: string
-        }
-        Relationships: []
-      }
-      attendance_summary: {
-        Row: {
-          created_at: string
-          days_absent: number
-          days_worked: number
-          employee_id: string
-          id: string
-          overtime_hours: number
-          pay_period: string
-          total_hours: number
-        }
-        Insert: {
-          created_at?: string
-          days_absent?: number
-          days_worked?: number
-          employee_id: string
-          id?: string
-          overtime_hours?: number
-          pay_period: string
-          total_hours?: number
-        }
-        Update: {
-          created_at?: string
-          days_absent?: number
-          days_worked?: number
-          employee_id?: string
-          id?: string
-          overtime_hours?: number
-          pay_period?: string
-          total_hours?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_attendance_employee"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       companies: {
         Row: {
           address: string | null
@@ -633,24 +544,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      company_sizes: {
-        Row: {
-          description: string | null
-          id: string
-          label: string
-        }
-        Insert: {
-          description?: string | null
-          id: string
-          label: string
-        }
-        Update: {
-          description?: string | null
-          id?: string
-          label?: string
-        }
-        Relationships: []
       }
       company_subscriptions: {
         Row: {
@@ -909,50 +802,6 @@ export type Database = {
           },
         ]
       }
-      expense_approvals: {
-        Row: {
-          approval_level: number
-          approved_at: string | null
-          approver_id: string
-          comments: string | null
-          created_at: string
-          expense_id: string
-          id: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          approval_level?: number
-          approved_at?: string | null
-          approver_id: string
-          comments?: string | null
-          created_at?: string
-          expense_id: string
-          id?: string
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          approval_level?: number
-          approved_at?: string | null
-          approver_id?: string
-          comments?: string | null
-          created_at?: string
-          expense_id?: string
-          id?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "expense_approvals_expense_id_fkey"
-            columns: ["expense_id"]
-            isOneToOne: false
-            referencedRelation: "expenses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       expense_categories: {
         Row: {
           created_at: string
@@ -1132,42 +981,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      leave_policies: {
-        Row: {
-          company_id: string | null
-          created_at: string
-          description: string | null
-          id: string
-          is_active: boolean
-          name: string
-          policy_type: string
-          rules: Json
-          updated_at: string
-        }
-        Insert: {
-          company_id?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          name: string
-          policy_type: string
-          rules?: Json
-          updated_at?: string
-        }
-        Update: {
-          company_id?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          name?: string
-          policy_type?: string
-          rules?: Json
-          updated_at?: string
-        }
-        Relationships: []
       }
       leave_requests: {
         Row: {
@@ -1610,41 +1423,6 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
-      }
-      task_comments: {
-        Row: {
-          comment: string
-          created_at: string
-          id: string
-          is_internal: boolean
-          task_id: string
-          user_id: string
-        }
-        Insert: {
-          comment: string
-          created_at?: string
-          id?: string
-          is_internal?: boolean
-          task_id: string
-          user_id: string
-        }
-        Update: {
-          comment?: string
-          created_at?: string
-          id?: string
-          is_internal?: boolean
-          task_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "task_comments_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: false
-            referencedRelation: "tasks"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       tasks: {
         Row: {
