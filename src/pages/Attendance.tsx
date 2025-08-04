@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import { AttendanceApprovals } from "@/components/attendance/AttendanceApprovals
 import { Clock, MapPin, Calendar, History, BarChart3, CheckCircle } from "lucide-react";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useTodayAttendance } from "@/hooks/useAttendanceData";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default function Attendance() {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -48,100 +49,114 @@ export default function Attendance() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
-          <p className="text-muted-foreground">
-            Track your work hours and manage attendance
-          </p>
-        </div>
-        <div className="flex flex-col items-end gap-1">
-          <div className="text-2xl font-mono font-bold">{formatTime(currentTime)}</div>
-          <div className="text-sm text-muted-foreground">{formatDate(currentTime)}</div>
-        </div>
-      </div>
-
-      {/* Current Status */}
-      <Card className="border-l-4 border-l-primary">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Current Status
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <Badge variant={isCheckedIn ? "default" : "secondary"} className="text-sm">
-              {isCheckedIn ? "Checked In" : "Checked Out"}
-            </Badge>
-            {todayRecord?.location && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="h-4 w-4" />
-                <span>{todayRecord.location}</span>
-              </div>
-            )}
-            {todayRecord?.clock_in_time && (
-              <div className="text-sm text-muted-foreground">
-                Since {new Date(todayRecord.clock_in_time).toLocaleTimeString()}
-              </div>
-            )}
+    <ErrorBoundary>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
+            <p className="text-muted-foreground">
+              Track your work hours and manage attendance
+            </p>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Stats */}
-      <AttendanceStats />
-
-      {/* Main Content */}
-      <Tabs defaultValue="clock" className="space-y-6">
-        <div className="overflow-x-auto">
-          <TabsList className="w-full justify-start sm:justify-center min-w-fit">
-            <TabsTrigger value="clock" className="flex items-center gap-1 sm:gap-2">
-              <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Clock In/Out</span>
-              <span className="sm:hidden">Clock</span>
-            </TabsTrigger>
-            <TabsTrigger value="history" className="flex items-center gap-1 sm:gap-2">
-              <History className="h-3 w-3 sm:h-4 sm:w-4" />
-              History
-            </TabsTrigger>
-            <TabsTrigger value="calendar" className="flex items-center gap-1 sm:gap-2">
-              <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
-              Calendar
-            </TabsTrigger>
-            <TabsTrigger value="reports" className="flex items-center gap-1 sm:gap-2">
-              <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
-              Reports
-            </TabsTrigger>
-            <TabsTrigger value="approvals" className="flex items-center gap-1 sm:gap-2">
-              <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
-              Approvals
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex flex-col items-end gap-1">
+            <div className="text-2xl font-mono font-bold">{formatTime(currentTime)}</div>
+            <div className="text-sm text-muted-foreground">{formatDate(currentTime)}</div>
+          </div>
         </div>
 
-        <TabsContent value="clock">
-          <ClockInOut />
-        </TabsContent>
+        {/* Current Status */}
+        <Card className="border-l-4 border-l-primary">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Current Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <Badge variant={isCheckedIn ? "default" : "secondary"} className="text-sm">
+                {isCheckedIn ? "Checked In" : "Checked Out"}
+              </Badge>
+              {todayRecord?.location && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <MapPin className="h-4 w-4" />
+                  <span>{todayRecord.location}</span>
+                </div>
+              )}
+              {todayRecord?.clock_in_time && (
+                <div className="text-sm text-muted-foreground">
+                  Since {new Date(todayRecord.clock_in_time).toLocaleTimeString()}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-        <TabsContent value="history">
-          <AttendanceHistory />
-        </TabsContent>
+        {/* Stats */}
+        <ErrorBoundary>
+          <AttendanceStats />
+        </ErrorBoundary>
 
-        <TabsContent value="calendar">
-          <AttendanceCalendar />
-        </TabsContent>
+        {/* Main Content */}
+        <Tabs defaultValue="clock" className="space-y-6">
+          <div className="overflow-x-auto">
+            <TabsList className="w-full justify-start sm:justify-center min-w-fit">
+              <TabsTrigger value="clock" className="flex items-center gap-1 sm:gap-2">
+                <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Clock In/Out</span>
+                <span className="sm:hidden">Clock</span>
+              </TabsTrigger>
+              <TabsTrigger value="history" className="flex items-center gap-1 sm:gap-2">
+                <History className="h-3 w-3 sm:h-4 sm:w-4" />
+                History
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="flex items-center gap-1 sm:gap-2">
+                <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                Calendar
+              </TabsTrigger>
+              <TabsTrigger value="reports" className="flex items-center gap-1 sm:gap-2">
+                <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
+                Reports
+              </TabsTrigger>
+              <TabsTrigger value="approvals" className="flex items-center gap-1 sm:gap-2">
+                <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                Approvals
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-        <TabsContent value="reports">
-          <AttendanceReports />
-        </TabsContent>
+          <TabsContent value="clock">
+            <ErrorBoundary>
+              <ClockInOut />
+            </ErrorBoundary>
+          </TabsContent>
 
-        <TabsContent value="approvals">
-          <AttendanceApprovals />
-        </TabsContent>
-      </Tabs>
-    </div>
+          <TabsContent value="history">
+            <ErrorBoundary>
+              <AttendanceHistory />
+            </ErrorBoundary>
+          </TabsContent>
+
+          <TabsContent value="calendar">
+            <ErrorBoundary>
+              <AttendanceCalendar />
+            </ErrorBoundary>
+          </TabsContent>
+
+          <TabsContent value="reports">
+            <ErrorBoundary>
+              <AttendanceReports />
+            </ErrorBoundary>
+          </TabsContent>
+
+          <TabsContent value="approvals">
+            <ErrorBoundary>
+              <AttendanceApprovals />
+            </ErrorBoundary>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </ErrorBoundary>
   );
 }

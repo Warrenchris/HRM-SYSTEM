@@ -34,20 +34,27 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
   useEffect(() => {
     if (employeeId) {
       fetchRecords();
+    } else {
+      setLoading(false);
+      setRecords([]);
     }
   }, [employeeId, date]);
 
   const fetchRecords = async () => {
+    if (!employeeId) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
+      setError(null);
+      
       let query = supabase
         .from('attendance_records')
         .select('*')
+        .eq('employee_id', employeeId)
         .order('clock_in_time', { ascending: false });
-
-      if (employeeId) {
-        query = query.eq('employee_id', employeeId);
-      }
 
       if (date) {
         const startOfDay = new Date(date);
@@ -59,12 +66,20 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
                     .lte('clock_in_time', endOfDay.toISOString());
       }
 
+      console.log('Fetching attendance records for employee:', employeeId);
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('Attendance fetch error:', error);
+        throw error;
+      }
+      
+      console.log('Attendance records fetched successfully:', data?.length);
       setRecords(data || []);
     } catch (err) {
+      console.error('Error in fetchRecords:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch attendance records');
+      setRecords([]);
     } finally {
       setLoading(false);
     }
