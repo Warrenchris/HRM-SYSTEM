@@ -78,7 +78,7 @@ const App = () => (
                 <Route path="/app/*" element={
                   <ProtectedRoute>
                     <Routes>
-                      {/* Employee-only routes */}
+                      {/* Employee-specific dashboard */}
                       <Route path="employee-dashboard" element={
                         <RoleBasedRoute allowedRoles={['employee', 'admin', 'hr', 'manager']}>
                           <EmployeeLayout />
@@ -87,57 +87,8 @@ const App = () => (
                         <Route index element={<EmployeeDashboard />} />
                       </Route>
 
-                      {/* Employee accessible routes */}
-                      <Route path="attendance" element={
-                        <RoleBasedRoute allowedRoles={['employee', 'admin', 'hr', 'manager']}>
-                          <EmployeeLayout />
-                        </RoleBasedRoute>
-                      }>
-                        <Route index element={<Attendance />} />
-                      </Route>
-
-                      <Route path="leave" element={
-                        <RoleBasedRoute allowedRoles={['employee', 'admin', 'hr', 'manager']}>
-                          <EmployeeLayout />
-                        </RoleBasedRoute>
-                      }>
-                        <Route index element={<Leave />} />
-                      </Route>
-
-                      <Route path="expenses" element={
-                        <RoleBasedRoute allowedRoles={['employee', 'admin', 'hr', 'manager']}>
-                          <EmployeeLayout />
-                        </RoleBasedRoute>
-                      }>
-                        <Route index element={<Expenses />} />
-                      </Route>
-
-                      <Route path="tasks" element={
-                        <RoleBasedRoute allowedRoles={['employee', 'admin', 'hr', 'manager']}>
-                          <EmployeeLayout />
-                        </RoleBasedRoute>
-                      }>
-                        <Route index element={<Tasks />} />
-                      </Route>
-
-                      <Route path="timesheets" element={
-                        <RoleBasedRoute allowedRoles={['employee', 'admin', 'hr', 'manager']}>
-                          <EmployeeLayout />
-                        </RoleBasedRoute>
-                      }>
-                        <Route index element={<Timesheets />} />
-                      </Route>
-
-                      <Route path="performance" element={
-                        <RoleBasedRoute allowedRoles={['employee', 'admin', 'hr', 'manager']}>
-                          <EmployeeLayout />
-                        </RoleBasedRoute>
-                      }>
-                        <Route index element={<Performance />} />
-                      </Route>
-
-                      {/* Admin/HR/Manager routes */}
-                      <Route path="*" element={
+                      {/* Admin/HR/Manager routes using OptimizedLayout */}
+                      <Route path="" element={
                         <RoleBasedRoute allowedRoles={['admin', 'hr', 'manager']}>
                           <OptimizedLayout />
                         </RoleBasedRoute>
@@ -160,6 +111,20 @@ const App = () => (
                         <Route path="company" element={<Company />} />
                         <Route path="onboarding" element={<Onboarding />} />
                         <Route path="settings" element={<Settings />} />
+                      </Route>
+
+                      {/* Employee accessible routes using EmployeeLayout for employee role */}
+                      <Route path="employee/*" element={
+                        <RoleBasedRoute allowedRoles={['employee']} redirectTo="/app/employee-dashboard">
+                          <EmployeeLayout />
+                        </RoleBasedRoute>
+                      }>
+                        <Route path="attendance" element={<Attendance />} />
+                        <Route path="leave" element={<Leave />} />
+                        <Route path="expenses" element={<Expenses />} />
+                        <Route path="tasks" element={<Tasks />} />
+                        <Route path="timesheets" element={<Timesheets />} />
+                        <Route path="performance" element={<Performance />} />
                       </Route>
                     </Routes>
                   </ProtectedRoute>
