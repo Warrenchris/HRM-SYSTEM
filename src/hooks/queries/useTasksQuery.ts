@@ -269,8 +269,25 @@ export function useCreateTaskMutation() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: taskKeys.all });
+      
+      // Create notification
+      const assignedEmployee = data.employee_assigned as any;
+      const assignerEmployee = data.employee_assigner as any;
+      const assignedName = `${assignedEmployee?.first_name || ''} ${assignedEmployee?.last_name || ''}`.trim();
+      const assignerName = `${assignerEmployee?.first_name || ''} ${assignerEmployee?.last_name || ''}`.trim();
+      
+      // Dispatch custom event for notification
+      window.dispatchEvent(new CustomEvent('newNotification', {
+        detail: {
+          title: 'New Task Assignment',
+          message: `${assignerName} assigned a task "${data.title}" to ${assignedName}`,
+          type: 'task_assignment',
+          employeeName: assignedName,
+          requestId: data.id,
+        }
+      }));
     },
   });
 }

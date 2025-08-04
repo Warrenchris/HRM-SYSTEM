@@ -262,7 +262,11 @@ export function useSubmitLeaveRequestMutation() {
       const { data, error } = await supabase
         .from('leave_requests')
         .insert(request)
-        .select()
+        .select(`
+          *,
+          employees!leave_requests_employee_id_fkey(first_name, last_name),
+          leave_types!leave_requests_leave_type_id_fkey(name)
+        `)
         .single();
 
       if (error) throw error;
@@ -273,6 +277,22 @@ export function useSubmitLeaveRequestMutation() {
       queryClient.invalidateQueries({ queryKey: leaveKeys.requests() });
       queryClient.invalidateQueries({ queryKey: leaveKeys.balances() });
       queryClient.invalidateQueries({ queryKey: leaveKeys.approvals() });
+      
+      // Create notification
+      const employee = data.employees as any;
+      const leaveType = data.leave_types as any;
+      const employeeName = `${employee?.first_name || ''} ${employee?.last_name || ''}`.trim();
+      
+      // Dispatch custom event for notification
+      window.dispatchEvent(new CustomEvent('newNotification', {
+        detail: {
+          title: 'New Leave Request',
+          message: `${employeeName} submitted a ${leaveType?.name || 'leave'} request`,
+          type: 'leave_request',
+          employeeName,
+          requestId: data.id,
+        }
+      }));
     },
   });
 }

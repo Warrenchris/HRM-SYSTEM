@@ -30,29 +30,7 @@ export function AppHeader() {
   const location = useLocation();
   const { toast } = useToast();
   const [userRole, setUserRole] = useState<string>('employee');
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      title: "New Employee Added",
-      message: "John Doe has been added to the system",
-      time: "2 minutes ago",
-      read: false,
-    },
-    {
-      id: 2,
-      title: "Leave Request",
-      message: "Sarah Wilson submitted a leave request",
-      time: "1 hour ago",
-      read: false,
-    },
-    {
-      id: 3,
-      title: "Payroll Processed",
-      message: "Monthly payroll has been processed successfully",
-      time: "3 hours ago",
-      read: false,
-    },
-  ]);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
   const isEmployeeDashboard = location.pathname === '/app/employee-dashboard';
@@ -77,6 +55,29 @@ export function AppHeader() {
     };
 
     fetchUserRole();
+
+    // Listen for new notification events
+    const handleNewNotification = (event: any) => {
+      const { title, message, type, employeeName, requestId } = event.detail;
+      const newNotification = {
+        id: Date.now(),
+        title,
+        message,
+        time: 'Just now',
+        read: false,
+        type,
+        employeeName,
+        requestId,
+      };
+      
+      setNotifications(prev => [newNotification, ...prev]);
+    };
+
+    window.addEventListener('newNotification', handleNewNotification);
+
+    return () => {
+      window.removeEventListener('newNotification', handleNewNotification);
+    };
   }, [user]);
 
   const handleLogout = async () => {

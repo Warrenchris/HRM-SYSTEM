@@ -63,7 +63,17 @@ export function CreateTicketForm() {
 
     setCreating(true);
     try {
-      const { error } = await supabase
+      // Get user profile to fetch employee data
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select(`
+          employee_id,
+          employees!profiles_employee_id_fkey(first_name, last_name)
+        `)
+        .eq('user_id', user.id)
+        .single();
+
+      const { data: ticket, error } = await supabase
         .from('tickets')
         .insert({
           title,
@@ -72,7 +82,9 @@ export function CreateTicketForm() {
           category,
           department: department || null,
           created_by: user.id
-        });
+        })
+        .select()
+        .single();
 
       if (error) {
         toast({
@@ -87,6 +99,21 @@ export function CreateTicketForm() {
         title: "Ticket Created",
         description: "Your ticket has been submitted successfully",
       });
+
+      // Create notification
+      const employee = profile?.employees as any;
+      const employeeName = employee ? `${employee.first_name || ''} ${employee.last_name || ''}`.trim() : 'Unknown User';
+      
+      // Dispatch custom event for notification
+      window.dispatchEvent(new CustomEvent('newNotification', {
+        detail: {
+          title: 'New Support Ticket',
+          message: `${employeeName} created a ${priority} priority ticket: "${title}"`,
+          type: 'general',
+          employeeName,
+          requestId: ticket.id,
+        }
+      }));
 
       // Reset form
       setTitle("");
