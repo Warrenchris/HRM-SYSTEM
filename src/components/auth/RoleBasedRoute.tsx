@@ -13,7 +13,7 @@ interface RoleBasedRouteProps {
 export function RoleBasedRoute({ 
   children, 
   allowedRoles = ['admin', 'hr', 'manager'], 
-  redirectTo = '/employee-dashboard' 
+  redirectTo = '/app/employee-dashboard' 
 }: RoleBasedRouteProps) {
   const { user } = useAuth();
   const [userRole, setUserRole] = useState<string | null>(null);

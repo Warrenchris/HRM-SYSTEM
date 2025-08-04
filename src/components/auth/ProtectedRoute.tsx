@@ -17,7 +17,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      navigate("/auth");
+      navigate("/landing");
       return;
     }
 
@@ -35,8 +35,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         const userRole = profile?.role || 'employee';
         
         // If employee is trying to access root path, redirect to employee dashboard
-        if (userRole === 'employee' && (location.pathname === '/' || location.pathname === '/dashboard')) {
-          navigate('/employee-dashboard', { replace: true });
+        if (userRole === 'employee' && (location.pathname === '/app' || location.pathname === '/app/' || location.pathname === '/app/dashboard')) {
+          navigate('/app/employee-dashboard', { replace: true });
         }
       } catch (error) {
         console.error('Error checking user role:', error);

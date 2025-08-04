@@ -70,18 +70,16 @@ const App = () => (
           <CompanyProvider>
             <Suspense fallback={<PageLoader />}>
               <Routes>
-                {/* Public Landing Page */}
-                <Route path="/landing" element={<Landing />} />
-                
-                {/* Authentication Route */}
+                {/* Public routes */}
+                <Route path="/" element={<Landing />} />
                 <Route path="/auth" element={<LandingLogin />} />
                 
                 {/* Protected App Routes */}
-                <Route path="/*" element={
+                <Route path="/app/*" element={
                   <ProtectedRoute>
                     <Routes>
                       {/* Employee-only routes */}
-                      <Route path="/employee-dashboard" element={
+                      <Route path="employee-dashboard" element={
                         <RoleBasedRoute allowedRoles={['employee', 'admin', 'hr', 'manager']}>
                           <EmployeeLayout />
                         </RoleBasedRoute>
@@ -90,7 +88,7 @@ const App = () => (
                       </Route>
 
                       {/* Admin/HR/Manager routes */}
-                      <Route path="/" element={
+                      <Route path="*" element={
                         <RoleBasedRoute allowedRoles={['admin', 'hr', 'manager']}>
                           <OptimizedLayout />
                         </RoleBasedRoute>
@@ -114,10 +112,11 @@ const App = () => (
                         <Route path="onboarding" element={<Onboarding />} />
                         <Route path="settings" element={<Settings />} />
                       </Route>
-                      <Route path="*" element={<NotFound />} />
                     </Routes>
                   </ProtectedRoute>
                 } />
+                
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
           </CompanyProvider>

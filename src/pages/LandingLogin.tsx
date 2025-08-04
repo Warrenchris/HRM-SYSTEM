@@ -27,7 +27,7 @@ export default function LandingLogin() {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/dashboard");
+        navigate("/app");
       }
     };
     checkUser();
@@ -60,7 +60,7 @@ export default function LandingLogin() {
         description: "You have successfully signed in to HRM Pro.",
       });
       
-      navigate("/dashboard");
+      navigate("/app");
     } catch (error) {
       setError("An unexpected error occurred. Please try again.");
     } finally {
@@ -86,7 +86,7 @@ export default function LandingLogin() {
     }
 
     try {
-      const redirectUrl = `${window.location.origin}/dashboard`;
+      const redirectUrl = `${window.location.origin}/app`;
       
       const { error } = await supabase.auth.signUp({
         email,
