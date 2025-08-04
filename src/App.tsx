@@ -6,7 +6,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CompanyProvider } from "@/contexts/CompanyContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { RoleBasedRoute } from "@/components/auth/RoleBasedRoute";
 import { OptimizedLayout } from "@/components/layouts/OptimizedLayout";
+import { EmployeeLayout } from "@/components/layouts/EmployeeLayout";
 import { Suspense, lazy } from "react";
 
 // Lazy load all pages for better performance
@@ -74,10 +76,23 @@ const App = () => (
                 <Route path="/*" element={
                   <ProtectedRoute>
                     <Routes>
-                      <Route path="/" element={<OptimizedLayout />}>
+                      {/* Employee-only routes */}
+                      <Route path="/employee-dashboard" element={
+                        <RoleBasedRoute allowedRoles={['employee', 'admin', 'hr', 'manager']}>
+                          <EmployeeLayout />
+                        </RoleBasedRoute>
+                      }>
+                        <Route index element={<EmployeeDashboard />} />
+                      </Route>
+
+                      {/* Admin/HR/Manager routes */}
+                      <Route path="/" element={
+                        <RoleBasedRoute allowedRoles={['admin', 'hr', 'manager']}>
+                          <OptimizedLayout />
+                        </RoleBasedRoute>
+                      }>
                         <Route index element={<Dashboard />} />
                         <Route path="dashboard" element={<Dashboard />} />
-                        <Route path="employee-dashboard" element={<EmployeeDashboard />} />
                         <Route path="employees" element={<Employees />} />
                         <Route path="announcements" element={<Announcements />} />
                         <Route path="attendance" element={<Attendance />} />
