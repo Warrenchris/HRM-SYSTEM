@@ -155,10 +155,10 @@ export function TaskAssignment() {
                       <CommandInput placeholder="Search employees..." />
                       <CommandEmpty>No employee found.</CommandEmpty>
                       <CommandGroup>
-                        {employees.map((employee) => (
+                        {(employees || []).filter(Boolean).map((employee) => (
                           <CommandItem
                             key={employee.id}
-                            value={`${employee.first_name} ${employee.last_name} ${employee.position}`}
+                            value={`${employee.first_name || ''} ${employee.last_name || ''} ${employee.position || ''}`}
                             onSelect={() => {
                               setFormData({ ...formData, assigned_to: employee.id });
                               setEmployeeComboOpen(false);
@@ -169,7 +169,7 @@ export function TaskAssignment() {
                                 formData.assigned_to === employee.id ? "opacity-100" : "opacity-0"
                               }`}
                             />
-                            {employee.first_name} {employee.last_name} - {employee.position}
+                            {employee.first_name || ''} {employee.last_name || ''} - {employee.position || ''}
                           </CommandItem>
                         ))}
                       </CommandGroup>
