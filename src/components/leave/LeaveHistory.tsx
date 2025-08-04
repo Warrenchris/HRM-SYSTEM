@@ -157,7 +157,7 @@ export function LeaveHistory() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Request ID</TableHead>
+                <TableHead>Employee</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Duration</TableHead>
                 <TableHead>Dates</TableHead>
@@ -174,7 +174,7 @@ export function LeaveHistory() {
                 const leaveTypeName = request.leave_types?.name || 'Leave Request';
                 return (
                 <TableRow key={request.id}>
-                  <TableCell className="font-medium">{request.id.slice(0, 8)}</TableCell>
+                  <TableCell className="font-medium">{employeeName}</TableCell>
                   <TableCell>{leaveTypeName}</TableCell>
                   <TableCell>{request.total_days} day{request.total_days > 1 ? 's' : ''}</TableCell>
                   <TableCell>
