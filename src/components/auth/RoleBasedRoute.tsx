@@ -1,29 +1,32 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 
-interface ProtectedRouteProps {
+interface RoleBasedRouteProps {
   children: React.ReactNode;
+  allowedRoles?: string[];
+  redirectTo?: string;
 }
 
-export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, loading: authLoading } = useAuth();
-  const [roleLoading, setRoleLoading] = useState(true);
+export function RoleBasedRoute({ 
+  children, 
+  allowedRoles = ['admin', 'hr', 'manager'], 
+  redirectTo = '/employee-dashboard' 
+}: RoleBasedRouteProps) {
+  const { user } = useAuth();
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth");
-      return;
-    }
-
-    // Check user role and redirect to appropriate dashboard
-    const checkUserRoleAndRedirect = async () => {
-      if (!user || authLoading) return;
+    const fetchUserRole = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
       try {
         const { data: profile } = await supabase
@@ -32,25 +35,26 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
           .eq('user_id', user.id)
           .single();
 
-        const userRole = profile?.role || 'employee';
+        const role = profile?.role || 'employee';
+        setUserRole(role);
         
-        // If employee is trying to access root path, redirect to employee dashboard
-        if (userRole === 'employee' && (location.pathname === '/' || location.pathname === '/dashboard')) {
-          navigate('/employee-dashboard', { replace: true });
+        // If user is an employee and trying to access admin/hr pages, redirect to employee dashboard
+        if (role === 'employee' && !allowedRoles.includes('employee')) {
+          navigate(redirectTo, { replace: true });
         }
       } catch (error) {
-        console.error('Error checking user role:', error);
+        console.error('Error fetching user role:', error);
+        setUserRole('employee');
       } finally {
-        setRoleLoading(false);
+        setLoading(false);
       }
     };
 
-    if (!authLoading && user) {
-      checkUserRoleAndRedirect();
-    }
-  }, [user, authLoading, navigate, location.pathname]);
+    fetchUserRole();
+  }, [user, navigate, location.pathname, allowedRoles, redirectTo]);
 
-  if (authLoading || roleLoading) {
+  // Show loading while checking user role
+  if (loading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="flex h-screen">
@@ -68,13 +72,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
           <div className="flex-1 p-6">
             <Skeleton className="h-8 w-48 mb-4" />
             <Skeleton className="h-4 w-96 mb-6" />
-            
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
               {Array.from({ length: 4 }).map((_, i) => (
                 <Skeleton key={i} className="h-32 w-full" />
               ))}
             </div>
-            
             <Skeleton className="h-96 w-full" />
           </div>
         </div>
@@ -82,7 +84,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!user) {
+  if (!user || userRole === null) {
     return null;
   }
 
