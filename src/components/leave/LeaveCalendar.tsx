@@ -81,16 +81,25 @@ export function LeaveCalendar() {
     status: 'approved'
   });
 
-  const leaveEvents = (requestsData?.requests || []).map(request => ({
-    id: request.id,
-    employeeName: `${request.employee_id}`, // Use employee_id as placeholder
-    employeeId: request.employee_id,
-    leaveType: 'Leave Request', // Generic type
-    startDate: new Date(request.start_date),
-    endDate: new Date(request.end_date),
-    status: request.status as "approved" | "pending",
-    color: 'bg-blue-500' // Generic color
-  }));
+  const leaveEvents = (requestsData?.requests || []).map(request => {
+    const employeeName = request.employees 
+      ? `${request.employees.first_name} ${request.employees.last_name}`
+      : 'Unknown Employee';
+    const employeeId = request.employees?.employee_id || request.employee_id;
+    const leaveTypeName = request.leave_types?.name || 'Leave Request';
+    const leaveTypeColor = request.leave_types?.color || '#3B82F6';
+    
+    return {
+      id: request.id,
+      employeeName,
+      employeeId,
+      leaveType: leaveTypeName,
+      startDate: new Date(request.start_date),
+      endDate: new Date(request.end_date),
+      status: request.status as "approved" | "pending",
+      color: `bg-[${leaveTypeColor}]` // Use actual leave type color
+    };
+  });
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
