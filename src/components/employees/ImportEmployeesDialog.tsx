@@ -201,6 +201,22 @@ export function ImportEmployeesDialog({ isOpen, onClose, onImportComplete }: Imp
       errors.push(`Row ${rowIndex + 2}: Invalid email format`);
     }
 
+    // Validate gender values
+    if (data.gender) {
+      const validGenders = ['male', 'female', 'other', 'prefer_not_to_say'];
+      if (!validGenders.includes(data.gender.toLowerCase())) {
+        errors.push(`Row ${rowIndex + 2}: Invalid gender. Must be one of: ${validGenders.join(', ')}`);
+      }
+    }
+
+    // Validate marital status values
+    if (data.marital_status) {
+      const validMaritalStatus = ['single', 'married', 'divorced', 'widowed', 'separated'];
+      if (!validMaritalStatus.includes(data.marital_status.toLowerCase())) {
+        errors.push(`Row ${rowIndex + 2}: Invalid marital_status. Must be one of: ${validMaritalStatus.join(', ')}`);
+      }
+    }
+
     // Validate date formats
     if (data.join_date && isNaN(Date.parse(data.join_date))) {
       errors.push(`Row ${rowIndex + 2}: Invalid join_date format (use YYYY-MM-DD)`);
@@ -281,8 +297,8 @@ export function ImportEmployeesDialog({ isOpen, onClose, onImportComplete }: Imp
               contract_end_date: rowData.contract_end_date || null,
               office_email: rowData.office_email || null,
               personal_email: rowData.personal_email || null,
-              gender: rowData.gender || null,
-              marital_status: rowData.marital_status || null,
+              gender: rowData.gender ? rowData.gender.toLowerCase() : null,
+              marital_status: rowData.marital_status ? rowData.marital_status.toLowerCase() : null,
               date_of_birth: rowData.date_of_birth || null,
               id_number: rowData.id_number || null,
               kra_pin: rowData.kra_pin || null,
