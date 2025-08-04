@@ -1,46 +1,68 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, Clock, CheckCircle, XCircle } from "lucide-react";
-
-const stats = [
-  {
-    title: "This Month",
-    value: "$2,847.50",
-    description: "Total expenses claimed",
-    icon: DollarSign,
-    trend: "+12% from last month",
-    color: "text-green-600"
-  },
-  {
-    title: "Pending Approval",
-    value: "4",
-    description: "Claims awaiting review",
-    icon: Clock,
-    trend: "2 submitted today",
-    color: "text-yellow-600"
-  },
-  {
-    title: "Approved",
-    value: "18",
-    description: "Claims this month",
-    icon: CheckCircle,
-    trend: "94% approval rate",
-    color: "text-green-600"
-  },
-  {
-    title: "Rejected",
-    value: "2",
-    description: "Claims returned",
-    icon: XCircle,
-    trend: "Down from last month",
-    color: "text-red-600"
-  }
-];
+import { useExpenseStatsQuery } from "@/hooks/queries/useExpenseQuery";
+import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 
 export function ExpenseStats() {
+  const { employee } = useCurrentEmployee();
+  const { data: stats, isLoading } = useExpenseStatsQuery(employee?.id);
+
+  if (isLoading || !stats) {
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, index) => (
+          <Card key={index}>
+            <CardContent className="pt-6">
+              <div className="animate-pulse">
+                <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                <div className="h-8 bg-muted rounded w-1/2 mb-2"></div>
+                <div className="h-3 bg-muted rounded w-full"></div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  const statsData = [
+    {
+      title: "This Month",
+      value: `$${stats.total.toFixed(2)}`,
+      description: "Total expenses claimed",
+      icon: DollarSign,
+      trend: "Current month total",
+      color: "text-green-600"
+    },
+    {
+      title: "Pending Approval",
+      value: stats.pending.toString(),
+      description: "Claims awaiting review",
+      icon: Clock,
+      trend: "Requires action",
+      color: "text-yellow-600"
+    },
+    {
+      title: "Approved",
+      value: stats.approved.toString(),
+      description: "Claims this month",
+      icon: CheckCircle,
+      trend: "Successfully processed",
+      color: "text-green-600"
+    },
+    {
+      title: "Rejected",
+      value: stats.rejected.toString(),
+      description: "Claims returned",
+      icon: XCircle,
+      trend: "Need revision",
+      color: "text-red-600"
+    }
+  ];
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {stats.map((stat, index) => (
+      {statsData.map((stat, index) => (
         <Card key={index}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">

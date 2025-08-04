@@ -13,63 +13,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Eye, Download, Search, Filter } from "lucide-react";
+import { useMyExpensesQuery } from "@/hooks/queries/useExpenseQuery";
+import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
+import { format } from "date-fns";
 
 interface ExpenseHistoryProps {
   limit?: number;
 }
-
-const mockExpenses = [
-  {
-    id: "EXP-001",
-    date: "2024-01-15",
-    category: "Travel",
-    description: "Business trip to Chicago",
-    amount: 450.00,
-    status: "approved",
-    merchant: "Delta Airlines",
-    approvedBy: "Sarah Johnson"
-  },
-  {
-    id: "EXP-002",
-    date: "2024-01-14",
-    category: "Meals",
-    description: "Client dinner meeting",
-    amount: 89.50,
-    status: "pending",
-    merchant: "The Steakhouse",
-    approvedBy: null
-  },
-  {
-    id: "EXP-003",
-    date: "2024-01-12",
-    category: "Office Supplies",
-    description: "Office equipment and supplies",
-    amount: 125.75,
-    status: "approved",
-    merchant: "Office Depot",
-    approvedBy: "Mike Wilson"
-  },
-  {
-    id: "EXP-004",
-    date: "2024-01-10",
-    category: "Technology",
-    description: "Software subscription renewal",
-    amount: 99.00,
-    status: "rejected",
-    merchant: "Adobe",
-    approvedBy: "Sarah Johnson"
-  },
-  {
-    id: "EXP-005",
-    date: "2024-01-08",
-    category: "Travel",
-    description: "Taxi to airport",
-    amount: 35.00,
-    status: "approved",
-    merchant: "Uber",
-    approvedBy: "Mike Wilson"
-  }
-];
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -85,17 +35,30 @@ const getStatusBadge = (status: string) => {
 };
 
 export function ExpenseHistory({ limit }: ExpenseHistoryProps) {
+  const { employee } = useCurrentEmployee();
+  const { data: expenses = [], isLoading } = useMyExpensesQuery(employee?.id);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   
-  const filteredExpenses = mockExpenses
+  const filteredExpenses = expenses
     .filter(expense => {
-      const matchesSearch = expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           expense.merchant.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!expense) return false;
+      const matchesSearch = (expense.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                           (expense.merchant?.toLowerCase() || '').includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === "all" || expense.status === statusFilter;
       return matchesSearch && matchesStatus;
     })
     .slice(0, limit);
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-center text-muted-foreground">Loading expenses...</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -147,15 +110,15 @@ export function ExpenseHistory({ limit }: ExpenseHistoryProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredExpenses.map((expense) => (
+              {filteredExpenses.map((expense: any) => (
                 <TableRow key={expense.id}>
-                  <TableCell className="font-medium">{expense.id}</TableCell>
-                  <TableCell>{expense.date}</TableCell>
-                  <TableCell>{expense.category}</TableCell>
+                  <TableCell className="font-medium">{expense.expense_number}</TableCell>
+                  <TableCell>{format(new Date(expense.expense_date), 'MMM dd, yyyy')}</TableCell>
+                  <TableCell>{expense.expense_categories?.name || 'N/A'}</TableCell>
                   <TableCell className="max-w-[200px] truncate">
-                    {expense.description}
+                    {expense.title}
                   </TableCell>
-                  <TableCell>{expense.merchant}</TableCell>
+                  <TableCell>{expense.merchant || 'N/A'}</TableCell>
                   <TableCell className="text-right font-medium">
                     ${expense.amount.toFixed(2)}
                   </TableCell>
