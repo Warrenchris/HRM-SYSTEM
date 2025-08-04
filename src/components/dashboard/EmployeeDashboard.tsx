@@ -203,13 +203,13 @@ export function EmployeeDashboard() {
   ];
 
   const quickActions = [
-    { label: "Clock In/Out", icon: Timer, href: "/app/attendance", color: "bg-blue-500" },
-    { label: "Request Leave", icon: CalendarDays, href: "/app/leave", color: "bg-green-500" },
-    { label: "Submit Expense", icon: CreditCard, href: "/app/expenses", color: "bg-purple-500" },
-    { label: "View Tasks", icon: CheckSquare, href: "/app/tasks", color: "bg-orange-500" },
-    { label: "Timesheets", icon: FileText, href: "/app/timesheets", color: "bg-indigo-500" },
+    { label: "Clock In/Out", icon: Timer, href: "/app/employee/attendance", color: "bg-blue-500" },
+    { label: "Request Leave", icon: CalendarDays, href: "/app/employee/leave", color: "bg-green-500" },
+    { label: "Submit Expense", icon: CreditCard, href: "/app/employee/expenses", color: "bg-purple-500" },
+    { label: "View Tasks", icon: CheckSquare, href: "/app/employee/tasks", color: "bg-orange-500" },
+    { label: "Timesheets", icon: FileText, href: "/app/employee/timesheets", color: "bg-indigo-500" },
     { label: "Generate Payslip", icon: FileText, href: "#payslip", color: "bg-teal-500" },
-    { label: "Performance", icon: TrendingUp, href: "/app/performance", color: "bg-pink-500" }
+    { label: "Performance", icon: TrendingUp, href: "/app/employee/performance", color: "bg-pink-500" }
   ];
 
   return (
