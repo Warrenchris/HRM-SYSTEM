@@ -7,6 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Play, Pause, Square, Timer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useCreateTimesheetEntryMutation, useTimesheetEntriesQuery } from "@/hooks/queries/useTimesheetQuery";
+import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
+import { format } from "date-fns";
 
 interface TimeEntry {
   id: string;
@@ -25,8 +28,11 @@ export function ProjectTimer() {
   const [taskName, setTaskName] = useState("");
   const [description, setDescription] = useState("");
   const [startTime, setStartTime] = useState<Date | null>(null);
-  const [todayEntries, setTodayEntries] = useState<TimeEntry[]>([]);
   const { toast } = useToast();
+  const { employee } = useCurrentEmployee();
+  const createTimesheetEntry = useCreateTimesheetEntryMutation();
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const { data: todayEntries = [] } = useTimesheetEntriesQuery(employee?.id, today);
 
   const projects = [
     "HR Management System",
@@ -82,39 +88,34 @@ export function ProjectTimer() {
   };
 
   const handleStop = () => {
-    if (startTime) {
+    if (startTime && employee?.id) {
       const endTime = new Date();
-      const duration = endTime.getTime() - startTime.getTime();
       
-      const newEntry: TimeEntry = {
-        id: Date.now().toString(),
-        project: selectedProject,
-        task: taskName,
-        description,
-        startTime,
-        endTime,
-        duration,
-      };
-
-      setTodayEntries([...todayEntries, newEntry]);
-      
-      // Reset timer
-      setIsRunning(false);
-      setCurrentTime(0);
-      setStartTime(null);
-      setTaskName("");
-      setDescription("");
-      
-      toast({
-        title: "Time Entry Saved",
-        description: `${formatTime(duration)} logged for ${taskName}`,
+      createTimesheetEntry.mutate({
+        employee_id: employee.id,
+        project_name: selectedProject,
+        task_name: taskName,
+        description: description || undefined,
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
+        break_duration: 0,
+        entry_date: format(startTime, 'yyyy-MM-dd'),
+      }, {
+        onSuccess: () => {
+          // Reset timer
+          setIsRunning(false);
+          setCurrentTime(0);
+          setStartTime(null);
+          setTaskName("");
+          setDescription("");
+        }
       });
     }
   };
 
   const getTotalTime = () => {
     const timerTime = isRunning ? currentTime : 0;
-    const entriesTime = todayEntries.reduce((total, entry) => total + entry.duration, 0);
+    const entriesTime = todayEntries.reduce((total, entry) => total + (entry.total_hours * 3600 * 1000), 0);
     return timerTime + entriesTime;
   };
 
@@ -211,18 +212,18 @@ export function ProjectTimer() {
                 <div key={entry.id} className="border rounded-lg p-3 space-y-1">
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="font-medium">{entry.task}</p>
-                      <p className="text-sm text-muted-foreground">{entry.project}</p>
+                      <p className="font-medium">{entry.task_name}</p>
+                      <p className="text-sm text-muted-foreground">{entry.project_name}</p>
                     </div>
                     <span className="font-mono text-sm">
-                      {formatTime(entry.duration)}
+                      {entry.total_hours}h
                     </span>
                   </div>
                   {entry.description && (
                     <p className="text-sm text-muted-foreground">{entry.description}</p>
                   )}
                   <p className="text-xs text-muted-foreground">
-                    {entry.startTime.toLocaleTimeString()} - {entry.endTime?.toLocaleTimeString()}
+                    {new Date(entry.start_time).toLocaleTimeString()} - {new Date(entry.end_time).toLocaleTimeString()}
                   </p>
                 </div>
               ))

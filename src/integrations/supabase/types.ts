@@ -1622,6 +1622,63 @@ export type Database = {
           },
         ]
       }
+      timesheet_entries: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          break_duration: number | null
+          company_id: string | null
+          created_at: string
+          description: string | null
+          employee_id: string
+          end_time: string
+          entry_date: string
+          id: string
+          project_name: string
+          start_time: string
+          status: string
+          task_name: string
+          total_hours: number | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          break_duration?: number | null
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          employee_id: string
+          end_time: string
+          entry_date: string
+          id?: string
+          project_name: string
+          start_time: string
+          status?: string
+          task_name: string
+          total_hours?: number | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          break_duration?: number | null
+          company_id?: string | null
+          created_at?: string
+          description?: string | null
+          employee_id?: string
+          end_time?: string
+          entry_date?: string
+          id?: string
+          project_name?: string
+          start_time?: string
+          status?: string
+          task_name?: string
+          total_hours?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_activity_logs: {
         Row: {
           action: string

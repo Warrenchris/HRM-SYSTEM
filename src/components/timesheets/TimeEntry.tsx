@@ -10,6 +10,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Plus, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { useCreateTimesheetEntryMutation } from "@/hooks/queries/useTimesheetQuery";
+import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 
 export function TimeEntry() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -20,6 +22,8 @@ export function TimeEntry() {
   const [endTime, setEndTime] = useState("");
   const [breakDuration, setBreakDuration] = useState("60");
   const { toast } = useToast();
+  const { employee } = useCurrentEmployee();
+  const createTimesheetEntry = useCreateTimesheetEntryMutation();
 
   const projects = [
     "HR Management System",
@@ -60,20 +64,39 @@ export function TimeEntry() {
       return;
     }
 
-    const duration = calculateDuration();
-    
-    toast({
-      title: "Time Entry Saved",
-      description: `${duration} hours logged for ${task}`,
-    });
+    if (!employee?.id) {
+      toast({
+        title: "Error",
+        description: "Employee information not found",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // Reset form
-    setProject("");
-    setTask("");
-    setDescription("");
-    setStartTime("");
-    setEndTime("");
-    setBreakDuration("60");
+    const entryDate = format(selectedDate, 'yyyy-MM-dd');
+    const startDateTime = `${entryDate}T${startTime}:00`;
+    const endDateTime = `${entryDate}T${endTime}:00`;
+
+    createTimesheetEntry.mutate({
+      employee_id: employee.id,
+      project_name: project,
+      task_name: task,
+      description: description || undefined,
+      start_time: startDateTime,
+      end_time: endDateTime,
+      break_duration: parseInt(breakDuration),
+      entry_date: entryDate,
+    }, {
+      onSuccess: () => {
+        // Reset form
+        setProject("");
+        setTask("");
+        setDescription("");
+        setStartTime("");
+        setEndTime("");
+        setBreakDuration("60");
+      }
+    });
   };
 
   return (
@@ -189,8 +212,8 @@ export function TimeEntry() {
               </span>
             </div>
             
-            <Button type="submit">
-              Add Time Entry
+            <Button type="submit" disabled={createTimesheetEntry.isPending}>
+              {createTimesheetEntry.isPending ? "Saving..." : "Add Time Entry"}
             </Button>
           </div>
         </form>
