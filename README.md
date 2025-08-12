@@ -1,73 +1,61 @@
-# Welcome to your Lovable project
+# Sigma HRM — Human Capital Suite
 
-## Project info
+A modern HR management suite covering employees, attendance, leave, payroll, performance, assets, tasks, tickets, announcements, and more.
 
-**URL**: https://lovable.dev/projects/ec71ff74-c92b-423e-aebb-ad0866ff75bc
+## Tech Stack
 
-## How can I edit this code?
+- Vite + React + TypeScript
+- Tailwind CSS + shadcn/ui
+- Supabase (Auth, DB, Storage)
 
-There are several ways of editing your application.
+## Prerequisites
 
-**Use Lovable**
+- Node.js 18+ and npm
+- Supabase CLI (for local dev): `https://supabase.com/docs/guides/cli`
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/ec71ff74-c92b-423e-aebb-ad0866ff75bc) and start prompting.
+## Environment Variables
 
-Changes made via Lovable will be committed automatically to this repo.
+Create a `.env` (or `.env.local`) in the project root:
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+VITE_SUPABASE_URL=http://127.0.0.1:54321
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
 ```
 
-**Edit a file directly in GitHub**
+Use your hosted Supabase project URL and anon key in production.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Local Development
 
-**Use GitHub Codespaces**
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Start Supabase locally [[memory:5971290]]:
+   ```bash
+   supabase start
+   ```
+   - If your database schema is out of date, run: `supabase db reset`
+3. Start the dev server [[memory:5971290]]:
+   ```bash
+   npm run dev
+   ```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Scripts
 
-## What technologies are used for this project?
+- `npm run dev`: Start the Vite dev server
+- `npm run build`: Create a production build
+- `npm run preview`: Preview the production build locally
 
-This project is built with:
+## Project Structure
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- `src/pages`: Top-level routes (e.g., `Dashboard`, `Employees`, `Payroll`)
+- `src/components`: Feature components (attendance, leave, payroll, etc.)
+- `src/contexts`: App-wide providers (auth, company)
+- `src/integrations/supabase`: Supabase client and types
 
-## How can I deploy this project?
+## Contributing
 
-Simply open [Lovable](https://lovable.dev/projects/ec71ff74-c92b-423e-aebb-ad0866ff75bc) and click on Share -> Publish.
+1. Create a feature branch
+2. Make changes with clear commit messages
+3. Open a PR
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
