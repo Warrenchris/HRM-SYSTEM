@@ -26,22 +26,45 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       if (!user || authLoading) return;
 
       try {
-        const { data: profile } = await supabase
+        // Ensure we have a valid session before querying
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          console.error('No valid session found');
+          setRoleLoading(false);
+          return;
+        }
+
+        // Add a small delay to ensure JWT context is properly set
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const { data: profile, error } = await supabase
           .from('profiles')
           .select('role')
           .eq('user_id', user.id)
           .single();
 
-        const userRole = profile?.role || 'employee';
-        
-        // If employee is trying to access root path, redirect to employee dashboard
-        if (userRole === 'employee' && (location.pathname === '/app' || location.pathname === '/app/' || location.pathname === '/app/dashboard')) {
-          navigate('/app/employee-dashboard', { replace: true });
+        if (error) {
+          console.error('Error fetching user profile:', error);
+          // If profile query fails, assume employee role and continue
+          const userRole = 'employee';
+          handleRedirect(userRole);
+        } else {
+          const userRole = profile?.role || 'employee';
+          handleRedirect(userRole);
         }
       } catch (error) {
         console.error('Error checking user role:', error);
+        // On any error, assume employee role and continue
+        handleRedirect('employee');
       } finally {
         setRoleLoading(false);
+      }
+    };
+
+    const handleRedirect = (userRole: string) => {
+      // If employee is trying to access root path, redirect to employee dashboard
+      if (userRole === 'employee' && (location.pathname === '/app' || location.pathname === '/app/' || location.pathname === '/app/dashboard')) {
+        navigate('/app/employee-dashboard', { replace: true });
       }
     };
 

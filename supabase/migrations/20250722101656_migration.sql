@@ -50,14 +50,3 @@ CREATE INDEX idx_organization_positions_level ON public.organization_positions(l
 CREATE INDEX idx_organization_positions_department ON public.organization_positions(department);
 
 -- Insert sample organization structure
-INSERT INTO public.organization_positions (title, department, level, description, responsibilities, requirements, location) VALUES
-('Chief Executive Officer', 'Executive', 1, 'Executive leadership and strategic oversight of the organization', 'Strategic planning, Board reporting, Organizational leadership, Stakeholder management', 'MBA or equivalent, 15+ years executive experience, Leadership skills', 'Head Office'),
-('Chief Technology Officer', 'Technology', 2, 'Technology strategy and oversight', 'Technology strategy, Team leadership, Innovation management, Technical oversight', 'Computer Science degree, 10+ years tech leadership', 'Head Office'),
-('Chief Financial Officer', 'Finance', 2, 'Financial strategy and management', 'Financial planning, Budget management, Risk management, Compliance oversight', 'CPA or Finance degree, 10+ years finance experience', 'Head Office'),
-('Chief Human Resources Officer', 'Human Resources', 2, 'HR strategy and people management', 'HR strategy, Talent management, Culture development, Policy development', 'HR degree, 8+ years HR leadership experience', 'Head Office'),
-('Chief Marketing Officer', 'Marketing', 2, 'Marketing strategy and brand management', 'Marketing strategy, Brand management, Customer acquisition, Campaign oversight', 'Marketing degree, 8+ years marketing leadership', 'Head Office');
-
--- Update parent relationships for C-level positions
-UPDATE public.organization_positions 
-SET parent_position_id = (SELECT id FROM public.organization_positions WHERE title = 'Chief Executive Officer')
-WHERE title IN ('Chief Technology Officer', 'Chief Financial Officer', 'Chief Human Resources Officer', 'Chief Marketing Officer');

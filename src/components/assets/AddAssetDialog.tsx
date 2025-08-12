@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 const assetSchema = z.object({
   name: z.string().min(2, "Asset name must be at least 2 characters"),
@@ -60,18 +61,39 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
 
   const onSubmit = async (data: AssetFormData) => {
     setIsSubmitting(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    toast({
-      title: "Asset Added Successfully",
-      description: `${data.name} has been added to your asset inventory.`,
-    });
-    
-    form.reset();
-    onOpenChange(false);
-    setIsSubmitting(false);
+    try {
+      const { error } = await supabase
+        .from('assets')
+        .insert({
+          name: data.name,
+          asset_tag: data.assetTag,
+          category: data.category,
+          location: data.location,
+          purchase_date: data.purchaseDate.toISOString().split('T')[0],
+          purchase_value: data.purchaseValue,
+          vendor: data.vendor || null,
+          serial_number: data.serialNumber || null,
+          warranty_date: data.warrantyDate ? data.warrantyDate.toISOString().split('T')[0] : null,
+          condition: data.condition,
+          status: 'available',
+          description: data.description || null,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Asset Added Successfully",
+        description: `${data.name} has been added to your asset inventory.`,
+      });
+
+      form.reset();
+      onOpenChange(false);
+    } catch (e) {
+      console.error('Failed to add asset', e);
+      toast({ title: 'Error', description: 'Failed to add asset', variant: 'destructive' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

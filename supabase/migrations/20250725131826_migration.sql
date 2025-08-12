@@ -1,0 +1,1 @@
+-- Insert leave types

@@ -239,9 +239,3 @@ CREATE TABLE public.company_sizes (
   description TEXT
 );
 
-INSERT INTO public.company_sizes (id, label, description) VALUES
-('1-10', '1-10 employees', 'Small startup or micro business'),
-('11-50', '11-50 employees', 'Small business'),
-('51-200', '51-200 employees', 'Medium business'),
-('201-1000', '201-1000 employees', 'Large business'),
-('1000+', '1000+ employees', 'Enterprise');

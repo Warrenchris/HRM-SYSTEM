@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 // Timeline component removed - using simple list instead
 import { Search, Filter, History, MapPin, User, Wrench, Package, DollarSign } from "lucide-react";
 import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface AssetHistoryEvent {
   id: string;
@@ -24,84 +26,19 @@ interface AssetHistoryEvent {
   notes?: string;
 }
 
-const mockHistoryEvents: AssetHistoryEvent[] = [
-  {
-    id: "H001",
-    assetId: "AST001",
-    assetName: "MacBook Pro 16\"",
-    assetTag: "IT-2024-001",
-    eventType: "maintenance",
-    date: new Date("2024-11-01"),
-    description: "Routine maintenance and software update",
-    performedBy: "IT Support Team",
-    cost: 0,
-    notes: "Updated to macOS Sequoia, cleaned internals, battery health: 98%"
-  },
-  {
-    id: "H002",
-    assetId: "AST001",
-    assetName: "MacBook Pro 16\"",
-    assetTag: "IT-2024-001",
-    eventType: "assignment",
-    date: new Date("2024-01-20"),
-    description: "Assigned to employee",
-    performedBy: "HR Department",
-    previousValue: "Unassigned",
-    newValue: "John Doe",
-    location: "Office Floor 2"
-  },
-  {
-    id: "H003",
-    assetId: "AST001",
-    assetName: "MacBook Pro 16\"",
-    assetTag: "IT-2024-001",
-    eventType: "purchase",
-    date: new Date("2024-01-15"),
-    description: "Asset purchased and added to inventory",
-    performedBy: "Procurement Team",
-    cost: 2499,
-    location: "IT Storage",
-    notes: "Purchased from Apple Store for new hire onboarding"
-  },
-  {
-    id: "H004",
-    assetId: "AST003",
-    assetName: "Dell Monitor 27\"",
-    assetTag: "IT-2024-045",
-    eventType: "repair",
-    date: new Date("2025-01-10"),
-    description: "Screen flickering issue repair",
-    performedBy: "External Technician",
-    cost: 85,
-    location: "IT Storage",
-    notes: "Replaced backlight inverter, 6 month warranty on repair"
-  },
-  {
-    id: "H005",
-    assetId: "AST004",
-    assetName: "Toyota Camry 2023",
-    assetTag: "VEH-2023-001",
-    eventType: "maintenance",
-    date: new Date("2024-12-01"),
-    description: "Regular service maintenance",
-    performedBy: "Fleet Services",
-    cost: 450,
-    notes: "Oil change, tire rotation, brake inspection - next service due Feb 2025"
-  },
-  {
-    id: "H006",
-    assetId: "AST002",
-    assetName: "Herman Miller Desk Chair",
-    assetTag: "FUR-2024-025",
-    eventType: "movement",
-    date: new Date("2024-06-15"),
-    description: "Asset relocated",
-    performedBy: "Facilities Team",
-    previousValue: "Office Floor 2",
-    newValue: "Office Floor 1",
-    notes: "Moved due to office reorganization"
-  }
-];
+interface TransferRow {
+  id: string;
+  asset_id: string;
+  transfer_status: string;
+  previous_status: string | null;
+  transfer_reason: string | null;
+  transfer_notes: string | null;
+  transfer_date: string;
+  transferred_by: string;
+  asset?: { name: string; asset_tag: string };
+  from?: { first_name: string; last_name: string } | null;
+  to?: { first_name: string; last_name: string } | null;
+}
 
 const eventTypeConfig = {
   purchase: { color: "bg-green-500", label: "Purchase", icon: Package },
@@ -114,12 +51,60 @@ const eventTypeConfig = {
 };
 
 export function AssetHistory() {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [eventTypeFilter, setEventTypeFilter] = useState("all");
   const [assetFilter, setAssetFilter] = useState("all");
   const [dateRange, setDateRange] = useState("30");
+  const [events, setEvents] = useState<AssetHistoryEvent[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredEvents = mockHistoryEvents.filter((event) => {
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('asset_transfers')
+          .select(`
+            id, asset_id, transfer_status, previous_status, transfer_reason, transfer_notes, transfer_date, transferred_by,
+            asset:assets(name, asset_tag),
+            from:employees!asset_transfers_from_employee_id_fkey(first_name, last_name),
+            to:employees!asset_transfers_to_employee_id_fkey(first_name, last_name)
+          `)
+          .order('transfer_date', { ascending: false })
+          .limit(200);
+
+        if (error) throw error;
+
+        const mapped: AssetHistoryEvent[] = (data as unknown as TransferRow[] || []).map((row) => ({
+          id: row.id,
+          assetId: row.asset_id,
+          assetName: row.asset?.name || 'Asset',
+          assetTag: row.asset?.asset_tag || '',
+          eventType: (row.transfer_status as any) === 'repair' ? 'repair' :
+                     (row.transfer_status as any) === 'maintenance' ? 'maintenance' :
+                     (row.transfer_status as any) === 'assigned' ? 'assignment' : 'update',
+          date: new Date(row.transfer_date),
+          description: row.transfer_reason || 'Transfer update',
+          performedBy: 'System',
+          previousValue: row.previous_status || undefined,
+          newValue: row.transfer_status,
+          notes: row.transfer_notes || undefined,
+        }));
+
+        setEvents(mapped);
+      } catch (e) {
+        console.error('Failed to load asset history', e);
+        toast({ title: 'Error', description: 'Failed to load asset history', variant: 'destructive' });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [toast]);
+
+  const filteredEvents = useMemo(() => events.filter((event) => {
     const matchesSearch = event.assetName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          event.assetTag.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -134,7 +119,7 @@ export function AssetHistory() {
     const matchesDateRange = dateRange === "all" || daysDiff <= parseInt(dateRange);
     
     return matchesSearch && matchesEventType && matchesAsset && matchesDateRange;
-  });
+  }), [events, searchTerm, eventTypeFilter, assetFilter, dateRange]);
 
   const getEventBadge = (eventType: AssetHistoryEvent["eventType"]) => {
     const config = eventTypeConfig[eventType];
@@ -242,7 +227,7 @@ export function AssetHistory() {
 
         {/* Results Summary */}
         <div className="mb-4 text-sm text-muted-foreground">
-          Showing {filteredEvents.length} events
+          {loading ? 'Loading events...' : `Showing ${filteredEvents.length} events`}
         </div>
 
         {/* Events List */}

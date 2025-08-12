@@ -45,15 +45,9 @@ export default function Onboarding() {
     billingCycle: "monthly"
   });
 
-  const industries = [
-    "Technology", "Healthcare", "Finance", "Education", "Manufacturing",
-    "Retail", "Construction", "Agriculture", "Transportation", "Other"
-  ];
+  const industries: string[] = [];
 
-  const countries = [
-    "Kenya", "Uganda", "Tanzania", "Rwanda", "Burundi", "Ethiopia",
-    "South Sudan", "Somalia", "Other"
-  ];
+  const countries: string[] = [];
 
   const handleInputChange = (field: keyof CompanyData, value: string) => {
     setCompanyData(prev => ({ ...prev, [field]: value }));

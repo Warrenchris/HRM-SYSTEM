@@ -48,7 +48,7 @@ export function EditEmployeeDialog({ isOpen, onClose, onSubmit, onRefresh, emplo
         updateData.email = tabData.officeEmail; // Keep for backward compatibility
       }
       if (tabData.personalEmail !== undefined) updateData.personal_email = tabData.personalEmail;
-      if (tabData.dateOfBirth !== undefined) updateData.date_of_birth = tabData.dateOfBirth || null;
+      if (tabData.dateOfBirth !== undefined) updateData.date_of_birth = (tabData.dateOfBirth && tabData.dateOfBirth.trim() !== '') ? tabData.dateOfBirth : null;
       if (tabData.gender !== undefined) updateData.gender = tabData.gender;
       if (tabData.maritalStatus !== undefined) updateData.marital_status = tabData.maritalStatus;
       if (tabData.phone !== undefined) updateData.phone = tabData.phone;
@@ -68,10 +68,10 @@ export function EditEmployeeDialog({ isOpen, onClose, onSubmit, onRefresh, emplo
       if (tabData.role !== undefined) updateData.role = tabData.role;
       if (tabData.officeBranch !== undefined) updateData.office_branch = tabData.officeBranch;
       if (tabData.siteProject !== undefined) updateData.site_project = tabData.siteProject;
-      if (tabData.dateOfJoining !== undefined) updateData.join_date = tabData.dateOfJoining || null;
-      if (tabData.contractStartDate !== undefined) updateData.contract_start_date = tabData.contractStartDate || null;
-      if (tabData.contractEndDate !== undefined) updateData.contract_end_date = tabData.contractEndDate || null;
-      if (tabData.exitDate !== undefined) updateData.exit_date = tabData.exitDate || null;
+      if (tabData.dateOfJoining !== undefined) updateData.join_date = (tabData.dateOfJoining && tabData.dateOfJoining.trim() !== '') ? tabData.dateOfJoining : null;
+      if (tabData.contractStartDate !== undefined) updateData.contract_start_date = (tabData.contractStartDate && tabData.contractStartDate.trim() !== '') ? tabData.contractStartDate : null;
+      if (tabData.contractEndDate !== undefined) updateData.contract_end_date = (tabData.contractEndDate && tabData.contractEndDate.trim() !== '') ? tabData.contractEndDate : null;
+      if (tabData.exitDate !== undefined) updateData.exit_date = (tabData.exitDate && tabData.exitDate.trim() !== '') ? tabData.exitDate : null;
       if (tabData.basicSalary !== undefined) {
         const salary = tabData.basicSalary ? parseFloat(tabData.basicSalary) : null;
         updateData.basic_salary = salary;

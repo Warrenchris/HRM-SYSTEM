@@ -130,6 +130,8 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger, 
 
   const handleEditEmployee = async (employeeData: any) => {
     try {
+      const toNullableDate = (value: any) => (value && String(value).trim() !== "" ? value : null);
+
       const { error } = await supabase
         .from('employees')
         .update({
@@ -140,7 +142,7 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger, 
           office_email: employeeData.officeEmail,
           personal_email: employeeData.personalEmail,
           email: employeeData.officeEmail, // Keep for backward compatibility
-          date_of_birth: employeeData.dateOfBirth,
+          date_of_birth: toNullableDate(employeeData.dateOfBirth),
           gender: employeeData.gender,
           marital_status: employeeData.maritalStatus,
           phone: employeeData.phone,
@@ -157,10 +159,10 @@ export function EmployeeTable({ searchTerm, selectedDepartment, refreshTrigger, 
           role: employeeData.role,
           office_branch: employeeData.officeBranch,
           site_project: employeeData.siteProject,
-          join_date: employeeData.dateOfJoining,
-          contract_start_date: employeeData.contractStartDate,
-          contract_end_date: employeeData.contractEndDate,
-          exit_date: employeeData.exitDate,
+          join_date: toNullableDate(employeeData.dateOfJoining),
+          contract_start_date: toNullableDate(employeeData.contractStartDate),
+          contract_end_date: toNullableDate(employeeData.contractEndDate),
+          exit_date: toNullableDate(employeeData.exitDate),
 
           // Payment Information
           basic_salary: employeeData.basicSalary ? parseFloat(employeeData.basicSalary) : null,

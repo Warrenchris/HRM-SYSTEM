@@ -170,19 +170,19 @@ export function UserTable() {
 
   const fetchEmployees = async () => {
     try {
-      // Get all employees who don't already have user accounts (excluding super admin accounts)
+      // Get all employees who already have user accounts
       const { data: profiles } = await supabase
         .from('profiles')
         .select('employee_id')
         .not('employee_id', 'is', null);
 
-      const existingEmployeeIds = profiles?.map(p => p.employee_id) || [];
+      const existingIds = new Set((profiles || []).map((p: any) => p.employee_id));
 
+      // Fetch active employees and filter out those already linked to a profile
       const { data: employeesData, error } = await supabase
         .from('employees')
-        .select('*')
+        .select('id, first_name, last_name, email, department, position, employee_id')
         .eq('status', 'active')
-        .not('id', 'in', `(${existingEmployeeIds.join(',') || 'null'})`)
         .order('first_name');
 
       if (error) {
@@ -190,7 +190,8 @@ export function UserTable() {
         return;
       }
 
-      setEmployees(employeesData || []);
+      const available = (employeesData || []).filter((e: any) => !existingIds.has(e.id));
+      setEmployees(available);
     } catch (error) {
       console.error('Error fetching employees:', error);
     }
@@ -252,7 +253,7 @@ export function UserTable() {
 
     setCreating(true);
     try {
-      // Create auth user
+      // Try normal signup first (works when GoTrue is configured for signups)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: selectedEmployee.email,
         password: userPassword,
@@ -261,22 +262,25 @@ export function UserTable() {
         }
       });
 
-      if (authError) {
-        toast({
-          title: "Error Creating User",
-          description: authError.message,
-          variant: "destructive",
-        });
-        return;
-      }
+      let createdUserId: string | null = authData?.user?.id || null;
 
-      if (!authData.user) {
-        toast({
-          title: "Error",
-          description: "Failed to create user account",
-          variant: "destructive",
+      // If signup fails locally (e.g., missing SMTP), fall back to RPC helper
+      if (authError || !createdUserId) {
+        const { data: rpcUserId, error: rpcError } = await supabase.rpc('dev_create_auth_user', {
+          _email: selectedEmployee.email,
+          _password: userPassword,
         });
-        return;
+
+        if (rpcError || !rpcUserId) {
+          toast({
+            title: "Error Creating User",
+            description: rpcError?.message || authError?.message || 'Database error saving new user',
+            variant: "destructive",
+          });
+          return;
+        }
+
+        createdUserId = rpcUserId as unknown as string;
       }
 
       // Update employee record with auth email
@@ -305,7 +309,7 @@ export function UserTable() {
           role: roleMapping[userRole as keyof typeof roleMapping] || 'employee',
           employee_id: selectedEmployee.id
         })
-        .eq('user_id', authData.user.id);
+        .eq('user_id', createdUserId);
 
       if (profileError) {
         console.error('Error updating profile:', profileError);

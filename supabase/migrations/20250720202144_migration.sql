@@ -58,9 +58,3 @@ FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Insert sample data
-INSERT INTO public.employees (employee_id, first_name, last_name, email, phone, department, position, join_date, salary, status, address, emergency_contact, emergency_phone) VALUES
-('EMP001', 'John', 'Doe', 'john.doe@company.com', '+1-555-0101', 'Engineering', 'Senior Developer', '2023-01-15', 85000.00, 'active', '123 Main St, City, State', 'Jane Doe', '+1-555-0102'),
-('EMP002', 'Sarah', 'Johnson', 'sarah.johnson@company.com', '+1-555-0103', 'Marketing', 'Marketing Manager', '2023-02-20', 72000.00, 'active', '456 Oak Ave, City, State', 'Mike Johnson', '+1-555-0104'),
-('EMP003', 'Michael', 'Brown', 'michael.brown@company.com', '+1-555-0105', 'HR', 'HR Specialist', '2023-03-10', 65000.00, 'active', '789 Pine Rd, City, State', 'Lisa Brown', '+1-555-0106'),
-('EMP004', 'Emily', 'Davis', 'emily.davis@company.com', '+1-555-0107', 'Finance', 'Financial Analyst', '2023-04-05', 68000.00, 'active', '321 Elm St, City, State', 'Tom Davis', '+1-555-0108'),
-('EMP005', 'David', 'Wilson', 'david.wilson@company.com', '+1-555-0109', 'Engineering', 'Junior Developer', '2023-05-12', 55000.00, 'inactive', '654 Maple Dr, City, State', 'Anna Wilson', '+1-555-0110');

@@ -287,42 +287,42 @@ export default function Employees() {
   };
 
   const generateTemplate = () => {
-    const templateData = [{
-      'Employee ID': 'EMP001',
-      'First Name': 'John',
-      'Last Name': 'Doe',
-      'Second Name': 'Middle',
-      'Other Name': 'Nickname',
-      'Office Email': 'john.doe@company.com',
-      'Personal Email': 'john@personal.com',
-      'Phone': '+1234567890',
-      'Date of Birth': '1990-01-01',
-      'Gender': 'Male',
-      'Marital Status': 'Single',
-      'Department': 'Engineering',
-      'Position': 'Software Developer',
-      'Join Date': '2024-01-01',
-      'Basic Salary': '50000',
-      'Hourly Rate': '25',
-      'Local Address': '123 Main St, City',
-      'Permanent Address': '456 Home St, Hometown',
-      'Reporting To': 'Manager Name',
-      'Office Branch': 'Main Office',
-      'Site Project': 'Project Alpha',
-      'Bank Name': 'Bank Name',
-      'Bank Account Number': '1234567890',
-      'KRA PIN': 'A123456789',
-      'NSSF Number': 'NS123456',
-      'ID Number': '12345678',
-      'Next of Kin Name': 'Jane Doe',
-      'Next of Kin Relationship': 'Spouse',
-      'Next of Kin Mobile': '+0987654321',
-      'Emergency Contact': 'Emergency Person',
-      'Emergency Phone': '+1111111111'
-    }];
+    const headers = [
+      'Employee ID',
+      'First Name',
+      'Last Name',
+      'Second Name',
+      'Other Name',
+      'Office Email',
+      'Personal Email',
+      'Phone',
+      'Date of Birth',
+      'Gender',
+      'Marital Status',
+      'Department',
+      'Position',
+      'Join Date',
+      'Basic Salary',
+      'Hourly Rate',
+      'Local Address',
+      'Permanent Address',
+      'Reporting To',
+      'Office Branch',
+      'Site Project',
+      'Bank Name',
+      'Bank Account Number',
+      'KRA PIN',
+      'NSSF Number',
+      'ID Number',
+      'Next of Kin Name',
+      'Next of Kin Relationship',
+      'Next of Kin Mobile',
+      'Emergency Contact',
+      'Emergency Phone'
+    ];
 
     const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    const worksheet = XLSX.utils.aoa_to_sheet([headers]);
     
     // Set column widths
     const columnWidths = [

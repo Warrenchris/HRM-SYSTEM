@@ -36,10 +36,3 @@ CREATE INDEX idx_system_logs_action ON public.system_logs(action);
 CREATE INDEX idx_system_logs_user_id ON public.system_logs(user_id);
 
 -- Insert sample system logs
-INSERT INTO public.system_logs (action, resource_type, resource_id, user_id, details, severity) VALUES
-('user_login', 'auth', 'user_123', null, '{"login_method": "email"}', 'info'),
-('expense_approved', 'expense', 'EXP-001', null, '{"amount": 150.00, "category": "Travel"}', 'info'),
-('employee_created', 'employee', 'EMP-001', null, '{"name": "John Doe", "department": "IT"}', 'info'),
-('system_backup', 'system', 'backup_001', null, '{"backup_size": "2.5GB", "status": "completed"}', 'info'),
-('failed_login_attempt', 'auth', 'user_456', null, '{"attempts": 3, "ip": "192.168.1.100"}', 'warning'),
-('database_error', 'system', null, null, '{"error": "Connection timeout", "query": "SELECT * FROM users"}', 'error');

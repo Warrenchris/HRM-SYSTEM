@@ -16,13 +16,22 @@ import {
   FileText
 } from "lucide-react";
 import { useEmployeeStatsQuery } from "@/hooks/queries/useEmployeesQuery";
-import { useUpcomingBirthdaysQuery, useTodayAttendanceQuery } from "@/hooks/queries/useDashboardQueries";
+import {
+  useUpcomingBirthdaysQuery,
+  useTodayAttendanceQuery,
+  useContractsExpiringQuery,
+  usePendingActionsQuery,
+  useRecentActivitiesQuery,
+} from "@/hooks/queries/useDashboardQueries";
 
 export default function Dashboard() {
   // Use optimized queries with caching
   const { data: employeeStats, isLoading: statsLoading } = useEmployeeStatsQuery();
   const { data: upcomingBirthdays = [], isLoading: birthdaysLoading } = useUpcomingBirthdaysQuery();
   const { data: attendanceData, isLoading: attendanceLoading } = useTodayAttendanceQuery();
+  const { data: contractsData = [] } = useContractsExpiringQuery(60);
+  const { data: pendingData = [] } = usePendingActionsQuery(5);
+  const { data: activitiesData = [] } = useRecentActivitiesQuery(8);
 
   const todayAttendance = attendanceData?.attendance || [];
   const attendanceStats = attendanceData?.stats || {
@@ -32,129 +41,11 @@ export default function Dashboard() {
     onBreak: 0
   };
 
-  const stats = [
-    {
-      title: "Total Employees",
-      value: statsLoading ? "..." : (employeeStats?.totalEmployees || 0).toString(),
-      change: `${employeeStats?.activeEmployees || 0} active`,
-      trend: "up",
-      icon: Users,
-      color: "bg-blue-500"
-    },
-    {
-      title: "Active Employees",
-      value: statsLoading ? "..." : (employeeStats?.activeEmployees || 0).toString(),
-      change: `${employeeStats?.exitedEmployees || 0} exited`,
-      trend: "up",
-      icon: UserCheck,
-      color: "bg-green-500"
-    },
-    {
-      title: "On Leave",
-      value: "42",
-      change: "-5%",
-      trend: "down",
-      icon: Calendar,
-      color: "bg-orange-500"
-    },
-    {
-      title: "Monthly Payroll",
-      value: "$892,450",
-      change: "+8%",
-      trend: "up",
-      icon: DollarSign,
-      color: "bg-purple-500"
-    }
-  ];
-
-  const pendingActions = [
-    {
-      type: "Leave Request",
-      employee: "Sarah Johnson",
-      department: "Marketing",
-      status: "pending",
-      days: 3,
-      date: "Dec 15-17, 2024"
-    },
-    {
-      type: "Expense Claim",
-      employee: "Mike Chen",
-      department: "Sales",
-      status: "pending",
-      amount: "$450",
-      date: "Dec 10, 2024"
-    },
-    {
-      type: "Loan Application",
-      employee: "Emma Wilson",
-      department: "IT",
-      status: "review",
-      amount: "$5,000",
-      date: "Dec 8, 2024"
-    }
-  ];
-
-  const contractsExpiring = [
-    {
-      employee: "Sarah Johnson",
-      position: "Marketing Manager",
-      department: "Marketing",
-      expiryDate: "Jan 15, 2025",
-      daysRemaining: 26,
-      contractType: "Fixed Term"
-    },
-    {
-      employee: "Mike Chen",
-      position: "Sales Executive",
-      department: "Sales",
-      expiryDate: "Feb 2, 2025",
-      daysRemaining: 44,
-      contractType: "Probation"
-    },
-    {
-      employee: "Emma Wilson",
-      position: "IT Specialist",
-      department: "IT",
-      expiryDate: "Feb 10, 2025",
-      daysRemaining: 52,
-      contractType: "Fixed Term"
-    },
-    {
-      employee: "John Martinez",
-      position: "Operations Lead",
-      department: "Operations",
-      expiryDate: "Jan 28, 2025",
-      daysRemaining: 39,
-      contractType: "Fixed Term"
-    }
-  ];
-
-  const recentActivities = [
-    {
-      action: "New employee onboarded",
-      employee: "Alex Rodriguez",
-      department: "Engineering",
-      time: "2 hours ago",
-      icon: CheckCircle,
-      color: "text-green-500"
-    },
-    {
-      action: "Performance review completed",
-      employee: "Lisa Park",
-      department: "HR",
-      time: "4 hours ago",
-      icon: TrendingUp,
-      color: "text-blue-500"
-    },
-    {
-      action: "Overtime request submitted",
-      employee: "David Kim",
-      department: "Operations",
-      time: "6 hours ago",
-      icon: Clock,
-      color: "text-orange-500"
-    }
-  ];
+  // Remove mock data arrays and replace with fetched data with safe fallbacks
+  const stats: any[] = [];
+  const pendingActions = pendingData;
+  const contractsExpiring = contractsData;
+  const recentActivities = activitiesData;
 
   return (
     <div className="space-y-6">
@@ -166,13 +57,13 @@ export default function Dashboard() {
         </div>
         <div className="flex gap-3">
           <Button asChild variant="outline" className="hover-scale">
-            <Link to="/attendance">
+            <Link to="/app/attendance">
               <Calendar className="w-4 h-4 mr-2" />
               View Calendar
             </Link>
           </Button>
           <Button asChild className="hover-scale">
-            <Link to="/employees">
+            <Link to="/app/employees">
               <Users className="w-4 h-4 mr-2" />
               Add Employee
             </Link>
@@ -229,22 +120,19 @@ export default function Dashboard() {
                     >
                       {contract.daysRemaining} days left
                     </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {contract.contractType}
-                    </Badge>
                   </div>
-                  <p className="font-medium text-sm">{contract.employee}</p>
+                  <p className="font-medium text-sm">{contract.first_name} {contract.last_name}</p>
                   <p className="text-xs text-muted-foreground">{contract.position}</p>
-                  <p className="text-xs text-muted-foreground">{contract.department} • Expires: {contract.expiryDate}</p>
+                  <p className="text-xs text-muted-foreground">{contract.department} • Expires: {new Date(contract.contract_end_date).toLocaleDateString()}</p>
                 </div>
                 <div className="flex gap-2">
                   <Button asChild size="sm" variant="outline" className="hover-scale">
-                    <Link to="/employees">
+                    <Link to="/app/employees">
                       View Contract
                     </Link>
                   </Button>
                   <Button asChild size="sm" className="bg-orange-600 hover:bg-orange-700 hover-scale">
-                    <Link to="/employees">
+                    <Link to="/app/employees">
                       Renew
                     </Link>
                   </Button>
@@ -328,7 +216,7 @@ export default function Dashboard() {
             ))}
             {todayAttendance.length > 5 && (
               <Button asChild variant="outline" size="sm" className="w-full">
-                <Link to="/attendance">View All Attendance</Link>
+                <Link to="/app/attendance">View All Attendance</Link>
               </Button>
             )}
           </div>
@@ -387,7 +275,7 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {pendingActions.map((action, index) => (
+            {pendingActions.map((action: any, index: number) => (
               <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
@@ -396,14 +284,14 @@ export default function Dashboard() {
                       {action.status}
                     </Badge>
                   </div>
-                  <p className="font-medium text-sm">{action.employee}</p>
-                  <p className="text-xs text-muted-foreground">{action.department}</p>
+                  <p className="font-medium text-sm">{action.employee || 'Employee'}</p>
+                  <p className="text-xs text-muted-foreground">{action.department || ''}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium">
-                    {action.amount || `${action.days} days`}
+                    {typeof action.amount === 'number' ? action.amount.toFixed(2) : action.days ? `${action.days} days` : ''}
                   </p>
-                  <p className="text-xs text-muted-foreground">{action.date}</p>
+                  <p className="text-xs text-muted-foreground">{action.date ? new Date(action.date).toLocaleDateString() : ''}</p>
                 </div>
               </div>
             ))}
@@ -422,15 +310,12 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {recentActivities.map((activity, index) => (
+            {recentActivities.map((activity: any, index: number) => (
               <div key={index} className="flex items-start gap-3">
-                <div className={`w-8 h-8 rounded-full bg-muted flex items-center justify-center`}>
-                  <activity.icon className={`w-4 h-4 ${activity.color}`} />
-                </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">{activity.action}</p>
-                  <p className="text-xs text-muted-foreground">{activity.employee} • {activity.department}</p>
-                  <p className="text-xs text-muted-foreground">{activity.time}</p>
+                  <p className="text-xs text-muted-foreground">{activity.employee ? `${activity.employee}${activity.department ? ' • ' + activity.department : ''}` : ''}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(activity.created_at).toLocaleString()}</p>
                 </div>
               </div>
             ))}
@@ -449,12 +334,12 @@ export default function Dashboard() {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {[
-              { label: "Clock In/Out", icon: Clock, href: "/attendance" },
-              { label: "Request Leave", icon: Calendar, href: "/leave" },
-              { label: "Submit Expense", icon: DollarSign, href: "/expenses" },
-              { label: "View Payroll", icon: DollarSign, href: "/payroll" },
-              { label: "Time Sheets", icon: FileText, href: "/timesheets" },
-              { label: "Performance", icon: TrendingUp, href: "/performance" }
+              { label: "Clock In/Out", icon: Clock, href: "/app/attendance" },
+              { label: "Request Leave", icon: Calendar, href: "/app/leave" },
+              { label: "Submit Expense", icon: DollarSign, href: "/app/expenses" },
+              { label: "View Payroll", icon: DollarSign, href: "/app/payroll" },
+              { label: "Time Sheets", icon: FileText, href: "/app/timesheets" },
+              { label: "Performance", icon: TrendingUp, href: "/app/performance" }
             ].map((action, index) => (
               <Button
                 key={index}

@@ -1,8 +1,9 @@
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Switch } from "@/components/ui/switch";
 import { Shield, Check, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Permission {
   id: string;
@@ -37,13 +38,21 @@ export function PermissionMatrix() {
     { id: "clock_in_out", name: "Clock In/Out", category: "General", description: "Record attendance" },
   ];
 
-  const roles: Role[] = [
-    { id: "admin", name: "Admin", color: "bg-purple-100 text-purple-800" },
-    { id: "hr_manager", name: "HR Manager", color: "bg-blue-100 text-blue-800" },
-    { id: "finance_manager", name: "Finance Manager", color: "bg-green-100 text-green-800" },
-    { id: "department_head", name: "Department Head", color: "bg-orange-100 text-orange-800" },
-    { id: "employee", name: "Employee", color: "bg-gray-100 text-gray-800" },
-  ];
+  const [roles, setRoles] = useState<Role[]>([]);
+  useEffect(() => {
+    const loadRoles = async () => {
+      const { data, error } = await supabase.from('user_roles').select('id, name, color');
+      if (!error) {
+        setRoles((data || []).map((r) => ({
+          id: r.id,
+          name: r.name,
+          color: r.color || 'bg-gray-100 text-gray-800',
+        }))
+        );
+      }
+    };
+    loadRoles();
+  }, []);
 
   // Permission matrix - which roles have which permissions
   const permissionMatrix: Record<string, string[]> = {
@@ -88,7 +97,7 @@ export function PermissionMatrix() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-1/3">Permission</TableHead>
-                        {roles.map((role) => (
+              {roles.map((role) => (
                           <TableHead key={role.id} className="text-center">
                             <Badge className={role.color}>{role.name}</Badge>
                           </TableHead>

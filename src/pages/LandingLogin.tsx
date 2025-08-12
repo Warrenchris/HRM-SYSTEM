@@ -121,35 +121,9 @@ export default function LandingLogin() {
     }
   };
 
-  const features = [
-    {
-      icon: Users,
-      title: "Employee Management",
-      description: "Complete employee lifecycle management from onboarding to exit"
-    },
-    {
-      icon: Clock,
-      title: "Time & Attendance",
-      description: "Advanced time tracking with automated attendance reporting"
-    },
-    {
-      icon: Shield,
-      title: "Security & Compliance",
-      description: "Enterprise-grade security with role-based access control"
-    },
-    {
-      icon: TrendingUp,
-      title: "Analytics & Reports",
-      description: "Real-time insights and comprehensive HR analytics"
-    }
-  ];
+  const features: Array<{icon: any; title: string; description: string}> = [];
 
-  const benefits = [
-    "Streamline HR processes and reduce manual work",
-    "Improve employee satisfaction and engagement",
-    "Ensure compliance with labor regulations",
-    "Make data-driven HR decisions"
-  ];
+  const benefits: string[] = [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary/10">

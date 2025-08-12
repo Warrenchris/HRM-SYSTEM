@@ -9,7 +9,8 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RoleBasedRoute } from "@/components/auth/RoleBasedRoute";
 import { OptimizedLayout } from "@/components/layouts/OptimizedLayout";
 import { EmployeeLayout } from "@/components/layouts/EmployeeLayout";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useState, useEffect } from "react";
+// Supabase access elsewhere uses `src/integrations/supabase/client`
 
 // Lazy load all pages for better performance
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -33,6 +34,8 @@ const Landing = lazy(() => import("./pages/Landing"));
 const LandingLogin = lazy(() => import("./pages/LandingLogin"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+
+// Demo `Page` with direct Supabase query removed to avoid multiple clients
 
 // Optimized QueryClient with performance settings
 const queryClient = new QueryClient({
@@ -111,6 +114,7 @@ const App = () => (
                         <Route path="company" element={<Company />} />
                         <Route path="onboarding" element={<Onboarding />} />
                         <Route path="settings" element={<Settings />} />
+                        {/* demo route removed */}
                       </Route>
 
                       {/* Employee accessible routes using EmployeeLayout for employee role */}

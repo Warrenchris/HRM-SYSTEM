@@ -92,8 +92,3 @@ CREATE TRIGGER update_assets_updated_at
   EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Insert some sample data
-INSERT INTO public.assets (name, asset_tag, category, status, condition, location, purchase_date, purchase_value, current_value, vendor, description) VALUES
-('MacBook Pro 16"', 'IT-2024-001', 'IT Equipment', 'available', 'excellent', 'Office Floor 2', '2024-01-15', 2499.00, 2000.00, 'Apple', 'High-performance laptop for development work'),
-('Herman Miller Desk Chair', 'FUR-2024-025', 'Office Furniture', 'assigned', 'good', 'Office Floor 1', '2024-03-10', 850.00, 680.00, 'Herman Miller', 'Ergonomic office chair'),
-('Dell Monitor 27"', 'IT-2024-045', 'IT Equipment', 'maintenance', 'fair', 'IT Storage', '2023-08-22', 450.00, 300.00, 'Dell', '4K display monitor'),
-('Toyota Camry 2023', 'VEH-2023-001', 'Vehicles', 'assigned', 'good', 'Parking Lot A', '2023-06-15', 28500.00, 24000.00, 'Toyota', 'Company vehicle for business trips');
