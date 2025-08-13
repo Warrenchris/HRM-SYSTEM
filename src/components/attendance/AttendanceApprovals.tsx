@@ -57,22 +57,43 @@ export function AttendanceApprovals() {
   const fetchPendingRecords = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      // 1) Fetch attendance records only (avoid PostgREST relationship requirement)
+      const { data: attendance, error: attendanceError } = await supabase
         .from('attendance_records')
-        .select(`
-          *,
-          employees (
-            first_name,
-            last_name,
-            employee_id,
-            department
-          )
-        `)
+        .select('*')
         .order('clock_in_time', { ascending: false })
         .limit(100);
 
-      if (error) throw error;
-      setRecords((data as any) || []);
+      if (attendanceError) throw attendanceError;
+
+      const attendanceList = (attendance as any[]) || [];
+
+      // 2) Collect unique employee IDs
+      const employeeIds = Array.from(
+        new Set(attendanceList.map((r) => r.employee_id).filter(Boolean))
+      );
+
+      // 3) Fetch those employees in one query
+      let employeesById: Record<string, any> = {};
+      if (employeeIds.length > 0) {
+        const { data: employees, error: employeesError } = await supabase
+          .from('employees')
+          .select('id, first_name, last_name, employee_id, department')
+          .in('id', employeeIds);
+
+        if (employeesError) throw employeesError;
+        for (const emp of employees || []) {
+          employeesById[emp.id] = emp;
+        }
+      }
+
+      // 4) Merge employees onto attendance records to match previous shape
+      const merged: AttendanceRecord[] = attendanceList.map((r) => ({
+        ...r,
+        employees: employeesById[r.employee_id] || null,
+      }));
+
+      setRecords(merged);
     } catch (error) {
       console.error('Error fetching attendance records:', error);
       toast({

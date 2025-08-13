@@ -10,6 +10,7 @@ import { RoleBasedRoute } from "@/components/auth/RoleBasedRoute";
 import { OptimizedLayout } from "@/components/layouts/OptimizedLayout";
 import { EmployeeLayout } from "@/components/layouts/EmployeeLayout";
 import { Suspense, lazy, useState, useEffect } from "react";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 // Supabase access elsewhere uses `src/integrations/supabase/client`
 
 // Lazy load all pages for better performance
@@ -71,8 +72,9 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <CompanyProvider>
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
+            <ErrorBoundary>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
                 {/* Public routes */}
                 <Route path="/" element={<Landing />} />
                 <Route path="/auth" element={<LandingLogin />} />
@@ -134,9 +136,10 @@ const App = () => (
                   </ProtectedRoute>
                 } />
                 
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </ErrorBoundary>
           </CompanyProvider>
         </AuthProvider>
       </BrowserRouter>

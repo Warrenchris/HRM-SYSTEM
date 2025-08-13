@@ -1,12 +1,12 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, PlusIcon, XIcon, Check, ChevronsUpDown } from "lucide-react";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { CalendarIcon, PlusIcon, XIcon, ChevronsUpDown } from "lucide-react";
+
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -14,6 +14,82 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useEmployeesList } from "@/hooks/queries/useEmployeesQuery";
 import { useCreateTaskMutation } from "@/hooks/queries/useTasksQuery";
+
+// Simple employee selector that doesn't use cmdk to avoid the error
+const SimpleEmployeeSelector = React.memo(({ 
+  employees, 
+  selectedEmployeeId, 
+  onSelect, 
+  onClose 
+}: {
+  employees: any[];
+  selectedEmployeeId: string;
+  onSelect: (employeeId: string) => void;
+  onClose: () => void;
+}) => {
+  const safeEmployees = Array.isArray(employees) ? employees : [];
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  if (safeEmployees.length === 0) {
+    return (
+      <div className="p-4 text-center text-sm text-muted-foreground">
+        No employees available
+      </div>
+    );
+  }
+
+  const filteredEmployees = safeEmployees.filter(employee => 
+    employee && 
+    typeof employee === 'object' &&
+    employee.id && // Ensure employee has an ID
+    `${employee.first_name || ''} ${employee.last_name || ''} ${employee.position || ''}`
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="p-4 space-y-3">
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="Search employees..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      
+      <div className="max-h-60 overflow-y-auto space-y-1">
+        {filteredEmployees.length === 0 ? (
+          <div className="text-center text-sm text-muted-foreground py-4">
+            No employees found matching "{searchTerm}"
+          </div>
+        ) : (
+          filteredEmployees.map((employee) => (
+            <button
+              key={employee.id}
+              type="button"
+              className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-accent transition-colors ${
+                selectedEmployeeId === employee.id ? 'bg-accent text-accent-foreground' : ''
+              }`}
+              onClick={() => {
+                onSelect(employee.id);
+                onClose();
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <span>{employee.first_name || ''} {employee.last_name || ''}</span>
+                <span className="text-xs text-muted-foreground">{employee.position || ''}</span>
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+});
+
+SimpleEmployeeSelector.displayName = 'SimpleEmployeeSelector';
 
 export function TaskAssignment() {
   const [dueDate, setDueDate] = useState<Date>();
@@ -23,7 +99,37 @@ export function TaskAssignment() {
   const { toast } = useToast();
   
   // Use optimized employee query
-  const { data: employees = [], isLoading: employeesLoading } = useEmployeesList({ status: 'active' });
+  const { data: employees, isLoading: employeesLoading, isError: employeesError } = useEmployeesList({ status: 'active' });
+  
+  // Ensure employees is always an array to prevent errors
+  const safeEmployees = React.useMemo(() => {
+    if (!Array.isArray(employees)) return [];
+    
+    // Filter out any invalid employee objects
+    return employees.filter(emp => 
+      emp && 
+      typeof emp === 'object' && 
+      emp.id && 
+      typeof emp.id === 'string' &&
+      (emp.first_name || emp.last_name || emp.position)
+    );
+  }, [employees]);
+  
+  // Simple check for when we can render the employee selector
+  const canRenderSelector = !employeesLoading && !employeesError && safeEmployees.length > 0 && Array.isArray(employees);
+  
+  // Debug logging to help identify the issue (only in development)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('TaskAssignment render:', {
+      employees,
+      safeEmployees,
+      employeesLoading,
+      employeesError,
+      canRenderSelector,
+      employeeComboOpen
+    });
+  }
+  
   const createTaskMutation = useCreateTaskMutation();
 
   const [formData, setFormData] = useState({
@@ -125,17 +231,27 @@ export function TaskAssignment() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Assign To</label>
-              <Popover open={employeeComboOpen} onOpenChange={setEmployeeComboOpen}>
+              <Popover 
+                open={employeeComboOpen && canRenderSelector} 
+                onOpenChange={(open) => {
+                  if (open && !canRenderSelector) {
+                    // Don't open if we don't have valid data
+                    return;
+                  }
+                  setEmployeeComboOpen(open);
+                }}
+              >
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     role="combobox"
                     aria-expanded={employeeComboOpen}
                     className="w-full justify-between"
+                                         disabled={employeesLoading || !canRenderSelector}
                   >
                     {formData.assigned_to
-                      ? employees.find((employee) => employee.id === formData.assigned_to)
-                          ? `${employees.find((employee) => employee.id === formData.assigned_to)?.first_name} ${employees.find((employee) => employee.id === formData.assigned_to)?.last_name} - ${employees.find((employee) => employee.id === formData.assigned_to)?.position}`
+                      ? safeEmployees.find((employee) => employee.id === formData.assigned_to)
+                          ? `${safeEmployees.find((employee) => employee.id === formData.assigned_to)?.first_name} ${safeEmployees.find((employee) => employee.id === formData.assigned_to)?.last_name} - ${safeEmployees.find((employee) => employee.id === formData.assigned_to)?.position}`
                           : "Select employee..."
                       : "Select employee..."}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -146,35 +262,20 @@ export function TaskAssignment() {
                     <div className="p-4 text-center text-sm text-muted-foreground">
                       Loading employees...
                     </div>
-                  ) : !employees || employees.length === 0 ? (
+                  ) : safeEmployees.length === 0 ? (
                     <div className="p-4 text-center text-sm text-muted-foreground">
-                      No employees found
+                      {employeesError ? 'Error loading employees' : 'No employees found'}
                     </div>
-                  ) : (
-                    <Command>
-                      <CommandInput placeholder="Search employees..." />
-                      <CommandEmpty>No employee found.</CommandEmpty>
-                      <CommandGroup>
-                        {(employees || []).filter(Boolean).map((employee) => (
-                          <CommandItem
-                            key={employee.id}
-                            value={`${employee.first_name || ''} ${employee.last_name || ''} ${employee.position || ''}`}
-                            onSelect={() => {
-                              setFormData({ ...formData, assigned_to: employee.id });
-                              setEmployeeComboOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={`mr-2 h-4 w-4 ${
-                                formData.assigned_to === employee.id ? "opacity-100" : "opacity-0"
-                              }`}
-                            />
-                            {employee.first_name || ''} {employee.last_name || ''} - {employee.position || ''}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </Command>
-                  )}
+                  ) : canRenderSelector && employeeComboOpen ? (
+                    <div className="w-full">
+                      <SimpleEmployeeSelector
+                        employees={safeEmployees}
+                        selectedEmployeeId={formData.assigned_to}
+                        onSelect={(employeeId) => setFormData({ ...formData, assigned_to: employeeId })}
+                        onClose={() => setEmployeeComboOpen(false)}
+                      />
+                    </div>
+                  ) : null}
                 </PopoverContent>
               </Popover>
             </div>

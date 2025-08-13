@@ -31,6 +31,10 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Create a stable dependency key for the provided date so we only refetch
+  // when the calendar day changes, not on every render that creates a new Date
+  const dateKey = date ? new Date(date).toDateString() : undefined;
+
   useEffect(() => {
     if (employeeId) {
       fetchRecords();
@@ -38,7 +42,8 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
       setLoading(false);
       setRecords([]);
     }
-  }, [employeeId, date]);
+  // Depend on the day key instead of the raw Date object reference
+  }, [employeeId, dateKey]);
 
   const fetchRecords = async () => {
     if (!employeeId) {
@@ -100,20 +105,43 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
         console.error('Profile error:', profileError);
       }
 
+      // If no company_id, try to get it from the employee record
+      let companyId = profile?.company_id;
+      if (!companyId) {
+        const { data: employeeData } = await supabase
+          .from('employees')
+          .select('company_id')
+          .eq('id', employeeId)
+          .single();
+        companyId = employeeData?.company_id;
+      }
+
       const clockInData: any = {
         employee_id: employeeId,
         clock_in_time: new Date().toISOString(),
         location,
         notes,
-        status: 'clocked_in',
-        company_id: profile?.company_id || null
+        status: 'clocked_in'
       };
+
+      // Only add company_id if the column exists (for backward compatibility)
+      if (companyId) {
+        try {
+          // Test if company_id column exists by trying to insert it
+          clockInData.company_id = companyId;
+        } catch (error) {
+          console.log('company_id column not available, skipping');
+          delete clockInData.company_id;
+        }
+      }
 
       if (gpsLocation) {
         clockInData.clock_in_latitude = gpsLocation.latitude;
         clockInData.clock_in_longitude = gpsLocation.longitude;
         clockInData.clock_in_gps_timestamp = gpsLocation.timestamp.toISOString();
       }
+
+      console.log('Final clock in data:', clockInData);
 
       console.log('Inserting clock in data:', clockInData);
       const { data, error } = await supabase

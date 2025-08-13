@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Star, Calendar, FileText, Plus, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAppraisalsQuery } from "@/hooks/queries/usePerformanceQueries";
 
 interface PerformanceReview {
   id: string;
@@ -29,58 +30,30 @@ export function PerformanceReviews() {
   const [newReviewComment, setNewReviewComment] = useState("");
   const [selectedRating, setSelectedRating] = useState<number>(0);
   const { toast } = useToast();
-
-  const reviews: PerformanceReview[] = [
-    {
-      id: "PR001",
-      employeeName: "John Doe",
-      employeeId: "EMP001",
-      department: "Development",
-      position: "Senior Developer",
-      reviewPeriod: "Q2 2024",
-      status: "completed",
-      dueDate: "2024-07-15",
-      rating: 4.5,
-      reviewer: "Sarah Manager",
-      lastUpdated: "2024-07-14",
-    },
-    {
-      id: "PR002",
-      employeeName: "Jane Smith",
-      employeeId: "EMP002",
-      department: "Design",
-      position: "UI/UX Designer",
-      reviewPeriod: "Q2 2024",
-      status: "in-progress",
-      dueDate: "2024-07-20",
-      reviewer: "Mike Lead",
-      lastUpdated: "2024-07-18",
-    },
-    {
-      id: "PR003",
-      employeeName: "Mike Johnson",
-      employeeId: "EMP003",
-      department: "Development",
-      position: "Full Stack Developer",
-      reviewPeriod: "Q2 2024",
-      status: "overdue",
-      dueDate: "2024-07-10",
-      reviewer: "Sarah Manager",
-      lastUpdated: "2024-07-09",
-    },
-    {
-      id: "PR004",
-      employeeName: "Emily Brown",
-      employeeId: "EMP004",
-      department: "Marketing",
-      position: "Marketing Specialist",
-      reviewPeriod: "Q2 2024",
-      status: "scheduled",
-      dueDate: "2024-07-25",
-      reviewer: "Alex Director",
-      lastUpdated: "2024-07-15",
-    },
-  ];
+  const { data: appraisals = [], isLoading } = useAppraisalsQuery();
+  const reviews: PerformanceReview[] = useMemo(() => {
+    return (appraisals || []).map(a => {
+      const employeeName = [a.employee?.first_name, a.employee?.last_name].filter(Boolean).join(' ') || 'Unknown';
+      const department = a.employee?.department || '';
+      const position = a.employee?.position || '';
+      const reviewer = [a.appraiser?.first_name, a.appraiser?.last_name].filter(Boolean).join(' ') || '';
+      // Map status to include 'scheduled' when pending
+      const mappedStatus = a.status === 'pending' ? 'scheduled' : (a.status as PerformanceReview['status']);
+      return {
+        id: a.id,
+        employeeName,
+        employeeId: a.employee_id,
+        department,
+        position,
+        reviewPeriod: a.appraisal_period,
+        status: mappedStatus,
+        dueDate: a.due_date,
+        rating: a.overall_rating ?? undefined,
+        reviewer,
+        lastUpdated: a.updated_at,
+      } as PerformanceReview;
+    });
+  }, [appraisals]);
 
   const getStatusBadge = (status: PerformanceReview["status"]) => {
     switch (status) {

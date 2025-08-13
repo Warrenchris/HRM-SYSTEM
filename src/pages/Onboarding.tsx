@@ -95,7 +95,7 @@ export default function Onboarding() {
       if (updateError) throw updateError;
 
       toast.success("Company created successfully!");
-      navigate("/dashboard");
+      navigate("/app/dashboard");
     } catch (error: any) {
       console.error("Error creating company:", error);
       toast.error(error.message || "Failed to create company");

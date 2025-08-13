@@ -12,6 +12,8 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useAttendanceRecords } from "@/hooks/useAttendanceData";
+import { useAttendanceRecordsQuery } from "@/hooks/queries/useAttendanceQuery";
+import { supabase } from "@/integrations/supabase/client";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { 
   BarChart, 
@@ -53,6 +55,26 @@ export function AttendanceReports() {
   const { toast } = useToast();
   const { employee } = useCurrentEmployee();
   const { records, loading } = useAttendanceRecords(employee?.id);
+  const { data: allRecords } = useAttendanceRecordsQuery({});
+  const [employeeMap, setEmployeeMap] = useState<Record<string, { id: string; first_name?: string; last_name?: string; department?: string }>>({});
+
+  // Build employee map for any employee IDs present in the result set
+  useEffect(() => {
+    const loadEmployees = async () => {
+      const ids = Array.from(new Set((allRecords?.records || []).map(r => r.employee_id))).filter(Boolean);
+      if (ids.length === 0) return;
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id, first_name, last_name, department')
+        .in('id', ids);
+      if (!error && data) {
+        const map: Record<string, any> = {};
+        for (const e of data) map[e.id] = e;
+        setEmployeeMap(map);
+      }
+    };
+    loadEmployees();
+  }, [allRecords?.records?.length]);
 
   // Calculate real data for reports
   const calculateSummaryData = () => {
@@ -77,28 +99,62 @@ export function AttendanceReports() {
 
   const summaryData = calculateSummaryData();
 
-  const weeklyTrendData = [
-    { week: "Week 1", present: 45, late: 3, absent: 2 },
-    { week: "Week 2", present: 48, late: 2, absent: 0 },
-    { week: "Week 3", present: 46, late: 4, absent: 0 },
-    { week: "Week 4", present: 47, late: 3, absent: 0 }
-  ];
+  // Build weekly trends from real records
+  const weeklyTrendData = (() => {
+    const map: Record<string, { week: string; present: number; late: number; absent: number }> = {};
+    const data = (allRecords?.records || []).slice();
+    for (const r of data) {
+      const d = new Date(r.clock_in_time);
+      const weekKey = `${d.getFullYear()}-W${Math.ceil((((d.getTime() - new Date(d.getFullYear(), 0, 1).getTime()) / 86400000) + new Date(d.getFullYear(), 0, 1).getDay() + 1) / 7)}`;
+      if (!map[weekKey]) map[weekKey] = { week: weekKey, present: 0, late: 0, absent: 0 };
+      const workStart = new Date(d); workStart.setHours(9, 15, 0, 0);
+      map[weekKey].present += r.clock_out_time ? 1 : 0;
+      map[weekKey].late += d > workStart ? 1 : 0;
+    }
+    return Object.values(map).slice(-4); // last 4 weeks
+  })();
 
-  const departmentData = [
-    { department: "Engineering", present: 28, late: 2, absent: 0, rate: 93.3 },
-    { department: "Sales", present: 22, late: 3, absent: 0, rate: 88.0 },
-    { department: "Marketing", present: 18, late: 1, absent: 1, rate: 90.0 },
-    { department: "HR", present: 8, late: 1, absent: 1, rate: 80.0 },
-    { department: "Finance", present: 12, late: 0, absent: 0, rate: 100.0 }
-  ];
+  // Department aggregates from real records (requires looking up employee departments)
+  const departmentData = (() => {
+    const depts: Record<string, { department: string; present: number; late: number; absent: number; rate: number }> = {};
+    const recs = (allRecords?.records || []);
+    for (const r of recs) {
+      const emp = employeeMap[r.employee_id];
+      const department = emp?.department || 'Unknown';
+      if (!depts[department]) depts[department] = { department, present: 0, late: 0, absent: 0, rate: 0 };
+      const clockIn = new Date(r.clock_in_time);
+      const workStart = new Date(clockIn); workStart.setHours(9,15,0,0);
+      depts[department].present += r.clock_out_time ? 1 : 0;
+      depts[department].late += clockIn > workStart ? 1 : 0;
+    }
+    return Object.values(depts).map(d => ({
+      ...d,
+      rate: d.present + d.late + d.absent > 0 ? (d.present / (d.present + d.late + d.absent)) * 100 : 0,
+    }));
+  })();
 
-  const employeeData = [
-    { name: "John Doe", department: "Engineering", present: 22, late: 0, absent: 0, rate: 100, status: "excellent" },
-    { name: "Jane Smith", department: "Sales", present: 20, late: 2, absent: 0, rate: 90.9, status: "good" },
-    { name: "Mike Johnson", department: "Marketing", present: 18, late: 1, absent: 1, rate: 85.0, status: "fair" },
-    { name: "Sarah Wilson", department: "HR", present: 21, late: 1, absent: 0, rate: 95.5, status: "excellent" },
-    { name: "David Brown", department: "Finance", present: 19, late: 0, absent: 1, rate: 95.0, status: "excellent" }
-  ];
+  // Build per-employee stats from real attendance records
+  const employeeData = (() => {
+    const map: Record<string, { name: string; department: string; present: number; late: number; absent: number; rate: number; status: string }> = {};
+    const recs = (allRecords?.records || []);
+    for (const r of recs) {
+      const id = r.employee_id;
+      const emp = employeeMap[id];
+      const name = emp ? `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || id : id;
+      const department = emp?.department || '—';
+      if (!map[id]) map[id] = { name, department, present: 0, late: 0, absent: 0, rate: 0, status: 'good' };
+      const clockIn = new Date(r.clock_in_time);
+      const workStart = new Date(clockIn); workStart.setHours(9,15,0,0);
+      map[id].present += r.clock_out_time ? 1 : 0;
+      map[id].late += clockIn > workStart ? 1 : 0;
+    }
+    return Object.values(map).map(emp => {
+      const total = emp.present + emp.late + emp.absent;
+      emp.rate = total > 0 ? (emp.present / total) * 100 : 0;
+      emp.status = emp.rate >= 95 ? 'excellent' : emp.rate >= 90 ? 'good' : emp.rate >= 80 ? 'fair' : 'poor';
+      return emp;
+    });
+  })();
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -488,7 +544,7 @@ export function AttendanceReports() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {employeeData.map((employee) => (
+                  {(employeeData || []).map((employee) => (
                     <TableRow key={employee.name}>
                       <TableCell className="font-medium">{employee.name}</TableCell>
                       <TableCell>{employee.department}</TableCell>

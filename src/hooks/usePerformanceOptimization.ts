@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { logMemoryUsage, optimizeNetworkRequests } from '@/utils/performance';
 
@@ -61,16 +61,18 @@ export function useOptimizedSearch<T>(
   searchQuery: string,
   delay: number = 300
 ) {
-  const debouncedQuery = useMemo(() => {
-    const timer = setTimeout(() => searchQuery, delay);
+  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), delay);
     return () => clearTimeout(timer);
   }, [searchQuery, delay]);
 
   return useQuery({
-    queryKey: [...queryKey, 'search', searchQuery],
-    queryFn: () => searchFn(searchQuery),
-    enabled: searchQuery.length >= 2,
-    staleTime: 5 * 60 * 1000, // 5 minutes for search results
+    queryKey: [...queryKey, 'search', debouncedQuery],
+    queryFn: () => searchFn(debouncedQuery),
+    enabled: debouncedQuery.length >= 2,
+    staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,

@@ -15,6 +15,8 @@ import { Separator } from "@/components/ui/separator";
 import { Star, Plus, Eye, Edit, Target, Award, TrendingUp, Users, MessageCircle, CheckCircle, AlertTriangle, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAppraisalsQuery } from "@/hooks/queries/usePerformanceQueries";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Appraisal {
   id: string;
@@ -38,10 +40,10 @@ export function PerformanceAppraisals() {
   const [selectedAppraisal, setSelectedAppraisal] = useState<Appraisal | null>(null);
   const [appraisalComment, setAppraisalComment] = useState("");
   const [selectedRating, setSelectedRating] = useState<number>(0);
-  const [appraisals, setAppraisals] = useState<Appraisal[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
   const [employees, setEmployees] = useState<any[]>([]);
+  const queryClient = useQueryClient();
+  const { data: fetchedAppraisals = [], isLoading: loading } = useAppraisalsQuery();
   
   // Schedule appraisal form state
   const [scheduleForm, setScheduleForm] = useState({
@@ -52,9 +54,8 @@ export function PerformanceAppraisals() {
     appraisalType: "annual"
   });
 
-  // Fetch appraisals and employees from database
+  // Fetch employees from database (used for scheduling selectors)
   useEffect(() => {
-    fetchAppraisals();
     fetchEmployees();
   }, []);
 
@@ -73,76 +74,28 @@ export function PerformanceAppraisals() {
     }
   };
 
-  const fetchAppraisals = async () => {
-    try {
-      setLoading(true);
-      // Fetch appraisals with basic data first
-      const { data, error } = await supabase
-        .from('appraisals')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // For now, use mock data since we don't have employees data yet
-      const mockAppraisals: Appraisal[] = [
-        {
-          id: "1",
-          employeeName: "John Doe",
-          employeeId: "EMP001",
-          department: "Engineering",
-          position: "Senior Developer",
-          appraisalPeriod: "Q4 2024",
-          status: "pending",
-          dueDate: "2024-12-31",
-          appraiser: "Jane Smith",
-          selfAppraisalCompleted: false,
-          managerAppraisalCompleted: false,
-          lastUpdated: "2024-12-01"
-        },
-        {
-          id: "2",
-          employeeName: "Sarah Wilson",
-          employeeId: "EMP002",
-          department: "Marketing",
-          position: "Marketing Manager",
-          appraisalPeriod: "Q4 2024",
-          status: "in-progress",
-          dueDate: "2024-12-31",
-          appraiser: "Mike Johnson",
-          selfAppraisalCompleted: true,
-          managerAppraisalCompleted: false,
-          lastUpdated: "2024-12-15"
-        },
-        {
-          id: "3",
-          employeeName: "Mike Chen",
-          employeeId: "EMP003",
-          department: "Sales",
-          position: "Sales Representative",
-          appraisalPeriod: "Q3 2024",
-          status: "completed",
-          dueDate: "2024-09-30",
-          overallRating: 4,
-          appraiser: "Lisa Brown",
-          selfAppraisalCompleted: true,
-          managerAppraisalCompleted: true,
-          lastUpdated: "2024-09-28"
-        }
-      ];
-
-      setAppraisals(mockAppraisals);
-    } catch (error) {
-      console.error('Error fetching appraisals:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch appraisals. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Build UI-friendly appraisals from fetched data
+  const appraisals: Appraisal[] = (fetchedAppraisals || []).map((a) => {
+    const employeeName = [a.employee?.first_name, a.employee?.last_name].filter(Boolean).join(' ') || 'Unknown';
+    const position = a.employee?.position || '';
+    const department = a.employee?.department || '';
+    const appraiserName = [a.appraiser?.first_name, a.appraiser?.last_name].filter(Boolean).join(' ') || '';
+    return {
+      id: a.id,
+      employeeName,
+      employeeId: a.employee_id,
+      department,
+      position,
+      appraisalPeriod: a.appraisal_period,
+      status: a.status as Appraisal["status"],
+      dueDate: a.due_date,
+      overallRating: a.overall_rating ?? undefined,
+      appraiser: appraiserName,
+      selfAppraisalCompleted: false,
+      managerAppraisalCompleted: a.status === 'completed',
+      lastUpdated: a.updated_at,
+    };
+  });
 
   const handleStartAppraisal = async (appraisalId: string, employeeName: string) => {
     try {
@@ -162,7 +115,7 @@ export function PerformanceAppraisals() {
       });
 
       // Refresh the data
-      fetchAppraisals();
+      queryClient.invalidateQueries({ queryKey: ['performance', 'appraisals'] });
     } catch (error) {
       console.error('Error starting appraisal:', error);
       toast({
@@ -209,7 +162,7 @@ export function PerformanceAppraisals() {
       setSelectedAppraisal(null);
       
       // Refresh the data
-      fetchAppraisals();
+      queryClient.invalidateQueries({ queryKey: ['performance', 'appraisals'] });
     } catch (error) {
       console.error('Error completing appraisal:', error);
       toast({
@@ -241,7 +194,7 @@ export function PerformanceAppraisals() {
       });
       
       // Refresh the data
-      fetchAppraisals();
+      queryClient.invalidateQueries({ queryKey: ['performance', 'appraisals'] });
     } catch (error) {
       console.error('Error saving draft:', error);
       toast({
@@ -294,7 +247,7 @@ export function PerformanceAppraisals() {
       setShowScheduleDialog(false);
       
       // Refresh the data
-      fetchAppraisals();
+      queryClient.invalidateQueries({ queryKey: ['performance', 'appraisals'] });
     } catch (error) {
       console.error('Error scheduling appraisal:', error);
       toast({

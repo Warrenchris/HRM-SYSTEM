@@ -51,26 +51,56 @@ export function useCurrentEmployee() {
               throw createError;
             }
             
-            // Try to find an employee with matching email
-            const { data: matchingEmployee } = await supabase
-              .from('employees')
-              .select('id')
-              .eq('email', user.email)
-              .single();
-            
-            if (matchingEmployee) {
-              // Update profile with employee_id
-              await supabase
-                .from('profiles')
-                .update({ employee_id: matchingEmployee.id })
-                .eq('user_id', user.id);
-              
-              profile = { employee_id: matchingEmployee.id };
-            } else {
-              setEmployee(null);
-              setLoading(false);
-              return;
-            }
+        // Try to find an employee with matching email
+        const { data: matchingEmployee, error: employeeSearchError } = await supabase
+          .from('employees')
+          .select('id')
+          .eq('email', user.email)
+          .maybeSingle();
+        
+        if (employeeSearchError) {
+          console.log('No employee found with email:', user.email);
+          // Try to create a basic employee profile
+          const { data: newEmployee, error: createEmployeeError } = await supabase
+            .from('employees')
+            .insert([{
+              email: user.email,
+              first_name: user.user_metadata?.full_name?.split(' ')[0] || 'Unknown',
+              last_name: user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || 'User',
+              status: 'active',
+              department: 'General',
+              position: 'Employee'
+            }])
+            .select('id')
+            .single();
+          
+          if (createEmployeeError) {
+            console.error('Failed to create employee:', createEmployeeError);
+            setEmployee(null);
+            setLoading(false);
+            return;
+          }
+          
+          // Update profile with new employee_id
+          await supabase
+            .from('profiles')
+            .update({ employee_id: newEmployee.id })
+            .eq('user_id', user.id);
+          
+          profile = { employee_id: newEmployee.id };
+        } else if (matchingEmployee) {
+          // Update profile with employee_id
+          await supabase
+            .from('profiles')
+            .update({ employee_id: matchingEmployee.id })
+            .eq('user_id', user.id);
+          
+          profile = { employee_id: matchingEmployee.id };
+        } else {
+          setEmployee(null);
+          setLoading(false);
+          return;
+        }
           } else {
             throw profileError;
           }
@@ -82,7 +112,7 @@ export function useCurrentEmployee() {
             .from('employees')
             .select('id')
             .eq('email', user.email)
-            .single();
+            .maybeSingle();
           
           if (matchingEmployee) {
             // Update profile with employee_id
@@ -115,6 +145,7 @@ export function useCurrentEmployee() {
       } catch (err) {
         console.error('Error fetching current employee:', err);
         setError(err instanceof Error ? err.message : 'Failed to fetch employee data');
+        setEmployee(null);
       } finally {
         setLoading(false);
       }

@@ -17,7 +17,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      navigate("/landing");
+      navigate("/auth");
       return;
     }
 

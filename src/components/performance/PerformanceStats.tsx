@@ -1,33 +1,37 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Target, TrendingUp, Users, Calendar } from "lucide-react";
+import { usePerformanceStatsQuery } from "@/hooks/queries/usePerformanceQueries";
 
 export function PerformanceStats() {
+  const { data, isLoading } = usePerformanceStatsQuery();
+
+  const avgValue = data?.averagePerformance?.value ?? 0;
   const stats = [
     {
       title: "Average Performance",
-      value: "4.2/5.0",
-      description: "+0.3 from last quarter",
+      value: `${avgValue.toFixed(1)}/5.0`,
+      description: data?.averagePerformance?.changeText || "",
       icon: TrendingUp,
-      progress: 84,
+      progress: Math.round((avgValue / 5) * 100),
     },
     {
       title: "Goals Achieved",
-      value: "73%",
-      description: "152 of 208 goals",
+      value: `${data?.goalsAchieved?.percent ?? 0}%`,
+      description: `${data?.goalsAchieved?.completed ?? 0} of ${data?.goalsAchieved?.total ?? 0} goals`,
       icon: Target,
-      progress: 73,
+      progress: data?.goalsAchieved?.percent ?? 0,
     },
     {
       title: "Reviews Completed",
-      value: "89%",
-      description: "167 of 188 due",
+      value: `${data?.reviewsCompleted?.percent ?? 0}%`,
+      description: `${data?.reviewsCompleted?.completed ?? 0} of ${data?.reviewsCompleted?.total ?? 0} due`,
       icon: Calendar,
-      progress: 89,
+      progress: data?.reviewsCompleted?.percent ?? 0,
     },
     {
       title: "Top Performers",
-      value: "23",
+      value: `${data?.topPerformers?.count ?? 0}`,
       description: "Employees rated 4.5+",
       icon: Users,
       progress: 100,
@@ -43,8 +47,8 @@ export function PerformanceStats() {
             <stat.icon className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold mb-2">{stat.value}</div>
-            <Progress value={stat.progress} className="mb-2" />
+            <div className="text-2xl font-bold mb-2">{isLoading ? '...' : stat.value}</div>
+            <Progress value={isLoading ? 0 : stat.progress} className="mb-2" />
             <p className="text-xs text-muted-foreground">{stat.description}</p>
           </CardContent>
         </Card>

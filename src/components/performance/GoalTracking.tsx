@@ -14,6 +14,7 @@ import { Target, Plus, CalendarIcon, TrendingUp, AlertCircle } from "lucide-reac
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useObjectivesQuery } from "@/hooks/queries/usePerformanceQueries";
 
 interface Goal {
   id: string;
@@ -43,66 +44,20 @@ export function GoalTracking() {
   const [dueDate, setDueDate] = useState<Date>();
   const { toast } = useToast();
 
-  const goals: Goal[] = [
-    {
-      id: "G001",
-      title: "Improve Code Review Quality",
-      description: "Conduct thorough code reviews and provide constructive feedback",
-      category: "performance",
-      priority: "high",
-      status: "in-progress",
-      progress: 75,
-      targetValue: 100,
-      currentValue: 75,
-      unit: "%",
-      startDate: "2024-07-01",
-      dueDate: "2024-09-30",
-      assignedBy: "Sarah Manager",
-      employee: "John Doe",
-    },
-    {
-      id: "G002",
-      title: "Complete React Certification",
-      description: "Obtain React developer certification to improve frontend skills",
-      category: "development",
-      priority: "medium",
-      status: "in-progress",
-      progress: 60,
-      startDate: "2024-06-15",
-      dueDate: "2024-08-15",
-      assignedBy: "Mike Lead",
-      employee: "Jane Smith",
-    },
-    {
-      id: "G003",
-      title: "Reduce Bug Count",
-      description: "Decrease production bugs by 50% through better testing practices",
-      category: "performance",
-      priority: "high",
-      status: "completed",
-      progress: 100,
-      targetValue: 20,
-      currentValue: 8,
-      unit: "bugs",
-      startDate: "2024-05-01",
-      dueDate: "2024-07-31",
-      assignedBy: "Sarah Manager",
-      employee: "Mike Johnson",
-    },
-    {
-      id: "G004",
-      title: "Improve Team Collaboration",
-      description: "Enhance communication and collaboration with team members",
-      category: "behavioral",
-      priority: "medium",
-      status: "overdue",
-      progress: 40,
-      startDate: "2024-04-01",
-      dueDate: "2024-07-01",
-      assignedBy: "Alex Director",
-      employee: "Emily Brown",
-    },
-  ];
+  const { data: objectives = [] } = useObjectivesQuery();
+  const goals: Goal[] = (objectives || []).map((o) => ({
+    id: o.id,
+    title: o.objective_title,
+    description: o.objective_description || "",
+    category: "performance",
+    priority: "medium",
+    status: (o.manager_rating ?? 0) >= 4 ? "completed" : (o.employee_rating ?? 0) >= 2 ? "in-progress" : "not-started",
+    progress: Math.min(100, Math.max(o.manager_rating ?? 0, o.employee_rating ?? 0) * 20),
+    startDate: new Date(o.updated_at).toISOString().slice(0, 10),
+    dueDate: new Date(o.updated_at).toISOString().slice(0, 10),
+    assignedBy: "",
+    employee: "",
+  }));
 
   const employees = ["John Doe", "Jane Smith", "Mike Johnson", "Emily Brown"];
 

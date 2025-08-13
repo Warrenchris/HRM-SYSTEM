@@ -10,6 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MessageSquare, Users, Star, Plus, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useFeedbackItemsQuery, useFeedbackRequestsQuery } from "@/hooks/queries/usePerformanceQueries";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface FeedbackRequest {
   id: string;
@@ -44,66 +47,34 @@ export function FeedbackSystem() {
   const [selectedEmployee, setSelectedEmployee] = useState("");
   const { toast } = useToast();
 
-  const feedbackRequests: FeedbackRequest[] = [
-    {
-      id: "FR001",
-      type: "360",
-      subject: "John Doe Q2 Performance Review",
-      requestedBy: "Sarah Manager",
-      status: "in-progress",
-      dueDate: "2024-07-25",
-      respondents: ["Jane Smith", "Mike Johnson", "Emily Brown", "Alex Director"],
-      completedBy: ["Jane Smith", "Mike Johnson"],
-    },
-    {
-      id: "FR002",
-      type: "peer",
-      subject: "Project Collaboration Feedback",
-      requestedBy: "Mike Lead",
-      status: "pending",
-      dueDate: "2024-07-30",
-      respondents: ["John Doe", "Jane Smith"],
-      completedBy: [],
-    },
-  ];
+  const queryClient = useQueryClient();
+  const { data: requestRows = [] } = useFeedbackRequestsQuery();
+  const { data: itemRows = [] } = useFeedbackItemsQuery();
 
-  const feedbackItems: FeedbackItem[] = [
-    {
-      id: "FB001",
-      from: "Jane Smith",
-      to: "John Doe",
-      type: "positive",
-      category: "Technical Skills",
-      message: "John consistently delivers high-quality code and demonstrates excellent problem-solving abilities.",
-      rating: 5,
-      date: "2024-07-20",
-      anonymous: false,
-    },
-    {
-      id: "FB002",
-      from: "Anonymous",
-      to: "John Doe", 
-      type: "constructive",
-      category: "Communication",
-      message: "Could benefit from more frequent updates during project development to keep the team aligned.",
-      rating: 3,
-      date: "2024-07-19",
-      anonymous: true,
-    },
-    {
-      id: "FB003",
-      from: "Mike Johnson",
-      to: "Jane Smith",
-      type: "positive",
-      category: "Leadership",
-      message: "Jane shows excellent leadership qualities and helps team members grow professionally.",
-      rating: 5,
-      date: "2024-07-18",
-      anonymous: false,
-    },
-  ];
+  const feedbackRequests: FeedbackRequest[] = requestRows.map(r => ({
+    id: r.id,
+    type: r.type,
+    subject: r.subject,
+    requestedBy: r.requested_by,
+    status: 'in-progress',
+    dueDate: r.due_date,
+    respondents: [],
+    completedBy: [],
+  }));
 
-  const employees = ["John Doe", "Jane Smith", "Mike Johnson", "Emily Brown"];
+  const feedbackItems: FeedbackItem[] = itemRows.map(i => ({
+    id: i.id,
+    from: i.anonymous ? 'Anonymous' : i.from_employee_id,
+    to: i.to_employee_id,
+    type: i.type,
+    category: i.category,
+    message: i.message,
+    rating: i.rating ?? undefined,
+    date: i.created_at,
+    anonymous: i.anonymous,
+  }));
+
+  const employees: string[] = [];
   const categories = ["Technical Skills", "Communication", "Leadership", "Teamwork", "Problem Solving", "Initiative"];
 
   const getStatusBadge = (status: FeedbackRequest["status"]) => {
@@ -140,7 +111,7 @@ export function FeedbackSystem() {
     ));
   };
 
-  const handleSubmitFeedback = () => {
+  const handleSubmitFeedback = async () => {
     if (!selectedEmployee || !feedbackCategory || !feedbackMessage) {
       toast({
         title: "Missing Information",
@@ -150,18 +121,36 @@ export function FeedbackSystem() {
       return;
     }
 
-    toast({
-      title: "Feedback Submitted",
-      description: `Feedback for ${selectedEmployee} has been submitted successfully`,
-    });
+    try {
+      const { error } = await supabase
+        .from('feedback_items')
+        .insert({
+          request_id: null,
+          from_employee_id: 'unknown',
+          to_employee_id: selectedEmployee,
+          type: (feedbackType as any) || 'positive',
+          category: feedbackCategory,
+          message: feedbackMessage,
+          rating: feedbackRating > 0 ? feedbackRating : null,
+          anonymous: false,
+        });
+      if (error) throw error;
 
-    // Reset form
-    setSelectedEmployee("");
-    setFeedbackCategory("");
-    setFeedbackMessage("");
-    setFeedbackType("");
-    setFeedbackRating(0);
-    setIsDialogOpen(false);
+      toast({
+        title: "Feedback Submitted",
+        description: `Feedback for ${selectedEmployee} has been submitted successfully`,
+      });
+
+      setSelectedEmployee("");
+      setFeedbackCategory("");
+      setFeedbackMessage("");
+      setFeedbackType("");
+      setFeedbackRating(0);
+      setIsDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['performance', 'feedback', 'items'] });
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to submit feedback', variant: 'destructive' });
+    }
   };
 
   return (

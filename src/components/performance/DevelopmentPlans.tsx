@@ -14,6 +14,10 @@ import { GraduationCap, Plus, CalendarIcon, BookOpen, Award, TrendingUp } from "
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useDevelopmentPlanMilestonesQuery, useDevelopmentPlansQuery } from "@/hooks/queries/usePerformanceQueries";
+import { supabase } from "@/integrations/supabase/client";
+import { useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface DevelopmentPlan {
   id: string;
@@ -45,72 +49,38 @@ export function DevelopmentPlans() {
   const [planBudget, setPlanBudget] = useState("");
   const { toast } = useToast();
 
-  const developmentPlans: DevelopmentPlan[] = [
-    {
-      id: "DP001",
-      employeeName: "John Doe",
-      employeeId: "EMP001",
-      title: "Advanced React Development",
-      description: "Master advanced React patterns, hooks, and performance optimization",
-      category: "technical",
-      priority: "high",
-      status: "in-progress",
-      progress: 65,
-      startDate: "2024-06-01",
-      targetDate: "2024-09-30",
-      mentor: "Senior Developer",
-      budget: 2500,
-      resources: ["Online Course", "Books", "Conference"],
-      milestones: [
-        { title: "Complete React Hooks Course", completed: true, dueDate: "2024-07-15" },
-        { title: "Build Advanced Project", completed: false, dueDate: "2024-08-30" },
-        { title: "Performance Optimization Training", completed: false, dueDate: "2024-09-15" },
-      ],
-    },
-    {
-      id: "DP002",
-      employeeName: "Jane Smith",
-      employeeId: "EMP002",
-      title: "Leadership Development Program",
-      description: "Develop leadership skills for future management role",
-      category: "leadership",
-      priority: "high",
-      status: "in-progress",
-      progress: 40,
-      startDate: "2024-05-15",
-      targetDate: "2024-11-15",
-      mentor: "Director of Engineering",
-      budget: 3000,
-      resources: ["Leadership Course", "Mentorship", "Books"],
-      milestones: [
-        { title: "Leadership Fundamentals", completed: true, dueDate: "2024-06-30" },
-        { title: "Team Management Workshop", completed: false, dueDate: "2024-08-15" },
-        { title: "360 Feedback Session", completed: false, dueDate: "2024-10-01" },
-      ],
-    },
-    {
-      id: "DP003",
-      employeeName: "Mike Johnson",
-      employeeId: "EMP003",
-      title: "AWS Solutions Architect Certification",
-      description: "Obtain AWS Solutions Architect certification",
-      category: "certification",
-      priority: "medium",
-      status: "not-started",
-      progress: 0,
-      startDate: "2024-08-01",
-      targetDate: "2024-12-31",
-      budget: 1500,
-      resources: ["AWS Training", "Practice Exams", "Study Materials"],
-      milestones: [
-        { title: "Complete AWS Fundamentals", completed: false, dueDate: "2024-09-15" },
-        { title: "Hands-on Labs", completed: false, dueDate: "2024-11-01" },
-        { title: "Take Certification Exam", completed: false, dueDate: "2024-12-15" },
-      ],
-    },
-  ];
+  const queryClient = useQueryClient();
+  const { data: planRows = [] } = useDevelopmentPlansQuery();
+  const planIds = useMemo(() => planRows.map(p => p.id), [planRows]);
+  const { data: milestoneRows = [] } = useDevelopmentPlanMilestonesQuery(planIds);
 
-  const employees = ["John Doe", "Jane Smith", "Mike Johnson", "Emily Brown"];
+  const milestonesByPlan = useMemo(() => {
+    const map: Record<string, { title: string; completed: boolean; dueDate: string }[]> = {};
+    (milestoneRows || []).forEach(m => {
+      (map[m.plan_id] ||= []).push({ title: m.title, completed: m.completed, dueDate: m.due_date });
+    });
+    return map;
+  }, [milestoneRows]);
+
+  const developmentPlans: DevelopmentPlan[] = (planRows || []).map(p => ({
+    id: p.id,
+    employeeName: '',
+    employeeId: p.employee_id,
+    title: p.title,
+    description: p.description,
+    category: p.category,
+    priority: p.priority,
+    status: p.status,
+    progress: p.progress,
+    startDate: p.start_date,
+    targetDate: p.target_date,
+    mentor: p.mentor || undefined,
+    budget: p.budget || undefined,
+    resources: [],
+    milestones: milestonesByPlan[p.id] || [],
+  }));
+
+  const employees: string[] = [];
 
   const getCategoryColor = (category: DevelopmentPlan["category"]) => {
     switch (category) {
@@ -138,7 +108,7 @@ export function DevelopmentPlans() {
     }
   };
 
-  const handleCreatePlan = () => {
+  const handleCreatePlan = async () => {
     if (!planTitle || !planCategory || !planPriority || !targetDate) {
       toast({
         title: "Missing Information",
@@ -148,19 +118,37 @@ export function DevelopmentPlans() {
       return;
     }
 
-    toast({
-      title: "Development Plan Created",
-      description: `Development plan "${planTitle}" has been created successfully`,
-    });
+    try {
+      const { error } = await supabase.from('development_plans').insert({
+        employee_id: 'unknown',
+        title: planTitle,
+        description: planDescription,
+        category: planCategory,
+        priority: planPriority,
+        status: 'not-started',
+        progress: 0,
+        target_date: targetDate.toISOString().slice(0, 10),
+        mentor: null,
+        budget: planBudget ? Number(planBudget) : null,
+      });
+      if (error) throw error;
 
-    // Reset form
-    setPlanTitle("");
-    setPlanDescription("");
-    setPlanCategory("");
-    setPlanPriority("");
-    setTargetDate(undefined);
-    setPlanBudget("");
-    setIsDialogOpen(false);
+      toast({
+        title: "Development Plan Created",
+        description: `Development plan "${planTitle}" has been created successfully`,
+      });
+
+      setPlanTitle("");
+      setPlanDescription("");
+      setPlanCategory("");
+      setPlanPriority("");
+      setTargetDate(undefined);
+      setPlanBudget("");
+      setIsDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['performance', 'devplans'] });
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to create plan', variant: 'destructive' });
+    }
   };
 
   const filteredPlans = developmentPlans.filter(plan => {

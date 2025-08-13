@@ -6,6 +6,8 @@ import { Clock, MapPin, Coffee, Navigation } from "lucide-react";
 import { useTodayAttendance } from "@/hooks/useAttendanceData";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface GPSLocation {
   latitude: number;
@@ -17,13 +19,25 @@ export function ClockInOut() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [gpsLocation, setGpsLocation] = useState<GPSLocation | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const { user } = useAuth();
   const { employee } = useCurrentEmployee();
-  const { records, loading, clockIn, clockOut, startBreak, endBreak } = useTodayAttendance(employee?.id);
+  const { records, loading, clockIn, clockOut, startBreak, endBreak, error: attendanceError } = useTodayAttendance(employee?.id);
   const { toast } = useToast();
   
   const todayRecord = records[0]; // Most recent record for today
   const clockedIn = todayRecord && !todayRecord.clock_out_time;
   const isOnBreak = todayRecord?.status === 'on_break';
+
+  // Debug logging
+  console.log('ClockInOut render:', {
+    employee,
+    records,
+    loading,
+    todayRecord,
+    clockedIn,
+    isOnBreak,
+    attendanceError
+  });
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -81,6 +95,51 @@ export function ClockInOut() {
       toast({
         title: "Error",
         description: "Employee profile not found. Please contact HR.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Test database connection and table structure
+    try {
+      const { data: testData, error: testError } = await supabase
+        .from('attendance_records')
+        .select('id, employee_id, clock_in_time, status')
+        .limit(1);
+      
+      if (testError) {
+        console.error('Database connection test failed:', testError);
+        toast({
+          title: "Database Error",
+          description: "Cannot connect to database. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      console.log('Database connection test successful, table structure:', testData);
+      
+      // Test if user can insert into attendance_records
+      const { data: insertTest, error: insertError } = await supabase
+        .from('attendance_records')
+        .select('id')
+        .eq('employee_id', employee.id)
+        .limit(1);
+      
+      if (insertError) {
+        console.error('Permission test failed:', insertError);
+        toast({
+          title: "Permission Error",
+          description: "You don't have permission to access attendance records.",
+          variant: "destructive",
+        });
+        return;
+      }
+      console.log('Permission test successful');
+    } catch (error) {
+      console.error('Database connection test error:', error);
+      toast({
+        title: "Connection Error",
+        description: "Failed to connect to database.",
         variant: "destructive",
       });
       return;
@@ -197,9 +256,27 @@ export function ClockInOut() {
         <div className="flex flex-col gap-3">
           {loading ? (
             <Button disabled className="w-full">Loading...</Button>
+          ) : !user ? (
+            <div className="text-center text-muted-foreground">
+              Please log in to use the time clock
+            </div>
+          ) : attendanceError ? (
+            <div className="text-center text-red-600 text-sm">
+              Error: {attendanceError}
+            </div>
           ) : !employee ? (
             <div className="text-center text-muted-foreground">
-              No employee profile found
+              <div className="mb-2">No employee profile found</div>
+              <div className="text-xs text-muted-foreground mb-3">
+                Please contact HR to set up your employee profile
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => window.location.reload()}
+              >
+                Refresh Page
+              </Button>
             </div>
           ) : !clockedIn ? (
             <Button onClick={handleClockIn} className="w-full" disabled={isGettingLocation}>

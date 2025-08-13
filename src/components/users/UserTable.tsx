@@ -253,66 +253,28 @@ export function UserTable() {
 
     setCreating(true);
     try {
-      // Try normal signup first (works when GoTrue is configured for signups)
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: selectedEmployee.email,
-        password: userPassword,
-        options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`
-        }
-      });
-
-      let createdUserId: string | null = authData?.user?.id || null;
-
-      // If signup fails locally (e.g., missing SMTP), fall back to RPC helper
-      if (authError || !createdUserId) {
-        const { data: rpcUserId, error: rpcError } = await supabase.rpc('dev_create_auth_user', {
-          _email: selectedEmployee.email,
-          _password: userPassword,
-        });
-
-        if (rpcError || !rpcUserId) {
-          toast({
-            title: "Error Creating User",
-            description: rpcError?.message || authError?.message || 'Database error saving new user',
-            variant: "destructive",
-          });
-          return;
-        }
-
-        createdUserId = rpcUserId as unknown as string;
-      }
-
-      // Update employee record with auth email
-      const { error: employeeError } = await supabase
-        .from('employees')
-        .update({
-          auth_email: selectedEmployee.email,
-        })
-        .eq('id', selectedEmployee.id);
-
-      if (employeeError) {
-        console.error('Error updating employee:', employeeError);
-      }
-
-      // Update profile with role and employee link
+      // Server-side atomic helper handles: create/find auth user, identity, profile, link employee, set role
       const roleMapping = {
         'Admin': 'admin',
         'HR Manager': 'hr', 
         'Department Head': 'manager',
         'Employee': 'employee'
-      };
+      } as const;
 
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ 
-          role: roleMapping[userRole as keyof typeof roleMapping] || 'employee',
-          employee_id: selectedEmployee.id
-        })
-        .eq('user_id', createdUserId);
+      const { data: ensuredUserId, error: ensureError } = await supabase.rpc('ensure_user_for_employee', {
+        _email: selectedEmployee.email,
+        _password: userPassword,
+        _employee_id: selectedEmployee.id,
+        _role: roleMapping[userRole as keyof typeof roleMapping] || 'employee'
+      });
 
-      if (profileError) {
-        console.error('Error updating profile:', profileError);
+      if (ensureError || !ensuredUserId) {
+        toast({
+          title: "Error Creating User",
+          description: ensureError?.message || 'Database error creating user',
+          variant: "destructive",
+        });
+        return;
       }
 
       toast({
@@ -337,8 +299,7 @@ export function UserTable() {
       setUserEmergencyContact("");
       setUserEmergencyPhone("");
       setIsDialogOpen(false);
-      fetchUsers();
-      fetchEmployees();
+      await Promise.all([fetchUsers(), fetchEmployees()]);
 
     } catch (error) {
       console.error('Error creating user:', error);
