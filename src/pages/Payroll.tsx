@@ -37,40 +37,14 @@ export default function Payroll() {
             <Card className="lg:col-span-4">
               <CardHeader>
                 <CardTitle className="text-lg sm:text-xl">Current Month Summary</CardTitle>
-                <CardDescription>
-                  January 2024 payroll breakdown
-                </CardDescription>
+              <CardDescription>
+                {new Date().toLocaleString(undefined, { month: 'long', year: 'numeric' })} payroll breakdown
+              </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3 sm:gap-4">
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 sm:p-4 border rounded-lg gap-2 sm:gap-0">
-                    <div>
-                      <p className="font-medium text-sm sm:text-base">Gross Salaries</p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">Total before deductions</p>
-                    </div>
-                    <p className="text-lg sm:text-xl font-bold">KSh 2,850,000</p>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 sm:p-4 border rounded-lg gap-2 sm:gap-0">
-                    <div>
-                      <p className="font-medium text-sm sm:text-base">Total PAYE</p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">Income tax deductions</p>
-                    </div>
-                    <p className="text-lg sm:text-xl font-bold text-red-600">KSh 456,000</p>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 sm:p-4 border rounded-lg gap-2 sm:gap-0">
-                    <div>
-                      <p className="font-medium text-sm sm:text-base">Total NSSF</p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">Social security contributions</p>
-                    </div>
-                    <p className="text-lg sm:text-xl font-bold text-red-600">KSh 142,500</p>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 sm:p-4 border rounded-lg gap-2 sm:gap-0">
-                    <div>
-                      <p className="font-medium text-sm sm:text-base">Net Salaries</p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">Amount to be paid</p>
-                    </div>
-                    <p className="text-lg sm:text-xl font-bold text-green-600">KSh 2,035,750</p>
-                  </div>
+                  {/* The cards below now reflect live values in the cards above (PayrollStats) and are redundant.
+                      If you want live per-metric cards here as well, we can wire them similarly to PayrollStats. */}
                 </div>
               </CardContent>
             </Card>

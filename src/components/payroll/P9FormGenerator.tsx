@@ -7,7 +7,29 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Download, FileText, Calendar, Users, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { supabase } from "@/integrations/supabase/client";
+
+interface MonthlyP9Row {
+  month: string;
+  A: number; // Basic Salary
+  B: number; // Benefits NonCash
+  C: number; // Value of Quarters
+  D: number; // Total Gross Pay
+  E1: number; // 30% of A
+  E2: number; // Actual (e.g., NSSF)
+  E3: number; // Fixed (Lower of E1/E2/30,000 p.m)
+  F: number; // AHL
+  G: number; // SHIF
+  H: number; // PRMF
+  I: number; // Owner Occupied Interest
+  J: number; // Total Deductions (Lower of E + F + G + H + I) -> we use E3 + others
+  K: number; // Chargeable Pay (D - J)
+  L: number; // Tax Charged (monthly)
+  M: number; // Personal Relief (2,400 p.m)
+  N: number; // Insurance Relief (<= 5,000 p.m, or 15% premiums)
+  O: number; // PAYE Tax (L - M - N)
+}
 
 interface P9Data {
   employeeId: string;
@@ -46,6 +68,8 @@ interface P9Data {
   insuranceRelief: number;
   // Column O - PAYE Tax (L-M-N)
   payeTax: number;
+  // Monthly rows for KRA template
+  monthly: MonthlyP9Row[];
   // Legacy fields for compatibility
   allowances: number;
   nssfDeduction: number;
@@ -136,45 +160,96 @@ export function P9FormGenerator() {
         const employee = employees.find(emp => emp.id === empId);
         const empPayrollRecords = payrollData?.filter(record => record.employee_id === empId) || [];
         
-        // Calculate totals for the year
-        const totalGrossSalary = empPayrollRecords.reduce((sum, record) => sum + (record.gross_salary || 0), 0);
-        const totalPayeTax = empPayrollRecords.reduce((sum, record) => sum + (record.paye_tax || 0), 0);
-        const totalNssfDeduction = empPayrollRecords.reduce((sum, record) => sum + (record.nssf_deduction || 0), 0);
-        const totalShifDeduction = empPayrollRecords.reduce((sum, record) => sum + (record.shif_deduction || 0), 0);
-        const totalHousingLevy = empPayrollRecords.reduce((sum, record) => sum + (record.housing_levy || 0), 0);
-        const totalDeductions = empPayrollRecords.reduce((sum, record) => sum + (record.total_deductions || 0), 0);
-        const totalNetSalary = empPayrollRecords.reduce((sum, record) => sum + (record.net_salary || 0), 0);
-        const totalBasicSalary = empPayrollRecords.reduce((sum, record) => sum + (record.basic_salary || 0), 0);
-        const totalAllowances = empPayrollRecords.reduce((sum, record) => sum + (record.allowances || 0), 0);
+        // Build monthly grid initialized to zeroes
+        const monthNames = [
+          'January','February','March','April','May','June','July','August','September','October','November','December'
+        ];
+        const monthly: MonthlyP9Row[] = monthNames.map((m) => ({
+          month: m,
+          A: 0, B: 0, C: 0, D: 0,
+          E1: 0, E2: 0, E3: 0,
+          F: 0, G: 0, H: 0, I: 0,
+          J: 0, K: 0, L: 0, M: 2400, N: 0, O: 0,
+        }));
+
+        const parseMonthIndex = (payPeriod: string): number | null => {
+          // Handles formats like '2025-01', '2025-01-31', 'Jan 2025', 'January 2025'
+          if (!payPeriod) return null;
+          // YYYY-MM
+          const m1 = payPeriod.match(/^(\d{4})-(\d{2})/);
+          if (m1) return Math.max(0, Math.min(11, parseInt(m1[2], 10) - 1));
+          // Try Date parsing
+          const d = new Date(payPeriod);
+          if (!isNaN(d.getTime())) return d.getMonth();
+          // Try textual month
+          const idx = monthNames.findIndex((n) => payPeriod.toLowerCase().includes(n.toLowerCase().slice(0,3)) || payPeriod.toLowerCase().includes(n.toLowerCase()));
+          return idx >= 0 ? idx : null;
+        };
+
+        for (const record of empPayrollRecords) {
+          const mi = parseMonthIndex(record.pay_period);
+          if (mi === null) continue;
+          const A = record.basic_salary || 0;
+          const allowances = record.allowances || 0;
+          const B = allowances * 0.3; // estimated non-cash benefits
+          const C = 0; // value of quarters
+          const D = A + B + C;
+          const E1 = A * 0.3; // 30% of A
+          const E2 = record.nssf_deduction || 0; // actual
+          const E3Cap = 30000; // p.m cap per KRA note
+          const E3 = Math.min(E1, E2, E3Cap);
+          const F = record.housing_levy || 0;
+          const G = record.shif_deduction || 0;
+          const H = 0;
+          const I = 0;
+          const J = E3 + F + G + H + I;
+          const K = Math.max(0, D - J);
+          const L = calculateMonthlyTax(K);
+          const M = 2400; // per month
+          const N = 0; // unknown premiums
+          const O = Math.max(0, L - M - N);
+
+          monthly[mi] = { month: monthNames[mi], A, B, C, D, E1, E2, E3, F, G, H, I, J, K, L, M, N, O };
+        }
+        
+        // Calculate totals for the year from monthly grid to align with the KRA columns
+        const totalBasicSalary = monthly.reduce((s, r) => s + r.A, 0);
+        const totalAllowances = (empPayrollRecords || []).reduce((sum, record) => sum + (record.allowances || 0), 0);
+        const totalGrossSalary = monthly.reduce((s, r) => s + r.D, 0);
+        const totalPayeTax = monthly.reduce((s, r) => s + r.O, 0);
+        const totalNssfDeduction = monthly.reduce((s, r) => s + r.E2, 0);
+        const totalShifDeduction = monthly.reduce((s, r) => s + r.G, 0);
+        const totalHousingLevy = monthly.reduce((s, r) => s + r.F, 0);
+        const totalDeductions = monthly.reduce((s, r) => s + r.J, 0);
+        const totalNetSalary = (empPayrollRecords || []).reduce((sum, record) => sum + (record.net_salary || 0), 0);
 
         if (employee) {
-          // Calculate new P9 structure fields
-          const benefitsNonCash = totalAllowances * 0.3; // Estimate 30% of allowances as non-cash benefits
-          const valueOfQuarters = 0; // This would come from housing allowance if available
-          const totalGrossPay = totalBasicSalary + benefitsNonCash + valueOfQuarters;
-          
-          // Defined Contribution Retirement Scheme calculations
-          const e1ThirtyPercentOfA = totalBasicSalary * 0.3; // 30% of basic salary
+          // Calculate new P9 structure fields (annualized from monthly grid)
+          const benefitsNonCash = monthly.reduce((s, r) => s + r.B, 0);
+          const valueOfQuarters = monthly.reduce((s, r) => s + r.C, 0);
+          const totalGrossPay = totalGrossSalary;
+
+          // Defined Contribution Retirement Scheme calculations (annual)
+          const e1ThirtyPercentOfA = monthly.reduce((s, r) => s + r.E1, 0);
           const e3Actual = totalNssfDeduction; // Actual NSSF contribution
-          const e3Fixed = Math.min(e1ThirtyPercentOfA, e3Actual); // Lower of the two
-          
-          // Other deductions
+          const e3Fixed = monthly.reduce((s, r) => s + r.E3, 0);
+
+          // Other deductions (annual)
           const affordableHousingLevy = totalHousingLevy;
           const socialHealthInsuranceFund = totalShifDeduction;
-          const postRetirementMedicalFund = 0; // This would be a separate deduction
-          const ownerOccupiedInterest = 0; // This would be input by user
-          
-          // Total deductions calculation (Lower of sum of E+F+G+H+I)
-          const calculatedTotalDeductions = e3Fixed + affordableHousingLevy + socialHealthInsuranceFund + postRetirementMedicalFund + ownerOccupiedInterest;
-          const finalTotalDeductions = Math.min(calculatedTotalDeductions, totalDeductions);
-          
-          // Chargeable Pay (D-J)
+          const postRetirementMedicalFund = 0; // Unknown
+          const ownerOccupiedInterest = 0; // Unknown
+
+          // Total deductions calculation (annual)
+          const finalTotalDeductions = totalDeductions || (e3Fixed + affordableHousingLevy + socialHealthInsuranceFund + postRetirementMedicalFund + ownerOccupiedInterest);
+
+          // Chargeable Pay (D-J) annual
           const chargeablePay = totalGrossPay - finalTotalDeductions;
-          
-          // Tax calculations
+
+          // Tax calculations (annual)
           const taxCharged = calculateTaxCharged(chargeablePay);
-          const personalRelief = 2400 * 12; // KSh 2,400 per month
-          const insuranceRelief = Math.min(5000 * 12, chargeablePay * 0.15); // Lower of KSh 5,000 per month or 15% of chargeable pay
+          const personalRelief = 2400 * 12;
+          const insuranceRelief = 0; // Unknown premiums
           const finalPayeTax = Math.max(0, taxCharged - personalRelief - insuranceRelief);
 
           employeeP9Data.push({
@@ -200,6 +275,7 @@ export function P9FormGenerator() {
             personalRelief,
             insuranceRelief,
             payeTax: finalPayeTax,
+            monthly,
             // Legacy fields for compatibility
             allowances: totalAllowances,
             nssfDeduction: totalNssfDeduction,
@@ -238,7 +314,7 @@ export function P9FormGenerator() {
     }
   };
 
-  // Kenya PAYE tax calculation function
+  // Kenya PAYE tax calculation function (annual input)
   const calculateTaxCharged = (chargeablePay: number): number => {
     let tax = 0;
     const monthlyChargeable = chargeablePay / 12;
@@ -259,180 +335,182 @@ export function P9FormGenerator() {
     return Math.round(tax * 12); // Annual tax
   };
 
+  // Monthly PAYE calculator used for the grid rows
+  const calculateMonthlyTax = (monthlyChargeable: number): number => {
+    let tax = 0;
+    if (monthlyChargeable <= 24000) {
+      tax = monthlyChargeable * 0.1;
+    } else if (monthlyChargeable <= 32333) {
+      tax = 24000 * 0.1 + (monthlyChargeable - 24000) * 0.25;
+    } else if (monthlyChargeable <= 500000) {
+      tax = 24000 * 0.1 + 8333 * 0.25 + (monthlyChargeable - 32333) * 0.3;
+    } else if (monthlyChargeable <= 800000) {
+      tax = 24000 * 0.1 + 8333 * 0.25 + 467667 * 0.3 + (monthlyChargeable - 500000) * 0.325;
+    } else {
+      tax = 24000 * 0.1 + 8333 * 0.25 + 467667 * 0.3 + 300000 * 0.325 + (monthlyChargeable - 800000) * 0.35;
+    }
+    return Math.round(tax);
+  };
+
   const downloadP9Form = (employee: P9Data) => {
-    // Create a simple HTML template for P9 form
+    // Render KRA P9 template with monthly grid (Appendix 2A style)
+    const monthRow = (row: MonthlyP9Row) => `
+      <tr>
+        <td style="text-align:left;">${row.month}</td>
+        <td class="amt">${row.A.toLocaleString()}</td>
+        <td class="amt">${row.B.toLocaleString()}</td>
+        <td class="amt">${row.C.toLocaleString()}</td>
+        <td class="amt">${row.D.toLocaleString()}</td>
+        <td class="amt">${row.E1.toLocaleString()}</td>
+        <td class="amt">${row.E2.toLocaleString()}</td>
+        <td class="amt">${row.E3.toLocaleString()}</td>
+        <td class="amt">${row.F.toLocaleString()}</td>
+        <td class="amt">${row.G.toLocaleString()}</td>
+        <td class="amt">${row.H.toLocaleString()}</td>
+        <td class="amt">${row.I.toLocaleString()}</td>
+        <td class="amt">${row.J.toLocaleString()}</td>
+        <td class="amt">${row.K.toLocaleString()}</td>
+        <td class="amt">${row.L.toLocaleString()}</td>
+        <td class="amt">${row.M.toLocaleString()}</td>
+        <td class="amt">${row.N.toLocaleString()}</td>
+        <td class="amt">${row.O.toLocaleString()}</td>
+      </tr>`;
+
+    const totals = employee.monthly.reduce((acc, r) => {
+      return {
+        A: acc.A + r.A,
+        B: acc.B + r.B,
+        C: acc.C + r.C,
+        D: acc.D + r.D,
+        E1: acc.E1 + r.E1,
+        E2: acc.E2 + r.E2,
+        E3: acc.E3 + r.E3,
+        F: acc.F + r.F,
+        G: acc.G + r.G,
+        H: acc.H + r.H,
+        I: acc.I + r.I,
+        J: acc.J + r.J,
+        K: acc.K + r.K,
+        L: acc.L + r.L,
+        M: acc.M + r.M,
+        N: acc.N + r.N,
+        O: acc.O + r.O,
+      };
+    }, {A:0,B:0,C:0,D:0,E1:0,E2:0,E3:0,F:0,G:0,H:0,I:0,J:0,K:0,L:0,M:0,N:0,O:0});
+
     const p9Html = `
       <!DOCTYPE html>
       <html>
       <head>
         <title>P9 Form - ${employee.employeeName}</title>
         <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          .header { text-align: center; margin-bottom: 30px; }
-          .form-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
-          .section { margin-bottom: 20px; }
-          .section-title { font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #000; }
-          .field { margin-bottom: 8px; }
-          .field label { display: inline-block; width: 200px; font-weight: bold; }
-          .field value { display: inline-block; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          th, td { border: 1px solid #000; padding: 8px; text-align: left; }
-          th { background-color: #f0f0f0; }
-          .amount { text-align: right; }
+          body { font-family: Arial, sans-serif; margin: 24px; color: #000; }
+          .header { text-align: center; margin-bottom: 10px; }
+          .kra { font-weight: 700; font-size: 18px; }
+          .meta { width: 100%; margin-top: 6px; margin-bottom: 10px; font-size: 12px; }
+          .meta td { padding: 6px 8px; }
+          .meta .lbl { width: 200px; white-space: nowrap; }
+          .dotted { border-bottom: 1px dotted #333; display: inline-block; min-width: 240px; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; }
+          th, td { border: 1px solid #000; padding: 6px; text-align: center; }
+          th { background: #eee; }
+          .left { text-align: left; }
+          .amt { text-align: right; }
+          .notes { font-size: 10px; margin-top: 12px; }
+          .flex { display: flex; justify-content: space-between; margin-top: 20px; }
         </style>
       </head>
       <body>
         <div class="header">
-          <div class="form-title">INCOME TAX CERTIFICATE (P9 FORM)</div>
-          <div>Year: ${p9Data?.year}</div>
+          <div class="kra">KENYA REVENUE AUTHORITY</div>
+          <div>DOMESTIC TAXES DEPARTMENT - TAX DEDUCTION CARD (P9)</div>
+          <div>YEAR ${p9Data?.year}</div>
         </div>
-        
-        <div class="section">
-          <div class="section-title">EMPLOYER DETAILS</div>
-          <div class="field">
-            <label>Employer Name:</label>
-            <span>${p9Data?.employerName}</span>
-          </div>
-          <div class="field">
-            <label>Employer PIN:</label>
-            <span>${p9Data?.employerPin}</span>
-          </div>
+
+        <table class="meta">
+          <tr>
+            <td class="lbl">Employer's Name</td>
+            <td><span class="dotted">${p9Data?.employerName || ''}</span></td>
+            <td class="lbl">Employer's PIN</td>
+            <td><span class="dotted">${p9Data?.employerPin || ''}</span></td>
+          </tr>
+          <tr>
+            <td class="lbl">Employee's Main Name</td>
+            <td><span class="dotted">${employee.employeeName}</span></td>
+            <td class="lbl">Employee's PIN</td>
+            <td><span class="dotted">${employee.pinNumber}</span></td>
+          </tr>
+        </table>
+
+        <table>
+          <thead>
+            <tr>
+              <th rowspan="2" class="left">MONTH</th>
+              <th colspan="4">Emoluments</th>
+              <th colspan="3">Defined Contribution Retirement Scheme</th>
+              <th colspan="5">Other Deductions</th>
+              <th rowspan="2">Chargeable Pay<br/>(K)</th>
+              <th rowspan="2">Tax Charged<br/>(L)</th>
+              <th rowspan="2">Personal Relief<br/>(M)</th>
+              <th rowspan="2">Insurance Relief<br/>(N)</th>
+              <th rowspan="2">PAYE Tax<br/>(O=L-M-N)</th>
+            </tr>
+            <tr>
+              <th>A<br/>Basic Salary</th>
+              <th>B<br/>Benefits NonCash</th>
+              <th>C<br/>Value of Quarters</th>
+              <th>D<br/>Total Gross Pay</th>
+              <th>E1<br/>30% of A</th>
+              <th>E2<br/>Actual</th>
+              <th>E3<br/>Fixed (≤30,000)</th>
+              <th>F<br/>AHL</th>
+              <th>G<br/>SHIF</th>
+              <th>H<br/>PRMF</th>
+              <th>I<br/>Owner Occ. Interest</th>
+              <th>J<br/>Total Deds</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${employee.monthly.map(m => monthRow(m)).join('')}
+            <tr>
+              <td class="left"><strong>TOTAL</strong></td>
+              <td class="amt"><strong>${totals.A.toLocaleString()}</strong></td>
+              <td class="amt"><strong>${totals.B.toLocaleString()}</strong></td>
+              <td class="amt"><strong>${totals.C.toLocaleString()}</strong></td>
+              <td class="amt"><strong>${totals.D.toLocaleString()}</strong></td>
+              <td class="amt"><strong>${totals.E1.toLocaleString()}</strong></td>
+              <td class="amt"><strong>${totals.E2.toLocaleString()}</strong></td>
+              <td class="amt"><strong>${totals.E3.toLocaleString()}</strong></td>
+              <td class="amt"><strong>${totals.F.toLocaleString()}</strong></td>
+              <td class="amt"><strong>${totals.G.toLocaleString()}</strong></td>
+              <td class="amt"><strong>${totals.H.toLocaleString()}</strong></td>
+              <td class="amt"><strong>${totals.I.toLocaleString()}</strong></td>
+              <td class="amt"><strong>${totals.J.toLocaleString()}</strong></td>
+              <td class="amt"><strong>${totals.K.toLocaleString()}</strong></td>
+              <td class="amt"><strong>${totals.L.toLocaleString()}</strong></td>
+              <td class="amt"><strong>${totals.M.toLocaleString()}</strong></td>
+              <td class="amt"><strong>${totals.N.toLocaleString()}</strong></td>
+              <td class="amt"><strong>${totals.O.toLocaleString()}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="notes">
+          <div><strong>IMPORTANT</strong></div>
+          <div>1. Use P9A for all liable employees and where director/employee received benefits in addition to cash emoluments.</div>
+          <div>2. Deductible pension contribution prior to December 2024 must not exceed KShs. 25,000 and commencing December 2024 must not exceed 30,000 per month. Use lower of 30% of basic salary, actual contribution or KShs. 30,000 p.m.</div>
+          <div>3. Personal Relief is KShs. 2,400 per month or 28,800 per year.</div>
+          <div>4. Insurance Relief is 15% of the premium up to a maximum of KShs. 5,000 per month or KShs. 60,000 per year.</div>
         </div>
-        
-        <div class="section">
-          <div class="section-title">EMPLOYEE DETAILS</div>
-          <div class="field">
-            <label>Employee Name:</label>
-            <span>${employee.employeeName}</span>
+
+        <div class="flex">
+          <div>
+            Employee Signature: ____________________<br/>
+            Date: ____________________
           </div>
-          <div class="field">
-            <label>Employee ID:</label>
-            <span>${employee.employeeId}</span>
-          </div>
-          <div class="field">
-            <label>PIN Number:</label>
-            <span>${employee.pinNumber}</span>
-          </div>
-          <div class="field">
-            <label>Department:</label>
-            <span>${employee.department}</span>
-          </div>
-        </div>
-        
-        <div class="section">
-          <div class="section-title">KENYA P9 INCOME TAX CERTIFICATE</div>
-          <table>
-            <tr>
-              <th style="width: 60px;">Column</th>
-              <th>Description</th>
-              <th class="amount">Amount (KSh)</th>
-            </tr>
-            <tr>
-              <td><strong>A</strong></td>
-              <td>Basic Salary</td>
-              <td class="amount">${employee.basicSalary.toLocaleString()}</td>
-            </tr>
-            <tr>
-              <td><strong>B</strong></td>
-              <td>Benefits Non Cash</td>
-              <td class="amount">${employee.benefitsNonCash.toLocaleString()}</td>
-            </tr>
-            <tr>
-              <td><strong>C</strong></td>
-              <td>Value of Quarters</td>
-              <td class="amount">${employee.valueOfQuarters.toLocaleString()}</td>
-            </tr>
-            <tr style="background-color: #f0f0f0;">
-              <td><strong>D</strong></td>
-              <td><strong>Total Gross Pay (A+B+C)</strong></td>
-              <td class="amount"><strong>${employee.totalGrossPay.toLocaleString()}</strong></td>
-            </tr>
-            <tr>
-              <td colspan="3" style="background-color: #e0e0e0; font-weight: bold; text-align: center;">
-                DEFINED CONTRIBUTION RETIREMENT SCHEME
-              </td>
-            </tr>
-            <tr>
-              <td><strong>E1</strong></td>
-              <td>30% of A</td>
-              <td class="amount">${employee.e1ThirtyPercentOfA.toLocaleString()}</td>
-            </tr>
-            <tr>
-              <td><strong>E3</strong></td>
-              <td>Actual Contribution</td>
-              <td class="amount">${employee.e3Actual.toLocaleString()}</td>
-            </tr>
-            <tr>
-              <td><strong>E3</strong></td>
-              <td>Fixed (Lower of E1 & E3 Actual)</td>
-              <td class="amount">${employee.e3Fixed.toLocaleString()}</td>
-            </tr>
-            <tr>
-              <td><strong>F</strong></td>
-              <td>Affordable Housing Levy (AHL)</td>
-              <td class="amount">${employee.affordableHousingLevy.toLocaleString()}</td>
-            </tr>
-            <tr>
-              <td><strong>G</strong></td>
-              <td>Social Health Insurance Fund (SHIF)</td>
-              <td class="amount">${employee.socialHealthInsuranceFund.toLocaleString()}</td>
-            </tr>
-            <tr>
-              <td><strong>H</strong></td>
-              <td>Post Retirement Medical Fund (PRMF)</td>
-              <td class="amount">${employee.postRetirementMedicalFund.toLocaleString()}</td>
-            </tr>
-            <tr>
-              <td><strong>I</strong></td>
-              <td>Owner Occupied Interest</td>
-              <td class="amount">${employee.ownerOccupiedInterest.toLocaleString()}</td>
-            </tr>
-            <tr style="background-color: #f0f0f0;">
-              <td><strong>J</strong></td>
-              <td><strong>Total Deductions (Lower of E+F+G+H+I)</strong></td>
-              <td class="amount"><strong>${employee.totalDeductions.toLocaleString()}</strong></td>
-            </tr>
-            <tr style="background-color: #f0f0f0;">
-              <td><strong>K</strong></td>
-              <td><strong>Chargeable Pay (D-J)</strong></td>
-              <td class="amount"><strong>${employee.chargeablePay.toLocaleString()}</strong></td>
-            </tr>
-            <tr>
-              <td><strong>L</strong></td>
-              <td>Tax Charged</td>
-              <td class="amount">${employee.taxCharged.toLocaleString()}</td>
-            </tr>
-            <tr>
-              <td><strong>M</strong></td>
-              <td>Personal Relief</td>
-              <td class="amount">${employee.personalRelief.toLocaleString()}</td>
-            </tr>
-            <tr>
-              <td><strong>N</strong></td>
-              <td>Insurance Relief</td>
-              <td class="amount">${employee.insuranceRelief.toLocaleString()}</td>
-            </tr>
-            <tr style="background-color: #f0f0f0;">
-              <td><strong>O</strong></td>
-              <td><strong>PAYE Tax (L-M-N)</strong></td>
-              <td class="amount"><strong>${employee.payeTax.toLocaleString()}</strong></td>
-            </tr>
-          </table>
-        </div>
-        
-        <div class="section">
-          <div class="section-title">CERTIFICATE</div>
-          <p>This is to certify that the above particulars are correct and that tax has been deducted in accordance with the Income Tax Act.</p>
-          <br><br>
-          <div style="margin-top: 40px;">
-            <div style="float: left;">
-              <div>Employee Signature: ________________</div>
-              <div style="margin-top: 20px;">Date: ________________</div>
-            </div>
-            <div style="float: right;">
-              <div>Employer Signature: ________________</div>
-              <div style="margin-top: 20px;">Date: ________________</div>
-            </div>
+          <div>
+            Employer Signature: ____________________<br/>
+            Date: ____________________
           </div>
         </div>
       </body>
@@ -444,7 +522,7 @@ export function P9FormGenerator() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `P9_Form_${employee.employeeName.replace(' ', '_')}_${selectedYear}.html`;
+    a.download = `P9_Form_${employee.employeeName.replace(/\s+/g,'_')}_${selectedYear}.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -455,13 +533,171 @@ export function P9FormGenerator() {
     if (!p9Data) return;
     
     p9Data.employees.forEach(employee => {
-      setTimeout(() => downloadP9Form(employee), 100); // Small delay between downloads
+      setTimeout(() => downloadP9FormPDF(employee), 150); // Small delay between downloads
     });
     
     toast({
       title: "Download Started",
       description: `Downloading P9 forms for ${p9Data.employees.length} employees.`,
     });
+  };
+
+  // --- PDF (KRA 2025 template) exporter ---
+  const fetchTemplatePdf = async (): Promise<ArrayBuffer> => {
+    const remoteUrl = "https://www.kra.go.ke/images/publications/P9-FORM-Template-2025.pdf";
+    // Respect Vite base (e.g., "/app/") so path resolves correctly when app is served under subpath
+    const base = (import.meta as any).env?.BASE_URL || "/";
+    const normalizedBase = String(base).endsWith("/") ? String(base).slice(0, -1) : String(base);
+    const localUrl = `${normalizedBase}/templates/P9-FORM-Template-2025.pdf`;
+    try {
+      const resp = await fetch(remoteUrl, { mode: "cors" });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      return await resp.arrayBuffer();
+    } catch (e) {
+      console.warn("Remote KRA template fetch failed, falling back to local template:", e);
+      try {
+        const respLocal = await fetch(localUrl);
+        if (!respLocal.ok) throw new Error(`Local HTTP ${respLocal.status}`);
+        return await respLocal.arrayBuffer();
+      } catch (e2) {
+        console.error("Local template fetch failed:", e2, "localUrl:", localUrl);
+        throw e2;
+      }
+    }
+  };
+
+  const drawText = (
+    page: any,
+    text: string,
+    x: number,
+    y: number,
+    font: any,
+    size = 9,
+    color = rgb(0, 0, 0),
+    options: { align?: "left" | "right" | "center"; width?: number } = {}
+  ) => {
+    const { align = "left", width } = options;
+    let drawX = x;
+    if (width && (align === "right" || align === "center")) {
+      const textWidth = font.widthOfTextAtSize(text, size);
+      if (align === "right") drawX = x + width - textWidth;
+      if (align === "center") drawX = x + (width - textWidth) / 2;
+    }
+    page.drawText(text, { x: drawX, y, size, font, color });
+  };
+
+  const numberFmt = (n: number) => (isFinite(n) ? n.toLocaleString("en-KE") : "0");
+
+  const downloadP9FormPDF = async (employee: P9Data) => {
+    try {
+      const templateBytes = await fetchTemplatePdf();
+      const pdfDoc = await PDFDocument.load(templateBytes);
+      const page = pdfDoc.getPages()[0];
+      const { height, width } = page.getSize();
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+      // Header/meta approximate coordinates (tuned for KRA template layout)
+      // Note: Coordinates are measured from bottom-left. Adjust if template margins differ.
+      drawText(page, `YEAR ${p9Data?.year || selectedYear}`, width - 160, height - 90, font, 10);
+      drawText(page, p9Data?.employerName || "", 120, height - 125, font, 10);
+      drawText(page, p9Data?.employerPin || "", width - 220, height - 125, font, 10);
+      drawText(page, employee.employeeName || "", 120, height - 145, font, 10);
+      drawText(page, employee.pinNumber || "", width - 220, height - 145, font, 10);
+
+      // Table placement (approximate grid overlay over template table)
+      const tableLeft = 54; // left margin where MONTH column starts
+      const tableTop = height - 205; // y for January row
+      const rowH = 16; // row height
+      // Column x positions relative to left
+      const colXs = [
+        0,   // MONTH (text left)
+        120, // A
+        170, // B
+        220, // C
+        270, // D
+        330, // E1
+        370, // E2
+        410, // E3
+        455, // F
+        495, // G
+        535, // H
+        575, // I
+        615, // J
+        660, // K
+        705, // L
+        750, // M
+        790, // N
+        830  // O
+      ];
+      const colWidths = [120, 50, 50, 50, 55, 38, 38, 40, 38, 38, 38, 38, 42, 40, 40, 36, 36, 40];
+
+      const writeRow = (rowIndex: number, label: string, r?: MonthlyP9Row) => {
+        const y = tableTop - rowIndex * rowH;
+        // Month label
+        drawText(page, label, tableLeft + 4, y, font, 9);
+        if (!r) return;
+        const values = [
+          r.A, r.B, r.C, r.D, r.E1, r.E2, r.E3,
+          r.F, r.G, r.H, r.I, r.J, r.K, r.L, r.M, r.N, r.O
+        ];
+        for (let i = 0; i < values.length; i++) {
+          const colX = tableLeft + colXs[i + 1];
+          const width = colWidths[i + 1] || 40;
+          drawText(page, numberFmt(values[i] || 0), colX + 2, y, font, 8.8, rgb(0, 0, 0), { align: "right", width: width - 6 });
+        }
+      };
+
+      // 12 months
+      const months = employee.monthly || [];
+      const monthOrder = [
+        "January","February","March","April","May","June",
+        "July","August","September","October","November","December"
+      ];
+      for (let i = 0; i < 12; i++) {
+        const mName = monthOrder[i];
+        const r = months.find(m => m.month === mName);
+        writeRow(i, mName, r);
+      }
+
+      // Totals row
+      const totals = employee.monthly.reduce((acc, r) => ({
+        A: acc.A + r.A, B: acc.B + r.B, C: acc.C + r.C, D: acc.D + r.D,
+        E1: acc.E1 + r.E1, E2: acc.E2 + r.E2, E3: acc.E3 + r.E3,
+        F: acc.F + r.F, G: acc.G + r.G, H: acc.H + r.H, I: acc.I + r.I,
+        J: acc.J + r.J, K: acc.K + r.K, L: acc.L + r.L, M: acc.M + r.M, N: acc.N + r.N, O: acc.O + r.O
+      }), {A:0,B:0,C:0,D:0,E1:0,E2:0,E3:0,F:0,G:0,H:0,I:0,J:0,K:0,L:0,M:0,N:0,O:0});
+      const totalsRowIndex = 12; // row after December
+      const totalsY = tableTop - totalsRowIndex * rowH;
+      drawText(page, "TOTAL", tableLeft + 4, totalsY, font, 9);
+      const totalsArr = [
+        totals.A, totals.B, totals.C, totals.D, totals.E1, totals.E2, totals.E3,
+        totals.F, totals.G, totals.H, totals.I, totals.J, totals.K, totals.L, totals.M, totals.N, totals.O
+      ];
+      for (let i = 0; i < totalsArr.length; i++) {
+        const colX = tableLeft + colXs[i + 1];
+        const width = colWidths[i + 1] || 40;
+        drawText(page, numberFmt(totalsArr[i] || 0), colX + 2, totalsY, font, 9, rgb(0, 0, 0), { align: "right", width: width - 6 });
+      }
+
+      // Save & download
+      const bytes = await pdfDoc.save();
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `P9_Form_${employee.employeeName.replace(/\s+/g,'_')}_${selectedYear}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error("P9 PDF export failed:", error);
+      toast({
+        title: "PDF Export Failed",
+        description: `Could not export P9 using the KRA template. ${error?.message || "Please ensure the template is reachable."}`,
+        variant: "destructive"
+      });
+    }
   };
 
   const handleEmployeeSelection = (employeeId: string, checked: boolean) => {
@@ -498,6 +734,7 @@ export function P9FormGenerator() {
                   <SelectValue placeholder="Select year" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="2025">2025</SelectItem>
                   <SelectItem value="2024">2024</SelectItem>
                   <SelectItem value="2023">2023</SelectItem>
                   <SelectItem value="2022">2022</SelectItem>
@@ -638,7 +875,7 @@ export function P9FormGenerator() {
                           <Button 
                             variant="outline" 
                             size="sm"
-                            onClick={() => downloadP9Form(employee)}
+                            onClick={() => downloadP9FormPDF(employee)}
                           >
                             <Download className="h-4 w-4 mr-1" />
                             Download

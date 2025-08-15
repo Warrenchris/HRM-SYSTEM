@@ -1,13 +1,39 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExpenseStats } from "@/components/expenses/ExpenseStats";
 import { ExpenseForm } from "@/components/expenses/ExpenseForm";
 import { ExpenseHistory } from "@/components/expenses/ExpenseHistory";
 import { ExpenseApprovals } from "@/components/expenses/ExpenseApprovals";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Expenses() {
   const [activeTab, setActiveTab] = useState("overview");
+  const { user } = useAuth();
+  const [role, setRole] = useState<"employee" | "manager" | "hr" | "admin" | "finance_manager" | "ceo" | null>(null);
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        if (!user) {
+          setRole(null);
+          return;
+        }
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("user_id", user.id)
+          .single();
+        setRole((profile?.role as any) || "employee");
+      } catch {
+        setRole("employee");
+      }
+    };
+    fetchRole();
+  }, [user]);
+
+  const canApprove = useMemo(() => role === "manager" || role === "hr" || role === "admin" || role === "finance_manager" || role === "ceo", [role]);
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -20,7 +46,7 @@ export default function Expenses() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="submit">Submit Expense</TabsTrigger>
           <TabsTrigger value="history">My Expenses</TabsTrigger>
-          <TabsTrigger value="approvals">Approvals</TabsTrigger>
+          {canApprove && <TabsTrigger value="approvals">Approvals</TabsTrigger>}
         </TabsList>
         
         <TabsContent value="overview" className="space-y-4">
@@ -72,9 +98,11 @@ export default function Expenses() {
           <ExpenseHistory />
         </TabsContent>
         
-        <TabsContent value="approvals">
-          <ExpenseApprovals />
-        </TabsContent>
+        {canApprove && (
+          <TabsContent value="approvals">
+            <ExpenseApprovals />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

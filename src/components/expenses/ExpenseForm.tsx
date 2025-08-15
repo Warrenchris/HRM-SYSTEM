@@ -152,10 +152,10 @@ export function ExpenseForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} defaultValue={field.value} disabled={categories.length === 0}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
+                        <SelectValue placeholder={categories.length === 0 ? "No active categories found" : "Select category"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>

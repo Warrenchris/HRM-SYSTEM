@@ -18,6 +18,7 @@ import { useDevelopmentPlanMilestonesQuery, useDevelopmentPlansQuery } from "@/h
 import { supabase } from "@/integrations/supabase/client";
 import { useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 
 interface DevelopmentPlan {
   id: string;
@@ -50,6 +51,7 @@ export function DevelopmentPlans() {
   const { toast } = useToast();
 
   const queryClient = useQueryClient();
+  const { employee } = useCurrentEmployee();
   const { data: planRows = [] } = useDevelopmentPlansQuery();
   const planIds = useMemo(() => planRows.map(p => p.id), [planRows]);
   const { data: milestoneRows = [] } = useDevelopmentPlanMilestonesQuery(planIds);
@@ -118,9 +120,18 @@ export function DevelopmentPlans() {
       return;
     }
 
+    if (!employee?.id) {
+      toast({
+        title: "No employee context",
+        description: "Could not resolve the current employee. Please ensure your profile is linked to an employee record.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase.from('development_plans').insert({
-        employee_id: 'unknown',
+        employee_id: employee.id,
         title: planTitle,
         description: planDescription,
         category: planCategory,
@@ -146,8 +157,9 @@ export function DevelopmentPlans() {
       setPlanBudget("");
       setIsDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['performance', 'devplans'] });
-    } catch (e) {
-      toast({ title: 'Error', description: 'Failed to create plan', variant: 'destructive' });
+    } catch (e: any) {
+      console.error('Failed to create plan:', e);
+      toast({ title: 'Error', description: e?.message || 'Failed to create plan', variant: 'destructive' });
     }
   };
 

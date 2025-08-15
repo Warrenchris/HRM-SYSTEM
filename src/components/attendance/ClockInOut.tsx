@@ -28,16 +28,7 @@ export function ClockInOut() {
   const clockedIn = todayRecord && !todayRecord.clock_out_time;
   const isOnBreak = todayRecord?.status === 'on_break';
 
-  // Debug logging
-  console.log('ClockInOut render:', {
-    employee,
-    records,
-    loading,
-    todayRecord,
-    clockedIn,
-    isOnBreak,
-    attendanceError
-  });
+  // Debug logging removed to reduce console noise during renders
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -212,8 +203,8 @@ export function ClockInOut() {
           Time Clock
         </CardTitle>
         <CardDescription>
-          <div className="text-lg font-mono">{currentTime.toLocaleTimeString()}</div>
-          <div className="text-sm">{currentTime.toLocaleDateString()}</div>
+          <span className="block text-lg font-mono">{currentTime.toLocaleTimeString()}</span>
+          <span className="block text-sm">{currentTime.toLocaleDateString()}</span>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

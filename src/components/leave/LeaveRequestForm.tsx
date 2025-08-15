@@ -121,6 +121,8 @@ export function LeaveRequestForm() {
     );
   }
 
+  const noLeaveTypes = !typesLoading && leaveTypes.length === 0;
+
   return (
     <div className="max-w-2xl mx-auto">
       <Card>
@@ -143,14 +145,14 @@ export function LeaveRequestForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Leave Type</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={noLeaveTypes}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select leave type" />
+                          <SelectValue placeholder={noLeaveTypes ? "No active leave types found" : "Select leave type"} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {leaveTypes.map((type) => (
+                        {leaveTypes.map((type) => (
                             <SelectItem key={type.id} value={type.id}>
                               {type.name}
                             </SelectItem>
@@ -304,7 +306,7 @@ export function LeaveRequestForm() {
               />
 
               <div className="flex gap-3 pt-4">
-                <Button type="submit" disabled={isSubmitting} className="flex-1">
+                <Button type="submit" disabled={isSubmitting || noLeaveTypes} className="flex-1">
                   {isSubmitting ? "Submitting..." : "Submit Request"}
                 </Button>
                 <Button type="button" variant="outline" onClick={() => form.reset()}>

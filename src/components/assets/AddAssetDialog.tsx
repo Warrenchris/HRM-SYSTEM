@@ -16,6 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const assetSchema = z.object({
   name: z.string().min(2, "Asset name must be at least 2 characters"),
@@ -42,6 +43,9 @@ interface AddAssetDialogProps {
 export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
+  const [canManageAssets, setCanManageAssets] = useState<boolean>(false);
+  const [checkingPermissions, setCheckingPermissions] = useState<boolean>(true);
 
   const form = useForm<AssetFormData>({
     resolver: zodResolver(assetSchema),
@@ -58,6 +62,30 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
       purchaseValue: 0,
     },
   });
+
+  // Check if current user has permissions per RLS (admin or hr)
+  useEffect(() => {
+    let isMounted = true;
+    const check = async () => {
+      try {
+        setCheckingPermissions(true);
+        if (!user) {
+          if (isMounted) setCanManageAssets(false);
+          return;
+        }
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (isMounted) setCanManageAssets(profile?.role === 'admin' || profile?.role === 'hr');
+      } finally {
+        if (isMounted) setCheckingPermissions(false);
+      }
+    };
+    check();
+    return () => { isMounted = false; };
+  }, [user]);
 
   const onSubmit = async (data: AssetFormData) => {
     setIsSubmitting(true);
@@ -88,9 +116,10 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
 
       form.reset();
       onOpenChange(false);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to add asset', e);
-      toast({ title: 'Error', description: 'Failed to add asset', variant: 'destructive' });
+      const message = e?.message || 'Failed to add asset';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
@@ -111,6 +140,13 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Permission notice */}
+            {!checkingPermissions && !canManageAssets && (
+              <div className="p-3 rounded-md bg-red-50 text-sm text-red-700 border border-red-200">
+                You do not have permission to add assets. Please contact an HR or Admin user.
+              </div>
+            )}
+
             {/* Basic Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Basic Information</h3>
@@ -410,7 +446,7 @@ export function AddAssetDialog({ open, onOpenChange }: AddAssetDialogProps) {
             <div className="flex gap-3 pt-4">
               <Button 
                 type="submit" 
-                disabled={isSubmitting} 
+                disabled={isSubmitting || checkingPermissions || !canManageAssets} 
                 className="flex-1"
               >
                 {isSubmitting ? "Adding Asset..." : "Add Asset"}

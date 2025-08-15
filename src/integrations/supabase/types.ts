@@ -1829,6 +1829,15 @@ export type Database = {
         Args: { company_uuid: string }
         Returns: boolean
       }
+      ensure_user_for_employee: {
+        Args: {
+          _email: string
+          _password: string
+          _employee_id: string
+          _role?: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

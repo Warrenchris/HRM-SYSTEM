@@ -730,12 +730,12 @@ export function OrganizationChart() {
               </div>
               <div>
                 <Label>Reports To</Label>
-                <Select value={formData.parent_position_id} onValueChange={(value) => setFormData(prev => ({ ...prev, parent_position_id: value }))}>
+                <Select value={formData.parent_position_id} onValueChange={(value) => setFormData(prev => ({ ...prev, parent_position_id: value === 'none' ? '' : value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select parent position" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None (Top Level)</SelectItem>
+                    <SelectItem value="none">None (Top Level)</SelectItem>
                     {positions
                       .filter(pos => pos.id !== editingPosition?.id)
                       .map((pos) => (

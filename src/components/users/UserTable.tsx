@@ -62,6 +62,8 @@ export function UserTable() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEmployeeSelectDialogOpen, setIsEmployeeSelectDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -85,13 +87,35 @@ export function UserTable() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const { toast } = useToast();
 
   // Fetch users from Supabase
   useEffect(() => {
     fetchUsers();
     fetchEmployees();
+    fetchCurrentUserRole();
   }, []);
+
+  const fetchCurrentUserRole = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (profile) {
+          setCurrentUserRole(profile.role);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching current user role:', error);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -253,6 +277,10 @@ export function UserTable() {
 
     setCreating(true);
     try {
+      console.log('Creating user for employee:', selectedEmployee);
+      console.log('Role:', userRole);
+      console.log('Email:', selectedEmployee.email);
+      
       // Server-side atomic helper handles: create/find auth user, identity, profile, link employee, set role
       const roleMapping = {
         'Admin': 'admin',
@@ -261,20 +289,33 @@ export function UserTable() {
         'Employee': 'employee'
       } as const;
 
+      const mappedRole = roleMapping[userRole as keyof typeof roleMapping] || 'employee';
+      console.log('Mapped role:', mappedRole);
+
       const { data: ensuredUserId, error: ensureError } = await supabase.rpc('ensure_user_for_employee', {
         _email: selectedEmployee.email,
         _password: userPassword,
         _employee_id: selectedEmployee.id,
-        _role: roleMapping[userRole as keyof typeof roleMapping] || 'employee'
+        _role: mappedRole
       });
 
+      console.log('RPC result:', { ensuredUserId, ensureError });
+
       if (ensureError || !ensuredUserId) {
+        console.error('Error details:', ensureError);
         toast({
           title: "Error Creating User",
           description: ensureError?.message || 'Database error creating user',
           variant: "destructive",
         });
         return;
+      }
+
+      // Safety: normalize auth user to avoid GoTrue NULL scan issues
+      try {
+        await supabase.rpc('normalize_auth_user', { _user_id: ensuredUserId as unknown as string });
+      } catch (e) {
+        console.warn('normalize_auth_user failed (non-fatal):', e);
       }
 
       toast({
@@ -462,6 +503,57 @@ export function UserTable() {
       });
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleDeleteUser = async (user: User) => {
+    setUserToDelete(user);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    setDeleting(true);
+    try {
+      // First, delete the profile (this will cascade to auth.users due to ON DELETE CASCADE)
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('user_id', userToDelete.id);
+
+      if (profileError) {
+        console.error('Error deleting profile:', profileError);
+        toast({
+          title: "Error",
+          description: "Failed to delete user profile",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "User Deleted",
+        description: `${userToDelete.name} has been deleted successfully`,
+      });
+
+      // Close dialog and reset state
+      setIsDeleteDialogOpen(false);
+      setUserToDelete(null);
+
+      // Refresh the users list
+      await fetchUsers();
+      await fetchEmployees();
+
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete user. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -750,10 +842,15 @@ export function UserTable() {
                             <Edit className="h-4 w-4 mr-2" />
                             Edit User
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
+                          {currentUserRole === 'admin' && (
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteUser(user)}
+                              className="text-destructive"
+                            >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete User
                           </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -953,6 +1050,48 @@ export function UserTable() {
               </Button>
               <Button onClick={handleUpdateUser} disabled={updating}>
                 {updating ? "Updating..." : "Update User"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete User</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete <span className="font-semibold">{userToDelete?.name}</span>? 
+              This action cannot be undone and will permanently remove their user account.
+            </p>
+            <div className="bg-muted p-3 rounded-md">
+              <p className="text-xs text-muted-foreground">
+                <strong>User Details:</strong><br />
+                Email: {userToDelete?.email}<br />
+                Role: {userToDelete?.role}<br />
+                Department: {userToDelete?.department}
+              </p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setIsDeleteDialogOpen(false);
+                  setUserToDelete(null);
+                }}
+                disabled={deleting}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={confirmDeleteUser}
+                disabled={deleting}
+              >
+                {deleting ? "Deleting..." : "Delete User"}
               </Button>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LeaveStats } from "@/components/leave/LeaveStats";
@@ -7,9 +7,35 @@ import { LeaveHistory } from "@/components/leave/LeaveHistory";
 import { LeaveCalendar } from "@/components/leave/LeaveCalendar";
 import { LeaveApprovals } from "@/components/leave/LeaveApprovals";
 import { Calendar, Clock, FileText, CheckCircle, BarChart3 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Leave() {
   const [activeTab, setActiveTab] = useState("overview");
+  const { user } = useAuth();
+  const [role, setRole] = useState<"employee" | "manager" | "hr" | "admin" | "ceo" | null>(null);
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        if (!user) {
+          setRole(null);
+          return;
+        }
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("user_id", user.id)
+          .single();
+        setRole((profile?.role as any) || "employee");
+      } catch {
+        setRole("employee");
+      }
+    };
+    fetchRole();
+  }, [user]);
+
+  const canApprove = useMemo(() => role === "manager" || role === "hr" || role === "admin" || role === "ceo", [role]);
 
   return (
     <div className="space-y-6">
@@ -47,11 +73,13 @@ export default function Leave() {
               <span className="hidden sm:inline">Team Calendar</span>
               <span className="sm:hidden">Calendar</span>
             </TabsTrigger>
-            <TabsTrigger value="approvals" className="flex items-center gap-1 sm:gap-2">
-              <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Approvals</span>
-              <span className="sm:hidden">Approve</span>
-            </TabsTrigger>
+            {canApprove && (
+              <TabsTrigger value="approvals" className="flex items-center gap-1 sm:gap-2">
+                <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="hidden sm:inline">Approvals</span>
+                <span className="sm:hidden">Approve</span>
+              </TabsTrigger>
+            )}
           </TabsList>
         </div>
 
@@ -125,9 +153,11 @@ export default function Leave() {
           <LeaveCalendar />
         </TabsContent>
 
-        <TabsContent value="approvals">
-          <LeaveApprovals />
-        </TabsContent>
+        {canApprove && (
+          <TabsContent value="approvals">
+            <LeaveApprovals />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,11 +13,15 @@ import { Clock, MapPin, Calendar, History, BarChart3, CheckCircle } from "lucide
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useTodayAttendance } from "@/hooks/useAttendanceData";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Attendance() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const { employee } = useCurrentEmployee();
   const { records } = useTodayAttendance(employee?.id);
+  const { user } = useAuth();
+  const [role, setRole] = useState<"employee" | "manager" | "hr" | "admin" | "ceo" | null>(null);
   
   const todayRecord = records[0];
   const isCheckedIn = todayRecord && !todayRecord.clock_out_time;
@@ -29,6 +33,28 @@ export default function Attendance() {
 
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        if (!user) {
+          setRole(null);
+          return;
+        }
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("user_id", user.id)
+          .single();
+        setRole((profile?.role as any) || "employee");
+      } catch {
+        setRole("employee");
+      }
+    };
+    fetchRole();
+  }, [user]);
+
+  const canApprove = useMemo(() => role === "manager" || role === "hr" || role === "admin" || role === "ceo", [role]);
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', {
@@ -119,10 +145,12 @@ export default function Attendance() {
                 <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4" />
                 Reports
               </TabsTrigger>
-              <TabsTrigger value="approvals" className="flex items-center gap-1 sm:gap-2">
-                <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
-                Approvals
-              </TabsTrigger>
+              {canApprove && (
+                <TabsTrigger value="approvals" className="flex items-center gap-1 sm:gap-2">
+                  <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                  Approvals
+                </TabsTrigger>
+              )}
             </TabsList>
           </div>
 
@@ -150,11 +178,13 @@ export default function Attendance() {
             </ErrorBoundary>
           </TabsContent>
 
-          <TabsContent value="approvals">
-            <ErrorBoundary>
-              <AttendanceApprovals />
-            </ErrorBoundary>
-          </TabsContent>
+          {canApprove && (
+            <TabsContent value="approvals">
+              <ErrorBoundary>
+                <AttendanceApprovals />
+              </ErrorBoundary>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </ErrorBoundary>

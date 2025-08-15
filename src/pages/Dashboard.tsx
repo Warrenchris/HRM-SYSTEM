@@ -16,6 +16,7 @@ import {
   FileText
 } from "lucide-react";
 import { useEmployeeStatsQuery } from "@/hooks/queries/useEmployeesQuery";
+import { useOverviewMetricsQuery } from "@/hooks/queries/useReportsQuery";
 import {
   useUpcomingBirthdaysQuery,
   useTodayAttendanceQuery,
@@ -27,6 +28,7 @@ import {
 export default function Dashboard() {
   // Use optimized queries with caching
   const { data: employeeStats, isLoading: statsLoading } = useEmployeeStatsQuery();
+  const { data: overviewMetrics } = useOverviewMetricsQuery('last-30-days');
   const { data: upcomingBirthdays = [], isLoading: birthdaysLoading } = useUpcomingBirthdaysQuery();
   const { data: attendanceData, isLoading: attendanceLoading } = useTodayAttendanceQuery();
   const { data: contractsData = [] } = useContractsExpiringQuery(60);
@@ -41,8 +43,48 @@ export default function Dashboard() {
     onBreak: 0
   };
 
-  // Remove mock data arrays and replace with fetched data with safe fallbacks
-  const stats: any[] = [];
+  // Insights & analytics cards
+  const parseTrend = (text?: string) => {
+    if (!text) return 'neutral';
+    if (text.trim().startsWith('+')) return 'up';
+    if (text.trim().startsWith('-')) return 'down';
+    return 'neutral';
+  };
+
+  const stats: any[] = [
+    {
+      title: 'Total Employees',
+      value: statsLoading ? '…' : (employeeStats?.totalEmployees ?? 0),
+      change: overviewMetrics?.employeeGrowth ?? '—',
+      icon: Users,
+      color: 'bg-blue-500',
+      trend: parseTrend(overviewMetrics?.employeeGrowth),
+    },
+    {
+      title: 'Avg Performance',
+      value: overviewMetrics ? `${overviewMetrics.avgPerformance.toFixed(1)}` : '…',
+      change: overviewMetrics?.performanceChange ?? '—',
+      icon: TrendingUp,
+      color: 'bg-purple-500',
+      trend: parseTrend(overviewMetrics?.performanceChange),
+    },
+    {
+      title: 'Attendance Rate',
+      value: overviewMetrics ? `${overviewMetrics.attendanceRate.toFixed(1)}%` : '…',
+      change: overviewMetrics?.attendanceChange ?? '—',
+      icon: Clock,
+      color: 'bg-green-500',
+      trend: parseTrend(overviewMetrics?.attendanceChange),
+    },
+    {
+      title: 'Open Positions',
+      value: overviewMetrics ? `${overviewMetrics.openPositions}` : '…',
+      change: overviewMetrics?.positionsFilled ?? '—',
+      icon: UserCheck,
+      color: 'bg-orange-500',
+      trend: 'neutral',
+    },
+  ];
   const pendingActions = pendingData;
   const contractsExpiring = contractsData;
   const recentActivities = activitiesData;
@@ -85,12 +127,11 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-              <div className="flex items-center text-xs text-muted-foreground">
-                <TrendingUp className={`w-3 h-3 mr-1 ${stat.trend === 'up' ? 'text-green-500' : 'text-red-500'}`} />
-                <span className={stat.trend === 'up' ? 'text-green-500' : 'text-red-500'}>
+              <div className="flex items-center text-xs">
+                <TrendingUp className={`w-3 h-3 mr-1 ${stat.trend === 'up' ? 'text-green-500' : stat.trend === 'down' ? 'text-red-500' : 'text-muted-foreground'}`} />
+                <span className={stat.trend === 'up' ? 'text-green-600' : stat.trend === 'down' ? 'text-red-600' : 'text-muted-foreground'}>
                   {stat.change}
                 </span>
-                <span className="ml-1">from last month</span>
               </div>
             </CardContent>
           </Card>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CheckCircle, XCircle, Eye, Clock, User, AlertTriangle, Search, Filter } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PendingTimesheet {
   id: string;
@@ -53,7 +55,30 @@ export function TimesheetApprovals() {
   const [selectedTimesheet, setSelectedTimesheet] = useState<PendingTimesheet | null>(null);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [approvalComments, setApprovalComments] = useState("");
-  const [userRole] = useState<"manager" | "hr" | "ceo">("hr"); // In real app, get from auth context
+  const { user } = useAuth();
+  const [userRole, setUserRole] = useState<"employee" | "manager" | "hr" | "admin" | "ceo" | null>(null);
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        if (!user) {
+          setUserRole(null);
+          return;
+        }
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("user_id", user.id)
+          .single();
+        setUserRole((profile?.role as any) || "employee");
+      } catch {
+        setUserRole("employee");
+      }
+    };
+    fetchRole();
+  }, [user]);
+
+  const canApprove = useMemo(() => userRole === "manager" || userRole === "hr" || userRole === "admin" || userRole === "ceo", [userRole]);
 
   const pendingTimesheets: PendingTimesheet[] = [
     {

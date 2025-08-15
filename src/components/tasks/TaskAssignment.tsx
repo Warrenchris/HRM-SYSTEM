@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useEmployeesList } from "@/hooks/queries/useEmployeesQuery";
 import { useCreateTaskMutation } from "@/hooks/queries/useTasksQuery";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Simple employee selector that doesn't use cmdk to avoid the error
 const SimpleEmployeeSelector = React.memo(({ 
@@ -97,6 +98,10 @@ export function TaskAssignment() {
   const [newTag, setNewTag] = useState("");
   const [employeeComboOpen, setEmployeeComboOpen] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [role, setRole] = useState<"employee" | "manager" | "hr" | "admin" | null>(null);
+  const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
+  const [allowedEmployeeIds, setAllowedEmployeeIds] = useState<Set<string>>(new Set());
   
   // Use optimized employee query
   const { data: employees, isLoading: employeesLoading, isError: employeesError } = useEmployeesList({ status: 'active' });
@@ -142,11 +147,95 @@ export function TaskAssignment() {
     department: "",
   });
 
+  // Load current user's role and allowed subordinates via organization_positions
+  useEffect(() => {
+    const loadRoleAndHierarchy = async () => {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (!authUser) {
+          setRole(null);
+          setCurrentEmployeeId(null);
+          setAllowedEmployeeIds(new Set());
+          return;
+        }
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role, employee_id')
+          .eq('user_id', authUser.id)
+          .single();
+        const userRole = (profile?.role as any) || 'employee';
+        setRole(userRole);
+        const empId = profile?.employee_id || null;
+        setCurrentEmployeeId(empId);
+
+        // Admin can assign to anyone
+        if (userRole === 'admin') {
+          setAllowedEmployeeIds(new Set(safeEmployees.map(e => e.id)));
+          return;
+        }
+
+        // Fetch org positions to compute descendants of the current user's position
+        const { data: positions } = await supabase
+          .from('organization_positions')
+          .select('id, parent_position_id, employee_id, is_active')
+          .eq('is_active', true);
+
+        if (!positions || !empId) {
+          setAllowedEmployeeIds(new Set());
+          return;
+        }
+
+        const byEmployee: Record<string, any | undefined> = {};
+        for (const p of positions) byEmployee[p.employee_id || ''] = p;
+        const myPos = byEmployee[empId];
+        if (!myPos) {
+          setAllowedEmployeeIds(new Set());
+          return;
+        }
+
+        const childrenMap = new Map<string, any[]>();
+        for (const p of positions) {
+          const parentId = p.parent_position_id || '';
+          const arr = childrenMap.get(parentId) || [];
+          arr.push(p);
+          childrenMap.set(parentId, arr);
+        }
+
+        const stack = [myPos.id as string];
+        const descendantEmployeeIds: string[] = [];
+        while (stack.length) {
+          const current = stack.pop() as string;
+          const kids = childrenMap.get(current) || [];
+          for (const kid of kids) {
+            if (kid.employee_id) descendantEmployeeIds.push(kid.employee_id);
+            if (kid.id) stack.push(kid.id);
+          }
+        }
+
+        setAllowedEmployeeIds(new Set(descendantEmployeeIds));
+      } catch {
+        setAllowedEmployeeIds(new Set());
+      }
+    };
+    loadRoleAndHierarchy();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, safeEmployees.length]);
+
+  const canAssign = useMemo(() => role === 'admin' || role === 'manager' || role === 'hr', [role]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
+      if (!canAssign) {
+        toast({ title: "Not allowed", description: "You don't have permission to assign tasks.", variant: "destructive" });
+        return;
+      }
+      if (role !== 'admin' && formData.assigned_to && !allowedEmployeeIds.has(formData.assigned_to)) {
+        toast({ title: "Invalid assignment", description: "You can only assign tasks to your subordinates.", variant: "destructive" });
+        return;
+      }
+
       // Get current user's employee ID
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -212,6 +301,21 @@ export function TaskAssignment() {
     setTags(tags.filter(tag => tag !== tagToRemove));
   };
 
+  if (!canAssign) {
+    return (
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <CardTitle>Assign New Task</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-muted-foreground">
+            Only managers, HR, and admins can assign tasks. Managers and HR may only assign to their subordinates.
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="max-w-2xl">
       <CardHeader>
@@ -247,7 +351,7 @@ export function TaskAssignment() {
                     role="combobox"
                     aria-expanded={employeeComboOpen}
                     className="w-full justify-between"
-                                         disabled={employeesLoading || !canRenderSelector}
+                    disabled={employeesLoading || !canRenderSelector}
                   >
                     {formData.assigned_to
                       ? safeEmployees.find((employee) => employee.id === formData.assigned_to)
@@ -269,7 +373,7 @@ export function TaskAssignment() {
                   ) : canRenderSelector && employeeComboOpen ? (
                     <div className="w-full">
                       <SimpleEmployeeSelector
-                        employees={safeEmployees}
+                        employees={safeEmployees.filter(e => role === 'admin' ? true : allowedEmployeeIds.has(e.id))}
                         selectedEmployeeId={formData.assigned_to}
                         onSelect={(employeeId) => setFormData({ ...formData, assigned_to: employeeId })}
                         onClose={() => setEmployeeComboOpen(false)}

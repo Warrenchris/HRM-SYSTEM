@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { BarChart3, PieChart, TrendingUp, Users, Calendar, Download, Loader2 } from "lucide-react";
+import { BarChart3, PieChart, TrendingUp, Users, Calendar, Download, Loader2, Star, CheckCircle } from "lucide-react";
 import { 
   useOverviewMetricsQuery, 
   useDepartmentDistributionQuery, 
@@ -12,6 +12,11 @@ import {
   useAttendanceAnalyticsQuery
 } from "@/hooks/queries/useReportsQuery";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  usePerformanceStatsQuery,
+  useAppraisalsQuery,
+  useObjectivesQuery,
+} from "@/hooks/queries/usePerformanceQueries";
 
 export default function Reports() {
   const [timeRange, setTimeRange] = useState("last-30-days");
@@ -22,6 +27,10 @@ export default function Reports() {
   const { data: trendsData, isLoading: trendsLoading, error: trendsError } = useMonthlyTrendsQuery(6);
   const { data: employeeAnalytics, isLoading: employeeLoading, error: employeeError } = useEmployeeAnalyticsQuery();
   const { data: attendanceAnalytics, isLoading: attendanceLoading, error: attendanceError } = useAttendanceAnalyticsQuery();
+  // Performance
+  const { data: perfStats, isLoading: perfLoading, error: perfError } = usePerformanceStatsQuery();
+  const { data: appraisals, isLoading: appLoading, error: appError } = useAppraisalsQuery();
+  const { data: objectives, isLoading: objLoading, error: objError } = useObjectivesQuery();
 
   // Loading skeleton component
   const MetricSkeleton = () => (
@@ -360,7 +369,120 @@ export default function Reports() {
           </div>
         </TabsContent>
 
-        {["performance", "recruitment", "payroll"].map((tab) => (
+        <TabsContent value="performance" className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {perfLoading ? (
+              Array.from({ length: 4 }).map((_, i) => <MetricSkeleton key={i} />)
+            ) : perfError ? (
+              <div className="col-span-4"><ErrorDisplay error={perfError.message} /></div>
+            ) : (
+              <>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Average Performance</CardTitle>
+                    <Star className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{perfStats?.averagePerformance.value ?? 0}/5.0</div>
+                    <p className="text-xs text-muted-foreground">Period average rating</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Reviews Completed</CardTitle>
+                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{perfStats?.reviewsCompleted.percent ?? 0}%</div>
+                    <p className="text-xs text-muted-foreground">{perfStats?.reviewsCompleted.completed ?? 0}/{perfStats?.reviewsCompleted.total ?? 0} completed</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Goals Achieved</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{perfStats?.goalsAchieved.percent ?? 0}%</div>
+                    <p className="text-xs text-muted-foreground">{perfStats?.goalsAchieved.completed ?? 0}/{perfStats?.goalsAchieved.total ?? 0} objectives met</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Top Performers</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{perfStats?.topPerformers.count ?? 0}</div>
+                    <p className="text-xs text-muted-foreground">Employees with ≥4.5 average</p>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Appraisals</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {appLoading ? (
+                  <div className="flex items-center justify-center h-40">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : appError ? (
+                  <ErrorDisplay error={appError.message} />
+                ) : appraisals && appraisals.length > 0 ? (
+                  appraisals.slice(0, 6).map((a) => (
+                    <div key={a.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                      <div>
+                        <div className="text-sm font-medium">{a.employee ? `${a.employee.first_name} ${a.employee.last_name}` : 'Employee'}</div>
+                        <div className="text-xs text-muted-foreground">{a.appraisal_period}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium capitalize">{a.status}</div>
+                        <div className="text-xs text-muted-foreground">{a.overall_rating != null ? `${a.overall_rating.toFixed(1)}/5` : 'No rating'}</div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-muted-foreground">No appraisals found</div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Objectives Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {objLoading ? (
+                  <div className="flex items-center justify-center h-40">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  </div>
+                ) : objError ? (
+                  <ErrorDisplay error={objError.message} />
+                ) : objectives && objectives.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-muted/30 rounded-lg">
+                      <div className="text-2xl font-bold">{objectives.length}</div>
+                      <div className="text-sm text-muted-foreground">Total Objectives</div>
+                    </div>
+                    <div className="text-center p-3 bg-muted/30 rounded-lg">
+                      <div className="text-2xl font-bold">{objectives.filter(o => (o.manager_rating ?? 0) >= 4 || (o.employee_rating ?? 0) >= 4).length}</div>
+                      <div className="text-sm text-muted-foreground">Marked Achieved</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center text-muted-foreground">No objectives available</div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {["recruitment", "payroll"].map((tab) => (
           <TabsContent key={tab} value={tab} className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2">
               <Card>

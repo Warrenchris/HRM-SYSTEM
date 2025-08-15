@@ -64,6 +64,67 @@ export interface LeaveBalance {
   };
 }
 
+// Default leave types required by product
+const DEFAULT_LEAVE_TYPES: Array<
+  Pick<LeaveType, 'name' | 'description' | 'max_days_per_year' | 'carry_over_allowed' | 'max_carry_over_days' | 'requires_medical_certificate' | 'notice_period_days' | 'color' | 'is_active'>
+> = [
+  {
+    name: 'Academic Leave',
+    description: 'Leave for academic pursuits or studies',
+    max_days_per_year: 30,
+    carry_over_allowed: false,
+    max_carry_over_days: 0,
+    requires_medical_certificate: false,
+    notice_period_days: 14,
+    color: '#0EA5E9',
+    is_active: true,
+  },
+  {
+    name: 'Annual Leave',
+    description: 'Paid time off for vacation',
+    max_days_per_year: 21,
+    carry_over_allowed: true,
+    max_carry_over_days: 10,
+    requires_medical_certificate: false,
+    notice_period_days: 7,
+    color: '#10B981',
+    is_active: true,
+  },
+  {
+    name: 'Compassionate Leave',
+    description: 'Leave for bereavement or urgent family matters',
+    max_days_per_year: 7,
+    carry_over_allowed: false,
+    max_carry_over_days: 0,
+    requires_medical_certificate: false,
+    notice_period_days: 0,
+    color: '#8B5CF6',
+    is_active: true,
+  },
+  {
+    name: 'Maternal Leave',
+    description: 'Leave related to childbirth',
+    max_days_per_year: 90,
+    carry_over_allowed: false,
+    max_carry_over_days: 0,
+    requires_medical_certificate: false,
+    notice_period_days: 30,
+    color: '#F59E0B',
+    is_active: true,
+  },
+  {
+    name: 'Sick Leave',
+    description: 'Time off for illness',
+    max_days_per_year: 10,
+    carry_over_allowed: false,
+    max_carry_over_days: 0,
+    requires_medical_certificate: true,
+    notice_period_days: 0,
+    color: '#EF4444',
+    is_active: true,
+  },
+];
+
 // Query keys
 export const leaveKeys = {
   all: ['leave'] as const,
@@ -81,16 +142,46 @@ export function useLeaveTypesQuery() {
   return useQuery({
     queryKey: leaveKeys.types(),
     queryFn: async (): Promise<LeaveType[]> => {
-      const { data, error } = await supabase
-        .from('leave_types')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
+      const baseQuery = () =>
+        supabase
+          .from('leave_types')
+          .select('*')
+          .eq('is_active', true)
+          .order('name');
 
+      const { data, error } = await baseQuery();
       if (error) throw error;
-      return data || [];
+
+      const existing = data || [];
+
+      // Ensure required defaults exist without requiring a DB reset
+      const existingNames = new Set(existing.map((t) => t.name.toLowerCase()));
+      const missingDefaults = DEFAULT_LEAVE_TYPES.filter(
+        (d) => !existingNames.has(d.name.toLowerCase())
+      );
+
+      if (missingDefaults.length > 0) {
+        const { error: insertError } = await supabase
+          .from('leave_types')
+          .insert(missingDefaults);
+
+        if (insertError) {
+          // If insertion fails, return existing to avoid blocking the UI
+          console.warn('Failed to insert default leave types:', insertError);
+          return existing;
+        }
+
+        const { data: refreshed, error: refetchError } = await baseQuery();
+        if (!refetchError) {
+          return refreshed || [];
+        }
+      }
+
+      return existing;
     },
-    staleTime: 30 * 60 * 1000, // 30 minutes
+    // Shorter cache to ensure the dropdown reflects new types without requiring a full reset
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -197,12 +288,15 @@ export function usePendingApprovalsQuery(userRole: 'manager' | 'hr' | 'ceo' | 'a
         .from('leave_requests')
         .select('*');
 
-      // Filter based on approval workflow and user role
+      // Filter based on approval stage and workflow
       if (userRole === 'manager') {
+        // Only requests awaiting manager action
         query = query.eq('manager_approval_status', 'pending');
       } else if (userRole === 'hr') {
-        query = query.eq('hr_approval_status', 'pending');
+        // Awaiting HR, i.e., manager approved and HR pending
+        query = query.eq('hr_approval_status', 'pending').eq('manager_approval_status', 'approved');
       } else if (userRole === 'ceo') {
+        // Awaiting CEO: show anything with CEO pending (regardless of HR status) and overall pending
         query = query.eq('ceo_approval_status', 'pending');
       }
       // Admin sees all pending requests
@@ -215,30 +309,56 @@ export function usePendingApprovalsQuery(userRole: 'manager' | 'hr' | 'ceo' | 'a
 
       if (error) throw error;
 
-      // Fetch employee details separately to avoid foreign key issues
-      const requestsWithEmployees = await Promise.all(
-        (requests || []).map(async (request) => {
-          const { data: employee } = await supabase
-            .from('employees')
-            .select('first_name, last_name, employee_id, department, position')
-            .eq('id', request.employee_id)
-            .maybeSingle();
+      // Fetch related info in bulk (employees, leave types, balances) to render full details
+      const employeeIds = Array.from(new Set((requests || []).map(r => r.employee_id)));
+      const leaveTypeIds = Array.from(new Set((requests || []).map(r => r.leave_type_id)));
 
-          const { data: leaveType } = await supabase
-            .from('leave_types')
-            .select('name, color')
-            .eq('id', request.leave_type_id)
-            .maybeSingle();
+      const currentYear = new Date().getFullYear();
+      const [employeesRes, leaveTypesRes, balancesRes] = await Promise.all([
+        supabase
+          .from('employees')
+          .select('id, first_name, last_name, employee_id, department, position'),
+        supabase
+          .from('leave_types')
+          .select('id, name, color, max_days_per_year'),
+        supabase
+          .from('leave_balances')
+          .select('employee_id, leave_type_id, allocated_days, used_days, pending_days, carried_over_days')
+          .eq('year', currentYear),
+      ]);
 
-          return {
-            ...request,
-            employees: employee,
-            leave_types: leaveType
-          };
-        })
-      );
+      const employees = employeesRes.data || [];
+      const leaveTypes = leaveTypesRes.data || [];
+      const balances = balancesRes.data || [];
 
-      return requestsWithEmployees;
+      // Exclude the current user's own requests from their approval queue
+      const { data: { user } } = await supabase.auth.getUser();
+      let currentEmployeeId: string | null = null;
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('employee_id')
+          .eq('user_id', user.id)
+          .single();
+        currentEmployeeId = (profile?.employee_id as string) || null;
+      }
+
+      return (requests || [])
+        .filter((req) => !currentEmployeeId || req.employee_id !== currentEmployeeId)
+        .map((req) => {
+        const employee = employees.find(e => e.id === req.employee_id);
+        const leaveType = leaveTypes.find(t => t.id === req.leave_type_id);
+        const balance = balances.find(b => b.employee_id === req.employee_id && b.leave_type_id === req.leave_type_id);
+        return {
+          ...req,
+          employees: employee,
+          leave_types: leaveType,
+          // Provide a computed remaining balance for UI convenience
+          remaining_balance_days: balance
+            ? Math.max(0, (balance.allocated_days + balance.carried_over_days) - (balance.used_days + balance.pending_days))
+            : undefined,
+        } as any;
+      });
     },
     enabled: ['manager', 'hr', 'ceo', 'admin'].includes(userRole),
   });
@@ -264,11 +384,7 @@ export function useSubmitLeaveRequestMutation() {
       const { data, error } = await supabase
         .from('leave_requests')
         .insert(request)
-        .select(`
-          *,
-          employees!employee_id(first_name, last_name),
-          leave_types!leave_type_id(name)
-        `)
+        .select('*')
         .single();
 
       console.log('Database response:', { data, error });
@@ -277,7 +393,21 @@ export function useSubmitLeaveRequestMutation() {
         console.error('Database error:', error);
         throw error;
       }
-      return data;
+      // Fetch minimal related info for notification without ambiguous joins
+      const [{ data: employee }, { data: leaveType }] = await Promise.all([
+        supabase
+          .from('employees')
+          .select('first_name, last_name')
+          .eq('id', data.employee_id)
+          .maybeSingle(),
+        supabase
+          .from('leave_types')
+          .select('name')
+          .eq('id', data.leave_type_id)
+          .maybeSingle(),
+      ]);
+
+      return { ...data, employees: employee, leave_types: leaveType } as any;
     },
     onSuccess: (data) => {
       // Invalidate related queries

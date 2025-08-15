@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,21 +11,51 @@ import { CheckCircle, XCircle, Clock, Eye, Search, Filter, User } from "lucide-r
 import { format, differenceInDays } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { usePendingApprovalsQuery, useUpdateLeaveRequestMutation } from "@/hooks/queries/useLeaveQuery";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export function LeaveApprovals() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [approvalComments, setApprovalComments] = useState("");
-  const [userRole] = useState<"manager" | "hr" | "ceo">("hr"); // In real app, get from auth context
+  const [userRole, setUserRole] = useState<"manager" | "hr" | "ceo" | "admin" | "employee" | null>(null);
 
-  const { data: requests = [], isLoading, error } = usePendingApprovalsQuery(userRole);
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        if (!user) {
+          setUserRole(null);
+          return;
+        }
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("user_id", user.id)
+          .single();
+        setUserRole((profile?.role as any) || "employee");
+      } catch (e) {
+        setUserRole("employee");
+      }
+    };
+    fetchUserRole();
+  }, [user]);
+
+  const canApprove = useMemo(() => {
+    return userRole === "manager" || userRole === "hr" || userRole === "ceo" || userRole === "admin";
+  }, [userRole]);
+
+  const { data: requests = [], isLoading, error } = usePendingApprovalsQuery(
+    // Only pass a role the hook understands when authorized; otherwise skip by passing a dummy and gating with canApprove
+    (canApprove ? (userRole as "manager" | "hr" | "ceo" | "admin") : ("admin" as "admin"))
+  );
   const updateRequestMutation = useUpdateLeaveRequestMutation();
 
-  if (isLoading) {
+  if (isLoading && canApprove) {
     return (
       <Card>
         <CardContent className="pt-6">
@@ -35,11 +65,25 @@ export function LeaveApprovals() {
     );
   }
 
-  if (error) {
+  if (error && canApprove) {
     return (
       <Card>
         <CardContent className="pt-6">
           <p className="text-center text-red-600">Error: {error?.message}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!canApprove) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Approvals</CardTitle>
+          <CardDescription>You don't have permission to review approvals.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">Only managers, HR, admins or CEOs can approve leave requests.</p>
         </CardContent>
       </Card>
     );
@@ -67,19 +111,65 @@ export function LeaveApprovals() {
     setIsProcessing(requestId);
     
     try {
-      const updates: any = { status: action === "approve" ? "approved" : "rejected" };
-      
-      if (userRole === 'manager') {
-        updates.manager_approval_status = action === "approve" ? "approved" : "rejected";
-        updates.manager_comments = comments;
-      } else if (userRole === 'hr') {
-        updates.hr_approval_status = action === "approve" ? "approved" : "rejected";
-        updates.hr_comments = comments;
-      } else if (userRole === 'ceo') {
-        updates.ceo_approval_status = action === "approve" ? "approved" : "rejected";
-        updates.ceo_comments = comments;
+      const updates: any = {};
+      const req = (requests || []).find(r => r.id === requestId);
+      const workflow = req?.approval_workflow || 'manager_hr';
+
+      console.log('Approval request:', { requestId, action, userRole, workflow, req });
+
+      if (action === 'reject') {
+        updates.status = 'rejected';
+        if (userRole === 'manager') updates.manager_approval_status = 'rejected', updates.manager_comments = comments;
+        if (userRole === 'hr') updates.hr_approval_status = 'rejected', updates.hr_comments = comments;
+        if (userRole === 'ceo') updates.ceo_approval_status = 'rejected', updates.ceo_comments = comments;
+      } else {
+        if (userRole === 'manager') {
+          updates.manager_approval_status = 'approved';
+          // If workflow requires CEO after manager (e.g., HR's own request), skip HR and send to CEO
+          if (workflow === 'manager_hr_ceo') {
+            updates.ceo_approval_status = 'pending';
+          } else {
+            updates.hr_approval_status = 'pending';
+          }
+          updates.status = 'pending';
+          updates.manager_comments = comments;
+        } else if (userRole === 'hr') {
+          updates.hr_approval_status = 'approved';
+          updates.hr_comments = comments;
+          if (workflow === 'manager_hr_ceo') {
+            updates.ceo_approval_status = 'pending';
+            updates.status = 'pending';
+          } else {
+            updates.status = 'approved';
+          }
+        } else if (userRole === 'ceo') {
+          updates.ceo_approval_status = 'approved';
+          updates.ceo_comments = comments;
+          
+          // For HR requests, CEO can approve directly and set final status
+          if (req?.employees?.department === 'HR' || req?.employees?.department === 'Human Resources') {
+            updates.status = 'approved';
+            // Skip manager approval for HR requests
+            if (!req?.manager_approval_status || req?.manager_approval_status === 'pending') {
+              updates.manager_approval_status = 'approved';
+              updates.manager_comments = 'Auto-approved by CEO for HR request';
+            }
+          } else {
+            // For non-HR requests, only approve if previous stages are complete
+            if (workflow === 'manager_hr_ceo') {
+              if (req?.manager_approval_status === 'approved' && req?.hr_approval_status === 'approved') {
+                updates.status = 'approved';
+              }
+            } else if (workflow === 'manager_hr') {
+              if (req?.manager_approval_status === 'approved') {
+                updates.status = 'approved';
+              }
+            }
+          }
+        }
       }
       
+      console.log('Final updates to send:', { requestId, updates });
       await updateRequestMutation.mutateAsync({ id: requestId, updates });
       
       setSelectedRequest(null);
@@ -339,20 +429,20 @@ export function LeaveApprovals() {
                                   <div>
                                     <h4 className="text-sm font-medium mb-2">Employee Information</h4>
                                     <div className="space-y-1 text-sm">
-                                      <div><span className="text-muted-foreground">Name:</span> {selectedRequest.employeeName}</div>
-                                      <div><span className="text-muted-foreground">ID:</span> {selectedRequest.employeeId}</div>
-                                      <div><span className="text-muted-foreground">Department:</span> {selectedRequest.department}</div>
+                                      <div><span className="text-muted-foreground">Name:</span> {selectedRequest.employees ? `${selectedRequest.employees.first_name} ${selectedRequest.employees.last_name}` : 'Unknown'}</div>
+                                      <div><span className="text-muted-foreground">ID:</span> {selectedRequest.employees?.employee_id || selectedRequest.employee_id}</div>
+                                      <div><span className="text-muted-foreground">Department:</span> {selectedRequest.employees?.department || '—'}</div>
                                     </div>
                                   </div>
                                   
                                    <div>
                                      <h4 className="text-sm font-medium mb-2">Leave Details</h4>
                                      <div className="space-y-1 text-sm">
-                                       <div><span className="text-muted-foreground">Type:</span> {selectedRequest.leaveType}</div>
-                                       <div><span className="text-muted-foreground">Duration:</span> {selectedRequest.days} days</div>
-                                       <div><span className="text-muted-foreground">Remaining Balance:</span> {selectedRequest.remainingBalance} days</div>
-                                       <div><span className="text-muted-foreground">Line Manager:</span> {selectedRequest.lineManager}</div>
-                                       <div><span className="text-muted-foreground">Status:</span> {getStatusBadge(selectedRequest.approvalStatus)}</div>
+                                       <div><span className="text-muted-foreground">Type:</span> {selectedRequest.leave_types?.name || '—'}</div>
+                                       <div><span className="text-muted-foreground">Duration:</span> {selectedRequest.total_days} day{selectedRequest.total_days > 1 ? 's' : ''}</div>
+                                       <div><span className="text-muted-foreground">Dates:</span> {format(new Date(selectedRequest.start_date), 'MMM dd, yyyy')} {selectedRequest.total_days > 1 ? `— ${format(new Date(selectedRequest.end_date), 'MMM dd, yyyy')}` : ''}</div>
+                                       <div><span className="text-muted-foreground">Remaining Balance:</span> {typeof selectedRequest.remaining_balance_days === 'number' ? `${selectedRequest.remaining_balance_days} day${selectedRequest.remaining_balance_days !== 1 ? 's' : ''}` : '—'}</div>
+                                       <div><span className="text-muted-foreground">Status:</span> {getStatusBadge(getCurrentApprovalStatus(selectedRequest))}</div>
                                      </div>
                                    </div>
                                 </div>
@@ -364,32 +454,19 @@ export function LeaveApprovals() {
                                   </p>
                                 </div>
 
-                                {selectedRequest.handoverNotes && (
+                                {selectedRequest.handover_notes && (
                                   <div>
                                     <h4 className="text-sm font-medium mb-2">Handover Notes</h4>
                                     <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
-                                      {selectedRequest.handoverNotes}
+                                      {selectedRequest.handover_notes}
                                     </p>
                                   </div>
                                 )}
 
-                                 {selectedRequest.emergencyContact && (
+                                 {selectedRequest.emergency_contact && (
                                    <div>
                                      <h4 className="text-sm font-medium mb-2">Emergency Contact</h4>
-                                     <p className="text-sm">{selectedRequest.emergencyContact}</p>
-                                   </div>
-                                 )}
-
-                                 {selectedRequest.managerApproval && (
-                                   <div>
-                                     <h4 className="text-sm font-medium mb-2">Manager Approval</h4>
-                                     <div className="bg-green-50 border border-green-200 p-3 rounded text-sm">
-                                       <div><span className="font-medium">Approved by:</span> {selectedRequest.managerApproval.approvedBy}</div>
-                                       <div><span className="font-medium">Date:</span> {format(selectedRequest.managerApproval.approvedDate, "MMM dd, yyyy")}</div>
-                                       {selectedRequest.managerApproval.comments && (
-                                         <div><span className="font-medium">Comments:</span> {selectedRequest.managerApproval.comments}</div>
-                                       )}
-                                     </div>
+                                     <p className="text-sm">{selectedRequest.emergency_contact}</p>
                                    </div>
                                  )}
 
