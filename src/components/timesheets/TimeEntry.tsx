@@ -5,13 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Plus, Clock } from "lucide-react";
+
+import { Calendar, Clock, Save } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { useCreateTimesheetEntryMutation } from "@/hooks/queries/useTimesheetQuery";
+import { useCreateTimesheetEntryMutation, useProjectsQuery } from "@/hooks/queries/useTimesheetQuery";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
+
 
 export function TimeEntry() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -24,16 +24,8 @@ export function TimeEntry() {
   const { toast } = useToast();
   const { employee } = useCurrentEmployee();
   const createTimesheetEntry = useCreateTimesheetEntryMutation();
+  const { data: projects } = useProjectsQuery();
 
-  const projects = [
-    "HR Management System",
-    "E-commerce Platform", 
-    "Mobile App Development",
-    "Data Analytics Dashboard",
-    "Client Website",
-    "Internal Training",
-    "Documentation",
-  ];
 
   const calculateDuration = () => {
     if (!startTime || !endTime) return "0:00";
@@ -103,77 +95,73 @@ export function TimeEntry() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Plus className="h-5 w-5" />
+          <Clock className="h-5 w-5" />
           Manual Time Entry
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label>Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(date) => date && setSelectedDate(date)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <Label htmlFor="date">Date</Label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  id="date"
+                  type="date"
+                  value={format(selectedDate, 'yyyy-MM-dd')}
+                  onChange={(e) => setSelectedDate(new Date(e.target.value))}
+                  className="pl-10"
+                />
+              </div>
             </div>
 
             <div>
-              <Label htmlFor="project">Project *</Label>
-              <Select value={project} onValueChange={setProject}>
+              <Label htmlFor="project">Project</Label>
+              <Input
+                id="project"
+                placeholder="Enter project name"
+                value={project}
+                onChange={(e) => setProject(e.target.value)}
+                list="project-suggestions"
+              />
+              <datalist id="project-suggestions">
+                {projects?.map((project) => (
+                  <option key={project} value={project} />
+                ))}
+              </datalist>
+            </div>
+
+            <div>
+              <Label htmlFor="task">Task Name</Label>
+              <Input
+                id="task"
+                placeholder="Enter task name"
+                value={task}
+                onChange={(e) => setTask(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="break">Break Duration (minutes)</Label>
+              <Select value={breakDuration} onValueChange={setBreakDuration}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a project" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects.map((proj) => (
-                    <SelectItem key={proj} value={proj}>
-                      {proj}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="0">No break</SelectItem>
+                  <SelectItem value="15">15 minutes</SelectItem>
+                  <SelectItem value="30">30 minutes</SelectItem>
+                  <SelectItem value="45">45 minutes</SelectItem>
+                  <SelectItem value="60">1 hour</SelectItem>
+                  <SelectItem value="90">1.5 hours</SelectItem>
+                  <SelectItem value="120">2 hours</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div>
-            <Label htmlFor="task">Task/Activity *</Label>
-            <Input
-              id="task"
-              placeholder="Enter task or activity"
-              value={task}
-              onChange={(e) => setTask(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              placeholder="Detailed description of work performed"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-            />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <Label htmlFor="startTime">Start Time *</Label>
+              <Label htmlFor="startTime">Start Time</Label>
               <Input
                 id="startTime"
                 type="time"
@@ -183,7 +171,7 @@ export function TimeEntry() {
             </div>
 
             <div>
-              <Label htmlFor="endTime">End Time *</Label>
+              <Label htmlFor="endTime">End Time</Label>
               <Input
                 id="endTime"
                 type="time"
@@ -191,29 +179,27 @@ export function TimeEntry() {
                 onChange={(e) => setEndTime(e.target.value)}
               />
             </div>
-
-            <div>
-              <Label htmlFor="breakDuration">Break (minutes)</Label>
-              <Input
-                id="breakDuration"
-                type="number"
-                min="0"
-                value={breakDuration}
-                onChange={(e) => setBreakDuration(e.target.value)}
-              />
-            </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                Duration: {calculateDuration()} hours
-              </span>
+          <div>
+            <Label htmlFor="description">Description (Optional)</Label>
+            <Textarea
+              id="description"
+              placeholder="Add task description..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+            <div>
+              <Label className="text-sm font-medium">Calculated Duration</Label>
+              <p className="text-2xl font-bold">{calculateDuration()}</p>
             </div>
-            
             <Button type="submit" disabled={createTimesheetEntry.isPending}>
-              {createTimesheetEntry.isPending ? "Saving..." : "Add Time Entry"}
+              <Save className="h-4 w-4 mr-2" />
+              {createTimesheetEntry.isPending ? "Saving..." : "Save Entry"}
             </Button>
           </div>
         </form>

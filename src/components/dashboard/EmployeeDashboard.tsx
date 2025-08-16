@@ -63,7 +63,7 @@ export function EmployeeDashboard() {
     avgHoursPerDay: 0
   });
   const [leave, setLeave] = useState<LeaveData>({
-    totalLeave: 20,
+    totalLeave: 0,
     usedLeave: 0,
     pendingRequests: 0
   });
@@ -143,6 +143,29 @@ export function EmployeeDashboard() {
             overdueTasks
           });
         }
+
+        // Fetch leave data for this employee
+        const { data: leaveData } = await supabase
+          .from('leave_requests')
+          .select('status, total_days')
+          .eq('employee_id', profileData.employee_id);
+
+        if (leaveData) {
+          const usedLeave = leaveData
+            .filter(leave => leave.status === 'approved')
+            .reduce((sum, leave) => sum + (leave.total_days || 0), 0);
+          
+          const pendingRequests = leaveData.filter(leave => leave.status === 'pending').length;
+          
+          // Default annual leave allocation (could be fetched from company settings)
+          const totalLeave = 20;
+          
+          setLeave({
+            totalLeave,
+            usedLeave,
+            pendingRequests
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching employee data:', error);
@@ -182,26 +205,79 @@ export function EmployeeDashboard() {
     }
   ];
 
-  const upcomingDeadlines = [
-    {
-      title: "Project Report Submission",
-      dueDate: "Dec 25, 2024",
-      type: "Task",
-      priority: "high"
-    },
-    {
-      title: "Performance Review Meeting",
-      dueDate: "Dec 30, 2024",
-      type: "Appraisal",
-      priority: "medium"
-    },
-    {
-      title: "Annual Leave Request",
-      dueDate: "Jan 5, 2025",
-      type: "Leave",
-      priority: "low"
-    }
-  ];
+  // Fetch upcoming deadlines from real data
+  const [upcomingDeadlines, setUpcomingDeadlines] = useState<Array<{
+    title: string;
+    dueDate: string;
+    type: string;
+    priority: string;
+  }>>([]);
+
+  // Fetch upcoming deadlines when component mounts
+  useEffect(() => {
+    const fetchUpcomingDeadlines = async () => {
+      if (!profile?.employee_id) return;
+
+      try {
+        // Fetch upcoming tasks
+        const { data: upcomingTasks } = await supabase
+          .from('tasks')
+          .select('title, due_date, priority')
+          .eq('assigned_to', profile.employee_id)
+          .neq('status', 'completed')
+          .gte('due_date', new Date().toISOString())
+          .order('due_date', { ascending: true })
+          .limit(5);
+
+        // Fetch upcoming leave requests
+        const { data: upcomingLeave } = await supabase
+          .from('leave_requests')
+          .select('reason, start_date, end_date')
+          .eq('employee_id', profile.employee_id)
+          .eq('status', 'approved')
+          .gte('start_date', new Date().toISOString())
+          .order('start_date', { ascending: true })
+          .limit(3);
+
+        // Transform and combine data
+        const deadlines = [
+          ...(upcomingTasks || []).map(task => ({
+            title: task.title,
+            dueDate: new Date(task.due_date).toLocaleDateString('en-US', { 
+              month: 'short', 
+              day: 'numeric', 
+              year: 'numeric' 
+            }),
+            type: 'Task',
+            priority: task.priority || 'medium'
+          })),
+          ...(upcomingLeave || []).map(leave => ({
+            title: `Leave: ${leave.reason}`,
+            dueDate: new Date(leave.start_date).toLocaleDateString('en-US', { 
+              month: 'short', 
+              day: 'numeric', 
+              year: 'numeric' 
+            }),
+            type: 'Leave',
+            priority: 'low'
+          }))
+        ];
+
+        // Sort by date and limit to 5 items
+        const sortedDeadlines = deadlines
+          .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+          .slice(0, 5);
+
+        setUpcomingDeadlines(sortedDeadlines);
+      } catch (error) {
+        console.error('Error fetching upcoming deadlines:', error);
+        // Fallback to empty array
+        setUpcomingDeadlines([]);
+      }
+    };
+
+    fetchUpcomingDeadlines();
+  }, [profile?.employee_id]);
 
   const quickActions = [
     { label: "Clock In/Out", icon: Timer, href: "/app/employee/attendance", color: "bg-blue-500" },

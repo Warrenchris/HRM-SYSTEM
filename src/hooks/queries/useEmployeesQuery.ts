@@ -196,3 +196,135 @@ export function useInvalidateEmployees() {
     invalidateStats: () => queryClient.invalidateQueries({ queryKey: employeeKeys.stats() }),
   };
 }
+
+// Hook to fetch employees below the current user in the hierarchy
+export function useEmployeesByHierarchy() {
+  return useQuery({
+    queryKey: [...employeeKeys.all, 'hierarchy'],
+    queryFn: async (): Promise<EmployeeListItem[]> => {
+      try {
+        // Get current user's employee ID
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role, employee_id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (!profile) return [];
+
+        const userRole = profile.role;
+        const currentEmployeeId = profile.employee_id;
+
+        // Admin can see all employees
+        if (userRole === 'admin') {
+          const { data, error } = await supabase
+            .from('employees')
+            .select('id, first_name, last_name, department, position')
+            .eq('status', 'active')
+            .order('first_name');
+          
+          if (error) throw error;
+          return data || [];
+        }
+
+        // HR can see all employees
+        if (userRole === 'hr') {
+          const { data, error } = await supabase
+            .from('employees')
+            .select('id, first_name, last_name, department, position')
+            .eq('status', 'active')
+            .order('first_name');
+          
+          if (error) throw error;
+          return data || [];
+        }
+
+        // Managers can only see employees below them in the hierarchy
+        if (userRole === 'manager' && currentEmployeeId) {
+          // Use a recursive CTE to find all descendants in the organization hierarchy
+          const { data, error } = await supabase
+            .rpc('get_employee_descendants', { 
+              manager_employee_id: currentEmployeeId 
+            });
+
+          if (error) {
+            // Fallback to manual hierarchy calculation if RPC doesn't exist
+            return await getEmployeeDescendantsManually(currentEmployeeId);
+          }
+
+          return data || [];
+        }
+
+        // Regular employees can't see anyone
+        return [];
+      } catch (error) {
+        console.error('Error fetching employees by hierarchy:', error);
+        return [];
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes for hierarchy data
+    gcTime: 30 * 60 * 1000, // 30 minutes retention
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+  });
+}
+
+// Fallback function to manually calculate employee descendants
+async function getEmployeeDescendantsManually(managerEmployeeId: string): Promise<EmployeeListItem[]> {
+  try {
+    // Get all organization positions
+    const { data: positions, error: positionsError } = await supabase
+      .from('organization_positions')
+      .select('id, parent_position_id, employee_id, is_active')
+      .eq('is_active', true);
+
+    if (positionsError) throw positionsError;
+
+    // Find the manager's position
+    const managerPosition = positions?.find(p => p.employee_id === managerEmployeeId);
+    if (!managerPosition) return [];
+
+    // Build a map of parent to children positions
+    const childrenMap = new Map<string, any[]>();
+    for (const position of positions || []) {
+      if (position.parent_position_id) {
+        const children = childrenMap.get(position.parent_position_id) || [];
+        children.push(position);
+        childrenMap.set(position.parent_position_id, children);
+      }
+    }
+
+    // Recursively find all descendant employee IDs
+    const descendantEmployeeIds = new Set<string>();
+    const findDescendants = (positionId: string) => {
+      const children = childrenMap.get(positionId) || [];
+      for (const child of children) {
+        if (child.employee_id) {
+          descendantEmployeeIds.add(child.employee_id);
+        }
+        findDescendants(child.id);
+      }
+    };
+
+    findDescendants(managerPosition.id);
+
+    // Fetch the actual employee data for descendants
+    if (descendantEmployeeIds.size === 0) return [];
+
+    const { data: employees, error: employeesError } = await supabase
+      .from('employees')
+      .select('id, first_name, last_name, department, position')
+      .eq('status', 'active')
+      .in('id', Array.from(descendantEmployeeIds))
+      .order('first_name');
+
+    if (employeesError) throw employeesError;
+    return employees || [];
+  } catch (error) {
+    console.error('Error in manual hierarchy calculation:', error);
+    return [];
+  }
+}

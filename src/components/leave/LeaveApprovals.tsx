@@ -139,33 +139,19 @@ export function LeaveApprovals() {
           if (workflow === 'manager_hr_ceo') {
             updates.ceo_approval_status = 'pending';
             updates.status = 'pending';
+          } else if (workflow === 'hr_ceo') {
+            // For HR requests, forward to CEO
+            updates.ceo_approval_status = 'pending';
+            updates.status = 'pending';
           } else {
             updates.status = 'approved';
           }
         } else if (userRole === 'ceo') {
+          // For CEO approval, only update the CEO approval status first
           updates.ceo_approval_status = 'approved';
           updates.ceo_comments = comments;
           
-          // For HR requests, CEO can approve directly and set final status
-          if (req?.employees?.department === 'HR' || req?.employees?.department === 'Human Resources') {
-            updates.status = 'approved';
-            // Skip manager approval for HR requests
-            if (!req?.manager_approval_status || req?.manager_approval_status === 'pending') {
-              updates.manager_approval_status = 'approved';
-              updates.manager_comments = 'Auto-approved by CEO for HR request';
-            }
-          } else {
-            // For non-HR requests, only approve if previous stages are complete
-            if (workflow === 'manager_hr_ceo') {
-              if (req?.manager_approval_status === 'approved' && req?.hr_approval_status === 'approved') {
-                updates.status = 'approved';
-              }
-            } else if (workflow === 'manager_hr') {
-              if (req?.manager_approval_status === 'approved') {
-                updates.status = 'approved';
-              }
-            }
-          }
+          console.log('CEO approval - minimal updates:', updates);
         }
       }
       

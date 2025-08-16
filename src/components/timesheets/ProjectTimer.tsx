@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Play, Pause, Square, Timer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useCreateTimesheetEntryMutation, useTimesheetEntriesQuery } from "@/hooks/queries/useTimesheetQuery";
+import { useCreateTimesheetEntryMutation, useTimesheetEntriesQuery, useProjectsQuery } from "@/hooks/queries/useTimesheetQuery";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { format } from "date-fns";
 
@@ -33,14 +33,8 @@ export function ProjectTimer() {
   const createTimesheetEntry = useCreateTimesheetEntryMutation();
   const today = format(new Date(), 'yyyy-MM-dd');
   const { data: todayEntries = [] } = useTimesheetEntriesQuery(employee?.id, today);
+  const { data: projects = [] } = useProjectsQuery();
 
-  const projects = [
-    "HR Management System",
-    "E-commerce Platform",
-    "Mobile App Development", 
-    "Data Analytics Dashboard",
-    "Client Website",
-  ];
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -128,7 +122,7 @@ export function ProjectTimer() {
             Project Timer
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <div className="text-center">
             <div className="text-4xl font-mono font-bold mb-2">
               {formatTime(currentTime)}
@@ -141,18 +135,18 @@ export function ProjectTimer() {
           <div className="space-y-4">
             <div>
               <Label htmlFor="project">Project</Label>
-              <Select value={selectedProject} onValueChange={setSelectedProject}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a project" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((project) => (
-                    <SelectItem key={project} value={project}>
-                      {project}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="project"
+                placeholder="Enter project name"
+                value={selectedProject}
+                onChange={(e) => setSelectedProject(e.target.value)}
+                list="project-suggestions"
+              />
+              <datalist id="project-suggestions">
+                {projects.map((project) => (
+                  <option key={project} value={project} />
+                ))}
+              </datalist>
             </div>
 
             <div>
@@ -169,30 +163,44 @@ export function ProjectTimer() {
               <Label htmlFor="description">Description (Optional)</Label>
               <Textarea
                 id="description"
-                placeholder="Enter task description"
+                placeholder="Add task description..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
               />
             </div>
-          </div>
 
-          <div className="flex gap-2">
-            {!isRunning ? (
-              <Button onClick={handleStart} className="flex-1">
-                <Play className="h-4 w-4 mr-2" />
-                Start
-              </Button>
-            ) : (
-              <Button onClick={handlePause} variant="outline" className="flex-1">
-                <Pause className="h-4 w-4 mr-2" />
-                Pause
-              </Button>
-            )}
-            <Button onClick={handleStop} variant="destructive" disabled={!startTime}>
-              <Square className="h-4 w-4 mr-2" />
-              Stop
-            </Button>
+            <div className="flex gap-2">
+              {!isRunning ? (
+                <Button
+                  onClick={handleStart}
+                  disabled={!selectedProject || !taskName}
+                  className="flex-1"
+                >
+                  <Play className="h-4 w-4 mr-2" />
+                  Start Timer
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    onClick={handlePause}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    <Pause className="h-4 w-4 mr-2" />
+                    Pause
+                  </Button>
+                  <Button
+                    onClick={handleStop}
+                    variant="destructive"
+                    className="flex-1"
+                  >
+                    <Square className="h-4 w-4 mr-2" />
+                    Stop & Save
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -202,33 +210,36 @@ export function ProjectTimer() {
           <CardTitle>Today's Entries</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {todayEntries.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No time entries for today
-              </p>
-            ) : (
-              todayEntries.map((entry) => (
-                <div key={entry.id} className="border rounded-lg p-3 space-y-1">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium">{entry.task_name}</p>
-                      <p className="text-sm text-muted-foreground">{entry.project_name}</p>
+          {todayEntries.length === 0 ? (
+            <div className="text-center py-8">
+              <Timer className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No time entries for today</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {todayEntries.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                >
+                  <div>
+                    <div className="font-medium">{entry.task_name}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {entry.project_name}
                     </div>
-                    <span className="font-mono text-sm">
-                      {entry.total_hours}h
-                    </span>
                   </div>
-                  {entry.description && (
-                    <p className="text-sm text-muted-foreground">{entry.description}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(entry.start_time).toLocaleTimeString()} - {new Date(entry.end_time).toLocaleTimeString()}
-                  </p>
+                  <div className="text-right">
+                    <div className="font-medium">
+                      {entry.total_hours ? `${entry.total_hours.toFixed(1)}h` : '0h'}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {format(new Date(entry.start_time), 'HH:mm')} - {format(new Date(entry.end_time), 'HH:mm')}
+                    </div>
+                  </div>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

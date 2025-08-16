@@ -296,7 +296,7 @@ export function usePendingApprovalsQuery(userRole: 'manager' | 'hr' | 'ceo' | 'a
         // Awaiting HR, i.e., manager approved and HR pending
         query = query.eq('hr_approval_status', 'pending').eq('manager_approval_status', 'approved');
       } else if (userRole === 'ceo') {
-        // Awaiting CEO: show anything with CEO pending (regardless of HR status) and overall pending
+        // For CEO: show requests awaiting CEO approval
         query = query.eq('ceo_approval_status', 'pending');
       }
       // Admin sees all pending requests
@@ -310,8 +310,8 @@ export function usePendingApprovalsQuery(userRole: 'manager' | 'hr' | 'ceo' | 'a
       if (error) throw error;
 
       // Fetch related info in bulk (employees, leave types, balances) to render full details
-      const employeeIds = Array.from(new Set((requests || []).map(r => r.employee_id)));
-      const leaveTypeIds = Array.from(new Set((requests || []).map(r => r.leave_type_id)));
+      const employeeIds = Array.from(new Set(requests.map(r => r.employee_id)));
+      const leaveTypeIds = Array.from(new Set(requests.map(r => r.leave_type_id)));
 
       const currentYear = new Date().getFullYear();
       const [employeesRes, leaveTypesRes, balancesRes] = await Promise.all([
@@ -381,9 +381,41 @@ export function useSubmitLeaveRequestMutation() {
     }) => {
       console.log('Submitting leave request to database:', request);
       
+      // First, check if the employee is in HR department to set appropriate workflow
+      const { data: employeeDept, error: empError } = await supabase
+        .from('employees')
+        .select('department')
+        .eq('id', request.employee_id)
+        .single();
+      
+      if (empError) throw empError;
+      
+      // Set approval workflow based on department
+      let approvalWorkflow = 'manager_hr';
+      let initialUpdates: any = {};
+      
+      if (employeeDept?.department === 'HR' || employeeDept?.department === 'Human Resources') {
+        // HR requests go directly to CEO approval
+        approvalWorkflow = 'hr_ceo';
+        initialUpdates = {
+          ...request,
+          approval_workflow: approvalWorkflow,
+          ceo_approval_status: 'pending',
+          manager_approval_status: 'approved', // Auto-approve manager for HR
+          hr_approval_status: 'approved', // Auto-approve HR for HR
+        };
+      } else {
+        // Regular employees go through manager -> HR workflow
+        initialUpdates = {
+          ...request,
+          approval_workflow: approvalWorkflow,
+          manager_approval_status: 'pending',
+        };
+      }
+      
       const { data, error } = await supabase
         .from('leave_requests')
-        .insert(request)
+        .insert(initialUpdates)
         .select('*')
         .single();
 

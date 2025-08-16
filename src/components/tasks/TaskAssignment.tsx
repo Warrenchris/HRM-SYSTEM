@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useEmployeesList } from "@/hooks/queries/useEmployeesQuery";
+import { useEmployeesByHierarchy } from "@/hooks/queries/useEmployeesQuery";
 import { useCreateTaskMutation } from "@/hooks/queries/useTasksQuery";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -100,11 +100,9 @@ export function TaskAssignment() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [role, setRole] = useState<"employee" | "manager" | "hr" | "admin" | null>(null);
-  const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
-  const [allowedEmployeeIds, setAllowedEmployeeIds] = useState<Set<string>>(new Set());
   
-  // Use optimized employee query
-  const { data: employees, isLoading: employeesLoading, isError: employeesError } = useEmployeesList({ status: 'active' });
+  // Use the new hierarchy-based employee query
+  const { data: employees, isLoading: employeesLoading, isError: employeesError } = useEmployeesByHierarchy();
   
   // Ensure employees is always an array to prevent errors
   const safeEmployees = React.useMemo(() => {
@@ -121,7 +119,7 @@ export function TaskAssignment() {
   }, [employees]);
   
   // Simple check for when we can render the employee selector
-  const canRenderSelector = !employeesLoading && !employeesError && safeEmployees.length > 0 && Array.isArray(employees);
+  const canRenderSelector = !employeesLoading && !employeesError && safeEmployees.length > 0;
   
   // Debug logging to help identify the issue (only in development)
   if (process.env.NODE_ENV === 'development') {
@@ -135,6 +133,13 @@ export function TaskAssignment() {
     });
   }
   
+  // Log when employees data changes
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Employees data changed:', { employees, employeesLoading, employeesError });
+    }
+  }, [employees, employeesLoading, employeesError]);
+  
   const createTaskMutation = useCreateTaskMutation();
 
   const [formData, setFormData] = useState({
@@ -147,79 +152,29 @@ export function TaskAssignment() {
     department: "",
   });
 
-  // Load current user's role and allowed subordinates via organization_positions
+  // Load current user's role
   useEffect(() => {
-    const loadRoleAndHierarchy = async () => {
+    const loadRole = async () => {
       try {
         const { data: { user: authUser } } = await supabase.auth.getUser();
         if (!authUser) {
           setRole(null);
-          setCurrentEmployeeId(null);
-          setAllowedEmployeeIds(new Set());
           return;
         }
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role, employee_id')
+          .select('role')
           .eq('user_id', authUser.id)
           .single();
         const userRole = (profile?.role as any) || 'employee';
         setRole(userRole);
-        const empId = profile?.employee_id || null;
-        setCurrentEmployeeId(empId);
-
-        // Admin can assign to anyone
-        if (userRole === 'admin') {
-          setAllowedEmployeeIds(new Set(safeEmployees.map(e => e.id)));
-          return;
-        }
-
-        // Fetch org positions to compute descendants of the current user's position
-        const { data: positions } = await supabase
-          .from('organization_positions')
-          .select('id, parent_position_id, employee_id, is_active')
-          .eq('is_active', true);
-
-        if (!positions || !empId) {
-          setAllowedEmployeeIds(new Set());
-          return;
-        }
-
-        const byEmployee: Record<string, any | undefined> = {};
-        for (const p of positions) byEmployee[p.employee_id || ''] = p;
-        const myPos = byEmployee[empId];
-        if (!myPos) {
-          setAllowedEmployeeIds(new Set());
-          return;
-        }
-
-        const childrenMap = new Map<string, any[]>();
-        for (const p of positions) {
-          const parentId = p.parent_position_id || '';
-          const arr = childrenMap.get(parentId) || [];
-          arr.push(p);
-          childrenMap.set(parentId, arr);
-        }
-
-        const stack = [myPos.id as string];
-        const descendantEmployeeIds: string[] = [];
-        while (stack.length) {
-          const current = stack.pop() as string;
-          const kids = childrenMap.get(current) || [];
-          for (const kid of kids) {
-            if (kid.employee_id) descendantEmployeeIds.push(kid.employee_id);
-            if (kid.id) stack.push(kid.id);
-          }
-        }
-
-        setAllowedEmployeeIds(new Set(descendantEmployeeIds));
-      } catch {
-        setAllowedEmployeeIds(new Set());
+      } catch (error) {
+        console.error('Error loading user role:', error);
+        setRole(null);
       }
     };
-    loadRoleAndHierarchy();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, safeEmployees.length]);
+    loadRole();
+  }, [user]);
 
   const canAssign = useMemo(() => role === 'admin' || role === 'manager' || role === 'hr', [role]);
 
@@ -229,10 +184,6 @@ export function TaskAssignment() {
     try {
       if (!canAssign) {
         toast({ title: "Not allowed", description: "You don't have permission to assign tasks.", variant: "destructive" });
-        return;
-      }
-      if (role !== 'admin' && formData.assigned_to && !allowedEmployeeIds.has(formData.assigned_to)) {
-        toast({ title: "Invalid assignment", description: "You can only assign tasks to your subordinates.", variant: "destructive" });
         return;
       }
 
@@ -336,14 +287,8 @@ export function TaskAssignment() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Assign To</label>
               <Popover 
-                open={employeeComboOpen && canRenderSelector} 
-                onOpenChange={(open) => {
-                  if (open && !canRenderSelector) {
-                    // Don't open if we don't have valid data
-                    return;
-                  }
-                  setEmployeeComboOpen(open);
-                }}
+                open={employeeComboOpen} 
+                onOpenChange={setEmployeeComboOpen}
               >
                 <PopoverTrigger asChild>
                   <Button
@@ -351,13 +296,17 @@ export function TaskAssignment() {
                     role="combobox"
                     aria-expanded={employeeComboOpen}
                     className="w-full justify-between"
-                    disabled={employeesLoading || !canRenderSelector}
+                    disabled={employeesLoading}
                   >
-                    {formData.assigned_to
-                      ? safeEmployees.find((employee) => employee.id === formData.assigned_to)
-                          ? `${safeEmployees.find((employee) => employee.id === formData.assigned_to)?.first_name} ${safeEmployees.find((employee) => employee.id === formData.assigned_to)?.last_name} - ${safeEmployees.find((employee) => employee.id === formData.assigned_to)?.position}`
-                          : "Select employee..."
-                      : "Select employee..."}
+                    {employeesLoading 
+                      ? "Loading employees..." 
+                      : formData.assigned_to
+                        ? safeEmployees.find((employee) => employee.id === formData.assigned_to)
+                            ? `${safeEmployees.find((employee) => employee.id === formData.assigned_to)?.first_name} ${safeEmployees.find((employee) => employee.id === formData.assigned_to)?.last_name} - ${safeEmployees.find((employee) => employee.id === formData.assigned_to)?.position}`
+                            : "Select employee..."
+                        : safeEmployees.length > 0 
+                          ? "Select employee..." 
+                          : "No employees available"}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -368,18 +317,20 @@ export function TaskAssignment() {
                     </div>
                   ) : safeEmployees.length === 0 ? (
                     <div className="p-4 text-center text-sm text-muted-foreground">
-                      {employeesError ? 'Error loading employees' : 'No employees found'}
+                      {role === 'manager' 
+                        ? "No subordinates found in your hierarchy" 
+                        : "No employees found"}
                     </div>
-                  ) : canRenderSelector && employeeComboOpen ? (
+                  ) : (
                     <div className="w-full">
                       <SimpleEmployeeSelector
-                        employees={safeEmployees.filter(e => role === 'admin' ? true : allowedEmployeeIds.has(e.id))}
+                        employees={safeEmployees}
                         selectedEmployeeId={formData.assigned_to}
                         onSelect={(employeeId) => setFormData({ ...formData, assigned_to: employeeId })}
                         onClose={() => setEmployeeComboOpen(false)}
                       />
                     </div>
-                  ) : null}
+                  )}
                 </PopoverContent>
               </Popover>
             </div>

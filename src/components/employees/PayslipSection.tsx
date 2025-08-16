@@ -6,84 +6,61 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { FileText, Download, Eye, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-const myPayslips = [
-  {
-    id: "PAY-2024-001",
-    period: "January 2024",
-    grossSalary: 160000,
-    netSalary: 129090,
-    status: "Available",
-    generatedDate: "2024-01-31"
-  },
-  {
-    id: "PAY-2023-012",
-    period: "December 2023",
-    grossSalary: 155000,
-    netSalary: 125650,
-    status: "Available",
-    generatedDate: "2023-12-31"
-  },
-  {
-    id: "PAY-2023-011",
-    period: "November 2023",
-    grossSalary: 160000,
-    netSalary: 129090,
-    status: "Available",
-    generatedDate: "2023-11-30"
-  }
-];
-
-const currentPayslipDetails = {
-  employee: {
-    name: "John Doe",
-    id: "EMP001",
-    department: "Engineering",
-    position: "Senior Developer"
-  },
-  period: "January 2024",
-  earnings: {
-    basicSalary: 120000,
-    houseAllowance: 15000,
-    transportAllowance: 8000,
-    medicalAllowance: 5000,
-    overtime: 12000
-  },
-  deductions: {
-    paye: 25600,
-    nssf: 2160,
-    shif: 750,
-    housingLevy: 2400,
-    loan: 5000
-  },
-  grossSalary: 160000,
-  totalDeductions: 35910,
-  netSalary: 129090
-};
+import { useEmployeePayslips, usePayslipDetail, useGeneratePayslip, useAvailablePayPeriods } from "@/hooks/queries/usePayrollQuery";
+import { supabase } from "@/integrations/supabase/client";
 
 export function PayslipSection() {
-  const [selectedPeriod, setSelectedPeriod] = useState("2024-01");
-  const [isGeneratingPayslip, setIsGeneratingPayslip] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState<string>("");
+  const [selectedPayslipId, setSelectedPayslipId] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Fetch real data from backend
+  const { data: payslips, isLoading: payslipsLoading } = useEmployeePayslips();
+  const { data: availablePeriods, isLoading: periodsLoading } = useAvailablePayPeriods();
+  const { data: selectedPayslip } = usePayslipDetail(selectedPayslipId || "");
+  const generatePayslipMutation = useGeneratePayslip();
+
   const handleGeneratePayslip = async () => {
-    setIsGeneratingPayslip(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setIsGeneratingPayslip(false);
-    toast({
-      title: "Payslip Generated",
-      description: `Your payslip for ${selectedPeriod} has been generated successfully.`,
-    });
+    if (!selectedPeriod) {
+      toast({
+        title: "Error",
+        description: "Please select a pay period",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Set pay date to last day of the selected month
+      const [month, year] = selectedPeriod.split(' ');
+      const monthIndex = new Date(Date.parse(month + " 1, " + year)).getMonth();
+      const payDate = new Date(parseInt(year), monthIndex + 1, 0).toISOString().split('T')[0];
+
+      await generatePayslipMutation.mutateAsync({ period: selectedPeriod, payDate });
+      setSelectedPeriod(""); // Reset selection
+    } catch (error) {
+      console.error('Error generating payslip:', error);
+    }
   };
 
-  const handleDownloadPayslip = (payslipId: string) => {
-    toast({
-      title: "Downloading Payslip",
-      description: `Payslip ${payslipId} is being downloaded as PDF.`,
-    });
+  const handleDownloadPayslip = async (payslipId: string) => {
+    try {
+      // For now, just show a toast. In a real implementation, this would generate and download a PDF
+      toast({
+        title: "Downloading Payslip",
+        description: "Payslip is being prepared for download. This feature will be available soon.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to download payslip",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleViewPayslip = (payslipId: string) => {
+    setSelectedPayslipId(payslipId);
   };
 
   return (
@@ -103,25 +80,30 @@ export function PayslipSection() {
           <div className="flex gap-4 items-end">
             <div className="flex-1">
               <label className="text-sm font-medium mb-2 block">Select Period</label>
-              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+              <Select 
+                value={selectedPeriod} 
+                onValueChange={setSelectedPeriod}
+                disabled={periodsLoading}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select period" />
+                  <SelectValue placeholder={periodsLoading ? "Loading periods..." : "Select period"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="2024-01">January 2024</SelectItem>
-                  <SelectItem value="2023-12">December 2023</SelectItem>
-                  <SelectItem value="2023-11">November 2023</SelectItem>
-                  <SelectItem value="2023-10">October 2023</SelectItem>
+                  {availablePeriods?.map((period) => (
+                    <SelectItem key={period} value={period}>
+                      {period}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <Button 
               onClick={handleGeneratePayslip}
-              disabled={isGeneratingPayslip}
+              disabled={generatePayslipMutation.isPending || !selectedPeriod || periodsLoading}
               className="flex items-center gap-2"
             >
               <FileText className="h-4 w-4" />
-              {isGeneratingPayslip ? "Generating..." : "Generate"}
+              {generatePayslipMutation.isPending ? "Generating..." : "Generate"}
             </Button>
           </div>
         </CardContent>
@@ -139,63 +121,86 @@ export function PayslipSection() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {myPayslips.map((payslip) => (
-              <div key={payslip.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-1">
-                    <h4 className="font-medium">{payslip.period}</h4>
-                    <Badge variant="default" className="text-xs">
-                      {payslip.status}
-                    </Badge>
+          {payslipsLoading ? (
+            <div className="text-center py-8">
+              <div className="text-muted-foreground">Loading payslips...</div>
+            </div>
+          ) : payslips && payslips.length > 0 ? (
+            <div className="space-y-3">
+              {payslips.map((payslip) => (
+                <div key={payslip.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h4 className="font-medium">{payslip.period}</h4>
+                      <Badge variant="default" className="text-xs">
+                        {payslip.status}
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Net Salary: KSh {payslip.netSalary.toLocaleString()} • Generated: {payslip.generatedDate}
+                    </div>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    Net Salary: KSh {payslip.netSalary.toLocaleString()} • Generated: {payslip.generatedDate}
+                  <div className="flex gap-2">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleViewPayslip(payslip.id)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>Payslip Details - {payslip.period}</DialogTitle>
+                          <DialogDescription>
+                            Your detailed payslip breakdown
+                          </DialogDescription>
+                        </DialogHeader>
+                        {selectedPayslip && <PayslipDetailsView payslip={selectedPayslip} />}
+                      </DialogContent>
+                    </Dialog>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleDownloadPayslip(payslip.id)}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <Eye className="h-4 w-4 mr-2" />
-                        View
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>Payslip Details - {payslip.period}</DialogTitle>
-                        <DialogDescription>
-                          Your detailed payslip breakdown
-                        </DialogDescription>
-                      </DialogHeader>
-                      <PayslipDetailsView />
-                    </DialogContent>
-                  </Dialog>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleDownloadPayslip(payslip.id)}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <div className="text-muted-foreground">No payslips found</div>
+              <div className="text-sm text-muted-foreground mt-1">
+                Generate your first payslip using the form above
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
 
-function PayslipDetailsView() {
+interface PayslipDetailsViewProps {
+  payslip: any;
+}
+
+function PayslipDetailsView({ payslip }: PayslipDetailsViewProps) {
+  if (!payslip) return <div>Loading payslip details...</div>;
+
   return (
     <div className="space-y-6 p-6 bg-white">
       {/* Header */}
       <div className="text-center border-b pb-4">
         <h1 className="text-2xl font-bold">COMPANY NAME</h1>
-        <p className="text-muted-foreground">Payslip for {currentPayslipDetails.period}</p>
+        <p className="text-muted-foreground">Payslip for {payslip.pay_period}</p>
       </div>
 
       {/* Employee Details */}
@@ -203,17 +208,16 @@ function PayslipDetailsView() {
         <div>
           <h3 className="font-semibold mb-2">Employee Details</h3>
           <div className="space-y-1 text-sm">
-            <p><strong>Name:</strong> {currentPayslipDetails.employee.name}</p>
-            <p><strong>Employee ID:</strong> {currentPayslipDetails.employee.id}</p>
-            <p><strong>Department:</strong> {currentPayslipDetails.employee.department}</p>
-            <p><strong>Position:</strong> {currentPayslipDetails.employee.position}</p>
+            <p><strong>Employee ID:</strong> {payslip.employee_id}</p>
+            <p><strong>Pay Period:</strong> {payslip.pay_period}</p>
+            <p><strong>Pay Date:</strong> {payslip.pay_date}</p>
           </div>
         </div>
         <div>
           <h3 className="font-semibold mb-2">Payment Details</h3>
           <div className="space-y-1 text-sm">
-            <p><strong>Period:</strong> {currentPayslipDetails.period}</p>
-            <p><strong>Pay Date:</strong> 31/01/2024</p>
+            <p><strong>Status:</strong> {payslip.status}</p>
+            <p><strong>Generated:</strong> {new Date(payslip.created_at).toLocaleDateString()}</p>
             <p><strong>Payment Method:</strong> Bank Transfer</p>
           </div>
         </div>
@@ -223,19 +227,19 @@ function PayslipDetailsView() {
       <div className="grid grid-cols-3 gap-4 p-4 bg-muted/30 rounded-lg">
         <div className="text-center">
           <div className="text-2xl font-bold text-green-600">
-            KSh {currentPayslipDetails.grossSalary.toLocaleString()}
+            KSh {payslip.gross_salary?.toLocaleString() || '0'}
           </div>
           <div className="text-sm text-muted-foreground">Gross Salary</div>
         </div>
         <div className="text-center">
           <div className="text-2xl font-bold text-red-600">
-            KSh {currentPayslipDetails.totalDeductions.toLocaleString()}
+            KSh {payslip.total_deductions?.toLocaleString() || '0'}
           </div>
           <div className="text-sm text-muted-foreground">Total Deductions</div>
         </div>
         <div className="text-center">
           <div className="text-2xl font-bold text-blue-600">
-            KSh {currentPayslipDetails.netSalary.toLocaleString()}
+            KSh {payslip.net_salary?.toLocaleString() || '0'}
           </div>
           <div className="text-sm text-muted-foreground">Net Salary</div>
         </div>
@@ -248,23 +252,15 @@ function PayslipDetailsView() {
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>Basic Salary</span>
-              <span>KSh {currentPayslipDetails.earnings.basicSalary.toLocaleString()}</span>
+              <span>KSh {payslip.basic_salary?.toLocaleString() || '0'}</span>
             </div>
             <div className="flex justify-between">
-              <span>House Allowance</span>
-              <span>KSh {currentPayslipDetails.earnings.houseAllowance.toLocaleString()}</span>
+              <span>Allowances</span>
+              <span>KSh {payslip.allowances?.toLocaleString() || '0'}</span>
             </div>
             <div className="flex justify-between">
-              <span>Transport Allowance</span>
-              <span>KSh {currentPayslipDetails.earnings.transportAllowance.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Medical Allowance</span>
-              <span>KSh {currentPayslipDetails.earnings.medicalAllowance.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Overtime</span>
-              <span>KSh {currentPayslipDetails.earnings.overtime.toLocaleString()}</span>
+              <span>Overtime Pay</span>
+              <span>KSh {payslip.overtime_pay?.toLocaleString() || '0'}</span>
             </div>
           </div>
         </div>
@@ -274,23 +270,23 @@ function PayslipDetailsView() {
           <div className="space-y-2">
             <div className="flex justify-between">
               <span>PAYE Tax</span>
-              <span>KSh {currentPayslipDetails.deductions.paye.toLocaleString()}</span>
+              <span>KSh {payslip.paye_tax?.toLocaleString() || '0'}</span>
             </div>
             <div className="flex justify-between">
               <span>NSSF</span>
-              <span>KSh {currentPayslipDetails.deductions.nssf.toLocaleString()}</span>
+              <span>KSh {payslip.nssf_deduction?.toLocaleString() || '0'}</span>
             </div>
             <div className="flex justify-between">
               <span>SHIF</span>
-              <span>KSh {currentPayslipDetails.deductions.shif.toLocaleString()}</span>
+              <span>KSh {payslip.shif_deduction?.toLocaleString() || '0'}</span>
             </div>
             <div className="flex justify-between">
               <span>Housing Levy</span>
-              <span>KSh {currentPayslipDetails.deductions.housingLevy.toLocaleString()}</span>
+              <span>KSh {payslip.housing_levy?.toLocaleString() || '0'}</span>
             </div>
             <div className="flex justify-between">
-              <span>Loan Repayment</span>
-              <span>KSh {currentPayslipDetails.deductions.loan.toLocaleString()}</span>
+              <span>Other Deductions</span>
+              <span>KSh {payslip.other_deductions?.toLocaleString() || '0'}</span>
             </div>
           </div>
         </div>
