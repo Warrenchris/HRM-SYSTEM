@@ -55,54 +55,81 @@ export function AttendanceReports() {
   const { toast } = useToast();
   const { employee } = useCurrentEmployee();
   const { records, loading } = useAttendanceRecords(employee?.id);
-  const { data: allRecords } = useAttendanceRecordsQuery({});
+  // Build filters for backend query
+  const startDateIso = dateRange.from
+    ? new Date(new Date(dateRange.from).setHours(0, 0, 0, 0)).toISOString()
+    : undefined;
+  const endDateIso = dateRange.to
+    ? new Date(new Date(dateRange.to).setHours(23, 59, 59, 999)).toISOString()
+    : undefined;
+  const { data: allRecords } = useAttendanceRecordsQuery({
+    startDate: startDateIso,
+    endDate: endDateIso,
+    employeeId: selectedEmployee !== "all" ? selectedEmployee : undefined,
+  });
   const [employeeMap, setEmployeeMap] = useState<Record<string, { id: string; first_name?: string; last_name?: string; department?: string }>>({});
+  const [employeesList, setEmployeesList] = useState<Array<{ id: string; first_name?: string; last_name?: string; department?: string }>>([]);
+  const [departmentsList, setDepartmentsList] = useState<string[]>([]);
 
-  // Build employee map for any employee IDs present in the result set
+  // Load employees list for filters and mapping
   useEffect(() => {
     const loadEmployees = async () => {
-      const ids = Array.from(new Set((allRecords?.records || []).map(r => r.employee_id))).filter(Boolean);
-      if (ids.length === 0) return;
       const { data, error } = await supabase
         .from('employees')
-        .select('id, first_name, last_name, department')
-        .in('id', ids);
+        .select('id, first_name, last_name, department, status')
+        .eq('status', 'active');
       if (!error && data) {
         const map: Record<string, any> = {};
         for (const e of data) map[e.id] = e;
         setEmployeeMap(map);
+        setEmployeesList(data);
+        const depts = Array.from(new Set((data || []).map(e => (e.department || '').trim()).filter(Boolean)));
+        setDepartmentsList(['all', ...depts]);
       }
     };
     loadEmployees();
-  }, [allRecords?.records?.length]);
+  }, []);
+
+  // Compute effective hours where total_hours may be missing
+  const computeEffectiveHours = (r: any) => {
+    if (!r) return 0;
+    const clockIn = new Date(r.clock_in_time);
+    const end = r.clock_out_time ? new Date(r.clock_out_time) : new Date();
+    const breakMinutes = Number(r.break_duration || 0);
+    const minutes = Math.max(0, (end.getTime() - clockIn.getTime()) / 60000 - breakMinutes);
+    return r.clock_out_time ? (r.total_hours ?? minutes / 60) : minutes / 60;
+  };
+
+  // Apply department filter client-side using employee map
+  const filteredAllRecords = (allRecords?.records || []).filter(r => {
+    if (selectedDepartment === 'all') return true;
+    const emp = employeeMap[r.employee_id];
+    return (emp?.department || '').toLowerCase() === selectedDepartment.toLowerCase();
+  });
 
   // Calculate real data for reports
-  const calculateSummaryData = () => {
-    if (!records.length) return [];
-    
-    const present = records.filter(r => r.clock_out_time).length;
-    const late = records.filter(r => {
+  const summaryData = (() => {
+    const total = filteredAllRecords.length;
+    if (total === 0) return [] as any[];
+    const present = filteredAllRecords.filter(r => r.clock_out_time).length;
+    const late = filteredAllRecords.filter(r => {
       const clockIn = new Date(r.clock_in_time);
       const workStart = new Date(clockIn);
       workStart.setHours(9, 15, 0, 0);
       return clockIn > workStart;
     }).length;
-    const total = records.length;
-    const absent = total - present;
-    
+    const absent = Math.max(0, total - present);
     return [
-      { name: "Present", value: Math.round((present / total) * 100), color: "#10b981" },
-      { name: "Late", value: Math.round((late / total) * 100), color: "#f59e0b" },
-      { name: "Absent", value: Math.round((absent / total) * 100), color: "#ef4444" }
+      { name: 'Present', value: Math.round((present / total) * 100), color: '#10b981' },
+      { name: 'Late', value: Math.round((late / total) * 100), color: '#f59e0b' },
+      { name: 'Absent', value: Math.round((absent / total) * 100), color: '#ef4444' },
     ];
-  };
-
-  const summaryData = calculateSummaryData();
+  })();
 
   // Build weekly trends from real records
   const weeklyTrendData = (() => {
     const map: Record<string, { week: string; present: number; late: number; absent: number }> = {};
-    const data = (allRecords?.records || []).slice();
+    const data = filteredAllRecords.slice();
     for (const r of data) {
       const d = new Date(r.clock_in_time);
       const weekKey = `${d.getFullYear()}-W${Math.ceil((((d.getTime() - new Date(d.getFullYear(), 0, 1).getTime()) / 86400000) + new Date(d.getFullYear(), 0, 1).getDay() + 1) / 7)}`;
@@ -117,7 +144,7 @@ export function AttendanceReports() {
   // Department aggregates from real records (requires looking up employee departments)
   const departmentData = (() => {
     const depts: Record<string, { department: string; present: number; late: number; absent: number; rate: number }> = {};
-    const recs = (allRecords?.records || []);
+    const recs = filteredAllRecords;
     for (const r of recs) {
       const emp = employeeMap[r.employee_id];
       const department = emp?.department || 'Unknown';
@@ -135,14 +162,14 @@ export function AttendanceReports() {
 
   // Build per-employee stats from real attendance records
   const employeeData = (() => {
-    const map: Record<string, { name: string; department: string; present: number; late: number; absent: number; rate: number; status: string }> = {};
-    const recs = (allRecords?.records || []);
+    const map: Record<string, { id: string; name: string; department: string; present: number; late: number; absent: number; rate: number; status: string }> = {};
+    const recs = filteredAllRecords;
     for (const r of recs) {
       const id = r.employee_id;
       const emp = employeeMap[id];
       const name = emp ? `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || id : id;
       const department = emp?.department || '—';
-      if (!map[id]) map[id] = { name, department, present: 0, late: 0, absent: 0, rate: 0, status: 'good' };
+      if (!map[id]) map[id] = { id, name, department, present: 0, late: 0, absent: 0, rate: 0, status: 'good' };
       const clockIn = new Date(r.clock_in_time);
       const workStart = new Date(clockIn); workStart.setHours(9,15,0,0);
       map[id].present += r.clock_out_time ? 1 : 0;
@@ -397,7 +424,7 @@ export function AttendanceReports() {
           </div>
 
           <div className="flex gap-2 mt-4">
-            <Button className="flex items-center gap-2">
+            <Button className="flex items-center gap-2" onClick={() => { /* Query already reacts to filters */ }}>
               <BarChart3 className="h-4 w-4" />
               Generate Report
             </Button>
@@ -477,7 +504,7 @@ export function AttendanceReports() {
                         />
                         <span className="text-sm font-medium">{item.name}</span>
                       </div>
-                      <div className="text-2xl font-bold">{item.value}%</div>
+                      <div className="text-2xl font-bold">{Number.isFinite(item.value) ? item.value : 0}%</div>
                     </div>
                   ))}
                 </div>
@@ -495,28 +522,54 @@ export function AttendanceReports() {
                     <CheckCircle className="h-5 w-5 text-green-600" />
                     <span className="font-medium">Average Attendance Rate</span>
                   </div>
-                  <span className="text-xl font-bold text-green-600">92.3%</span>
+                  <span className="text-xl font-bold text-green-600">
+                    {(() => {
+                      const total = filteredAllRecords.length;
+                      const present = filteredAllRecords.filter(r => r.clock_out_time).length;
+                      const rate = total > 0 ? (present / total) * 100 : 0;
+                      return `${rate.toFixed(1)}%`;
+                    })()}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-3">
                     <Clock className="h-5 w-5 text-blue-600" />
                     <span className="font-medium">Average Hours/Day</span>
                   </div>
-                  <span className="text-xl font-bold text-blue-600">7.8h</span>
+                  <span className="text-xl font-bold text-blue-600">
+                    {(() => {
+                      const byDate: Record<string, number> = {};
+                      for (const r of filteredAllRecords) {
+                        const key = new Date(r.clock_in_time).toDateString();
+                        byDate[key] = (byDate[key] || 0) + computeEffectiveHours(r);
+                      }
+                      const days = Object.keys(byDate).length;
+                      const avg = days > 0 ? Object.values(byDate).reduce((s, h) => s + h, 0) / days : 0;
+                      return `${avg.toFixed(1)}h`;
+                    })()}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-3">
                     <AlertTriangle className="h-5 w-5 text-yellow-600" />
                     <span className="font-medium">Late Arrivals</span>
                   </div>
-                  <span className="text-xl font-bold text-yellow-600">12</span>
+                  <span className="text-xl font-bold text-yellow-600">
+                    {filteredAllRecords.filter(r => {
+                      const d = new Date(r.clock_in_time);
+                      const start = new Date(d); start.setHours(9,15,0,0);
+                      return d > start;
+                    }).length}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-3">
                     <Users className="h-5 w-5 text-purple-600" />
                     <span className="font-medium">Total Employees</span>
                   </div>
-                  <span className="text-xl font-bold text-purple-600">85</span>
+                  <span className="text-xl font-bold text-purple-600">
+                    {new Set(filteredAllRecords.map(r => r.employee_id)).size}
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -545,7 +598,7 @@ export function AttendanceReports() {
                 </TableHeader>
                 <TableBody>
                   {(employeeData || []).map((employee) => (
-                    <TableRow key={employee.name}>
+                    <TableRow key={employee.id}>
                       <TableCell className="font-medium">{employee.name}</TableCell>
                       <TableCell>{employee.department}</TableCell>
                       <TableCell>{employee.present}</TableCell>

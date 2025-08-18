@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowRightLeft, User, Package, MapPin } from "lucide-react";
@@ -69,7 +70,7 @@ export function TransferAssetDialog({
     defaultValues: {
       newEmployeeId: "unassigned",
       newStatus: "assigned",
-      transferReason: "",
+      transferReason: "other",
       transferNotes: "",
       keepPreviousStatus: false,
     },
@@ -221,8 +222,8 @@ export function TransferAssetDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <ArrowRightLeft className="h-5 w-5" />
             Transfer Asset
@@ -232,8 +233,9 @@ export function TransferAssetDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <ScrollArea className="flex-1 min-h-0 -mx-6 px-6 overflow-y-auto">
+          <Form {...form}>
+            <form id="transfer-asset-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-6">
             {/* Asset Summary */}
             <div className="p-4 rounded-lg border bg-muted/50">
               <h3 className="font-medium mb-3">Asset Information</h3>
@@ -416,25 +418,27 @@ export function TransferAssetDialog({
                 </div>
               </div>
             </div>
+            </form>
+          </Form>
+        </ScrollArea>
 
-            <div className="flex gap-3 pt-4">
-              <Button 
-                type="submit" 
-                disabled={isSubmitting} 
-                className="flex-1"
-              >
-                {isSubmitting ? "Completing Transfer..." : "Complete Transfer"}
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => onOpenChange(false)}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </Form>
+        <div className="flex gap-3 pt-4 flex-shrink-0 border-t bg-background">
+          <Button 
+            type="submit" 
+            disabled={isSubmitting} 
+            className="flex-1"
+            form="transfer-asset-form"
+          >
+            {isSubmitting ? "Completing Transfer..." : "Complete Transfer"}
+          </Button>
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

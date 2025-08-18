@@ -226,7 +226,7 @@ export function AssetStats() {
                   </div>
                 </div>
                 <div className="text-xl font-bold">
-                  {loading ? '...' : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(stats?.totalValue || 0)}
+                  {loading ? '...' : new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(stats?.totalValue || 0)}
                 </div>
               </div>
               <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">

@@ -332,19 +332,32 @@ export function usePendingApprovalsQuery(userRole: 'manager' | 'hr' | 'ceo' | 'a
       const balances = balancesRes.data || [];
 
       // Exclude the current user's own requests from their approval queue
+      // Exception: CEO/Admin can see and approve their own requests
       const { data: { user } } = await supabase.auth.getUser();
       let currentEmployeeId: string | null = null;
+      let currentUserRole: string | null = null;
+      
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('employee_id')
+          .select('employee_id, role')
           .eq('user_id', user.id)
           .single();
         currentEmployeeId = (profile?.employee_id as string) || null;
+        currentUserRole = (profile?.role as string) || null;
       }
 
       return (requests || [])
-        .filter((req) => !currentEmployeeId || req.employee_id !== currentEmployeeId)
+        .filter((req) => {
+          // If no employee ID, include the request
+          if (!currentEmployeeId) return true;
+          
+          // If it's not their own request, include it
+          if (req.employee_id !== currentEmployeeId) return true;
+          
+          // If it's their own request, only include if they're CEO/Admin
+          return currentUserRole === 'ceo' || currentUserRole === 'admin';
+        })
         .map((req) => {
         const employee = employees.find(e => e.id === req.employee_id);
         const leaveType = leaveTypes.find(t => t.id === req.leave_type_id);
@@ -396,7 +409,7 @@ export function useSubmitLeaveRequestMutation() {
       
       if (employeeDept?.department === 'HR' || employeeDept?.department === 'Human Resources') {
         // HR requests go directly to CEO approval
-        approvalWorkflow = 'hr_ceo';
+        approvalWorkflow = 'manager_hr_ceo';
         initialUpdates = {
           ...request,
           approval_workflow: approvalWorkflow,

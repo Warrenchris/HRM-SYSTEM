@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TransferAssetDialog } from "./TransferAssetDialog";
+import { EditAssetDialog } from "./EditAssetDialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -63,6 +64,7 @@ export function AssetTable({ filterType = "all" }: AssetTableProps) {
   const [locationFilter, setLocationFilter] = useState("all");
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const fetchAssets = async () => {
     try {
@@ -170,9 +172,9 @@ export function AssetTable({ filterType = "all" }: AssetTableProps) {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-KE', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'KES',
       minimumFractionDigits: 0
     }).format(amount);
   };
@@ -185,6 +187,17 @@ export function AssetTable({ filterType = "all" }: AssetTableProps) {
   const handleTransferComplete = () => {
     fetchAssets(); // Refresh the asset list
     setIsTransferDialogOpen(false);
+    setSelectedAsset(null);
+  };
+
+  const handleEditAsset = (asset: Asset) => {
+    setSelectedAsset(asset);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditComplete = () => {
+    fetchAssets(); // Refresh the asset list
+    setIsEditDialogOpen(false);
     setSelectedAsset(null);
   };
 
@@ -408,7 +421,7 @@ export function AssetTable({ filterType = "all" }: AssetTableProps) {
                               <Eye className="h-4 w-4 mr-2" />
                               View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditAsset(asset)}>
                               <Edit className="h-4 w-4 mr-2" />
                               Edit Asset
                             </DropdownMenuItem>
@@ -449,6 +462,14 @@ export function AssetTable({ filterType = "all" }: AssetTableProps) {
         onOpenChange={setIsTransferDialogOpen}
         asset={selectedAsset}
         onTransferComplete={handleTransferComplete}
+      />
+
+      {/* Edit Asset Dialog */}
+      <EditAssetDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        asset={selectedAsset}
+        onEditComplete={handleEditComplete}
       />
     </>
   );

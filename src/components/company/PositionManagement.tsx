@@ -302,7 +302,7 @@ export function PositionManagement() {
                       <SelectValue placeholder="Select reporting position (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No direct report</SelectItem>
+                      <SelectItem value="none">No direct report</SelectItem>
                       {availableParentPositions.map((pos) => (
                         <SelectItem key={pos.id} value={pos.id}>
                           {pos.title}

@@ -24,6 +24,7 @@ export function LeaveApprovals() {
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [approvalComments, setApprovalComments] = useState("");
   const [userRole, setUserRole] = useState<"manager" | "hr" | "ceo" | "admin" | "employee" | null>(null);
+  const [currentEmployeeId, setCurrentEmployeeId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -34,10 +35,11 @@ export function LeaveApprovals() {
         }
         const { data: profile } = await supabase
           .from("profiles")
-          .select("role")
+          .select("role, employee_id")
           .eq("user_id", user.id)
           .single();
         setUserRole((profile?.role as any) || "employee");
+        setCurrentEmployeeId(profile?.employee_id || null);
       } catch (e) {
         setUserRole("employee");
       }
@@ -115,16 +117,36 @@ export function LeaveApprovals() {
       const req = (requests || []).find(r => r.id === requestId);
       const workflow = req?.approval_workflow || 'manager_hr';
 
+      // Self-approval prevention is now handled at the database level via RLS policies
+
       console.log('Approval request:', { requestId, action, userRole, workflow, req });
 
       if (action === 'reject') {
         updates.status = 'rejected';
-        if (userRole === 'manager') updates.manager_approval_status = 'rejected', updates.manager_comments = comments;
-        if (userRole === 'hr') updates.hr_approval_status = 'rejected', updates.hr_comments = comments;
-        if (userRole === 'ceo') updates.ceo_approval_status = 'rejected', updates.ceo_comments = comments;
+        if (userRole === 'manager') {
+          updates.manager_approval_status = 'rejected';
+          updates.manager_approved_by = user?.id;
+          updates.manager_approved_date = new Date().toISOString();
+          updates.manager_comments = comments;
+        }
+        if (userRole === 'hr') {
+          updates.hr_approval_status = 'rejected';
+          updates.hr_approved_by = user?.id;
+          updates.hr_approved_date = new Date().toISOString();
+          updates.hr_comments = comments;
+        }
+        if (userRole === 'ceo') {
+          updates.ceo_approval_status = 'rejected';
+          updates.ceo_approved_by = user?.id;
+          updates.ceo_approved_date = new Date().toISOString();
+          updates.ceo_comments = comments;
+        }
       } else {
         if (userRole === 'manager') {
           updates.manager_approval_status = 'approved';
+          updates.manager_approved_by = user?.id;
+          updates.manager_approved_date = new Date().toISOString();
+          updates.manager_comments = comments;
           // If workflow requires CEO after manager (e.g., HR's own request), skip HR and send to CEO
           if (workflow === 'manager_hr_ceo') {
             updates.ceo_approval_status = 'pending';
@@ -132,26 +154,26 @@ export function LeaveApprovals() {
             updates.hr_approval_status = 'pending';
           }
           updates.status = 'pending';
-          updates.manager_comments = comments;
         } else if (userRole === 'hr') {
           updates.hr_approval_status = 'approved';
+          updates.hr_approved_by = user?.id;
+          updates.hr_approved_date = new Date().toISOString();
           updates.hr_comments = comments;
           if (workflow === 'manager_hr_ceo') {
-            updates.ceo_approval_status = 'pending';
-            updates.status = 'pending';
-          } else if (workflow === 'hr_ceo') {
-            // For HR requests, forward to CEO
+            // For HR requests that need CEO approval, forward to CEO
             updates.ceo_approval_status = 'pending';
             updates.status = 'pending';
           } else {
             updates.status = 'approved';
           }
         } else if (userRole === 'ceo') {
-          // For CEO approval, only update the CEO approval status first
           updates.ceo_approval_status = 'approved';
           updates.ceo_comments = comments;
+          updates.ceo_approved_by = user?.id;
+          updates.ceo_approved_date = new Date().toISOString();
+          updates.status = 'approved'; // Final approval sets overall status to approved
           
-          console.log('CEO approval - minimal updates:', updates);
+          console.log('CEO approval - complete updates:', updates);
         }
       }
       
@@ -165,9 +187,26 @@ export function LeaveApprovals() {
         description: `Leave request ${action}d successfully`,
       });
     } catch (error) {
+      console.error('Leave approval error:', error);
+      
+      // Provide more specific error messages based on the error type
+      let errorMessage = `Failed to ${action} leave request`;
+      
+      if (error instanceof Error) {
+        if (error.message.includes('policy')) {
+          errorMessage = 'Permission denied: You may not have the required role or are trying to approve your own request.';
+        } else if (error.message.includes('constraint')) {
+          errorMessage = 'Database constraint violation: Please check the approval workflow.';
+        } else if (error.message.includes('workflow')) {
+          errorMessage = 'Invalid approval workflow state.';
+        } else {
+          errorMessage = `${errorMessage}: ${error.message}`;
+        }
+      }
+      
       toast({
         title: "Error", 
-        description: `Failed to ${action} leave request`,
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -280,10 +319,12 @@ export function LeaveApprovals() {
           </CardTitle>
           <CardDescription>
             {userRole === "manager" 
-              ? "Review and approve leave requests from your team members. Approved requests will be forwarded to HR."
+              ? "Review and approve leave requests from your team members. You cannot approve your own requests. Approved requests will be forwarded to HR."
               : userRole === "hr"
-              ? "Review leave requests from employees and managers. Manager requests approved here are forwarded to CEO for final approval."
-              : "Review leave requests from managers that have been approved by HR for final CEO approval."
+              ? "Review leave requests from employees and managers. You cannot approve your own requests. Manager requests approved here are forwarded to CEO for final approval."
+              : userRole === "ceo"
+              ? "Review leave requests for final approval. As CEO, you can approve your own requests."
+              : "Review leave requests for final approval. As Admin, you can approve your own requests."
             }
           </CardDescription>
         </CardHeader>
@@ -360,7 +401,14 @@ export function LeaveApprovals() {
                 <TableRow key={request.id}>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{employeeName}</div>
+                      <div className="font-medium flex items-center gap-2">
+                        {employeeName}
+                        {request.employee_id === currentEmployeeId && (userRole === 'ceo' || userRole === 'admin') && (
+                          <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                            Own Request
+                          </Badge>
+                        )}
+                      </div>
                       <div className="text-sm text-muted-foreground">
                         {employeeNumber}
                       </div>

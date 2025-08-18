@@ -215,9 +215,9 @@ export function AssetCalendar() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-KE', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'KES',
       minimumFractionDigits: 0
     }).format(amount);
   };
