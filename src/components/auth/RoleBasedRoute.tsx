@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompany } from "@/contexts/CompanyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -16,15 +17,17 @@ export function RoleBasedRoute({
   redirectTo = '/app/employee-dashboard' 
 }: RoleBasedRouteProps) {
   const { user } = useAuth();
+  const { currentMembership } = useCompany();
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
+    let isActive = true;
     const fetchUserRole = async () => {
       if (!user) {
-        setLoading(false);
+        if (isActive) setLoading(false);
         return;
       }
 
@@ -35,23 +38,28 @@ export function RoleBasedRoute({
           .eq('user_id', user.id)
           .single();
 
-        const role = profile?.role || 'employee';
-        setUserRole(role);
+        // Use company membership role or fall back to profile role
+        const role = currentMembership?.role || profile?.role || 'employee';
+        if (isActive) setUserRole(role);
         
-        // If user is an employee and trying to access admin/hr pages, redirect to employee dashboard
-        if (role === 'employee' && !allowedRoles.includes('employee')) {
-          navigate(redirectTo, { replace: true });
+        // If user is not allowed to access this route, redirect
+        if (!allowedRoles.includes(role)) {
+          const target = role === 'employee' ? '/app/employee-dashboard' : '/app/dashboard';
+          if (location.pathname !== target) {
+            navigate(target, { replace: true });
+          }
         }
       } catch (error) {
         console.error('Error fetching user role:', error);
-        setUserRole('employee');
+        if (isActive) setUserRole('employee');
       } finally {
-        setLoading(false);
+        if (isActive) setLoading(false);
       }
     };
 
     fetchUserRole();
-  }, [user, navigate, location.pathname, allowedRoles, redirectTo]);
+    return () => { isActive = false; };
+  }, [user, currentMembership, navigate, location.pathname, allowedRoles, redirectTo]);
 
   // Show loading while checking user role
   if (loading) {

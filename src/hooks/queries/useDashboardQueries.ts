@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useCompany } from '@/contexts/CompanyContext';
 
 // Query keys for dashboard data
 export const dashboardKeys = {
@@ -84,19 +85,26 @@ export function useUpcomingBirthdaysQuery() {
 
 // Optimized today's attendance query - separate queries but cached
 export function useTodayAttendanceQuery() {
+  const { currentCompany } = useCompany();
   return useQuery({
     queryKey: dashboardKeys.todayAttendance,
     queryFn: async (): Promise<{ attendance: TodayAttendance[]; stats: AttendanceStats }> => {
       const today = new Date().toISOString().split('T')[0];
       
       // Get attendance records for today (limit to reduce load)
-      const { data: attendanceData, error: attendanceError } = await supabase
+      let attendanceQuery = supabase
         .from('attendance_records')
         .select('id, employee_id, clock_in_time, clock_out_time, status, total_hours')
         .gte('clock_in_time', `${today}T00:00:00`)
         .lt('clock_in_time', `${today}T23:59:59`)
         .order('clock_in_time', { ascending: false })
         .limit(15);
+
+      if (currentCompany?.id) {
+        attendanceQuery = attendanceQuery.eq('company_id', currentCompany.id);
+      }
+
+      const { data: attendanceData, error: attendanceError } = await attendanceQuery;
 
       if (attendanceError) throw attendanceError;
 
@@ -109,11 +117,17 @@ export function useTodayAttendanceQuery() {
 
       // Get unique employee IDs and their details
       const employeeIds = [...new Set(attendanceData.map(record => record.employee_id))];
-      const { data: employeesData, error: employeesError } = await supabase
+      let employeesQuery = supabase
         .from('employees')
         .select('id, first_name, last_name, department')
         .in('id', employeeIds)
         .eq('status', 'active');
+
+      if (currentCompany?.id) {
+        employeesQuery = employeesQuery.eq('company_id', currentCompany.id);
+      }
+
+      const { data: employeesData, error: employeesError } = await employeesQuery;
 
       if (employeesError) throw employeesError;
 
@@ -157,7 +171,7 @@ export function useTodayAttendanceQuery() {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes cache
     refetchInterval: false, // Disable auto-refresh to reduce load
-    enabled: true,
+    enabled: !!currentCompany?.id,
   });
 }
 

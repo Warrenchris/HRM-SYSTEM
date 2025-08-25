@@ -18,7 +18,8 @@ export function AttendanceStats() {
     if (!record) return 0;
     const clockIn = new Date(record.clock_in_time);
     const end = record.clock_out_time ? new Date(record.clock_out_time) : new Date();
-    let breakMinutes = Number(record.break_duration || 0);
+    // break_duration is stored in hours (DECIMAL). Convert to minutes for subtraction.
+    let breakMinutes = Number(record.break_duration || 0) * 60;
     if (record.break_start_time && !record.break_end_time) {
       // Add ongoing break time until now
       const breakStart = new Date(record.break_start_time);

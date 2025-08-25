@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useCompany } from '@/contexts/CompanyContext';
 
 export interface AttendanceRecord {
   id: string;
@@ -45,6 +46,7 @@ export function useAttendanceRecordsQuery(options?: {
   page?: number;
   limit?: number;
 }) {
+  const { currentCompany } = useCompany();
   const page = options?.page || 1;
   const limit = options?.limit || 50;
   const from = (page - 1) * limit;
@@ -56,6 +58,10 @@ export function useAttendanceRecordsQuery(options?: {
       let query = supabase
         .from('attendance_records')
         .select('*', { count: 'exact' });
+
+      if (currentCompany?.id) {
+        query = query.eq('company_id', currentCompany.id);
+      }
 
       if (options?.employeeId) {
         query = query.eq('employee_id', options.employeeId);
@@ -85,30 +91,37 @@ export function useAttendanceRecordsQuery(options?: {
         hasMore: (count || 0) > to + 1
       };
     },
+    enabled: !!currentCompany?.id,
   });
 }
 
 // Today's attendance record for an employee
 export function useTodayAttendanceQuery(employeeId: string) {
   const today = new Date().toISOString().split('T')[0];
+  const { currentCompany } = useCompany();
 
   return useQuery({
     queryKey: attendanceKeys.todayRecord(employeeId),
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('attendance_records')
         .select('*')
         .eq('employee_id', employeeId)
         .gte('clock_in_time', `${today}T00:00:00.000Z`)
         .lt('clock_in_time', `${today}T23:59:59.999Z`)
         .order('clock_in_time', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
+
+      if (currentCompany?.id) {
+        query = query.eq('company_id', currentCompany.id);
+      }
+
+      const { data, error } = await query.maybeSingle();
 
       if (error) throw error;
       return data;
     },
-    enabled: !!employeeId,
+    enabled: !!employeeId && !!currentCompany?.id,
     staleTime: 30 * 1000, // 30 seconds for today's record
     refetchInterval: 60 * 1000, // Refetch every minute
   });
@@ -120,6 +133,7 @@ export function useAttendanceStatsQuery(options?: {
   startDate?: string;
   endDate?: string;
 }) {
+  const { currentCompany } = useCompany();
   return useQuery({
     queryKey: [...attendanceKeys.stats(), options],
     queryFn: async () => {
@@ -127,6 +141,10 @@ export function useAttendanceStatsQuery(options?: {
       let query = supabase
         .from('attendance_records')
         .select('total_hours, clock_in_time, status');
+
+      if (currentCompany?.id) {
+        query = query.eq('company_id', currentCompany.id);
+      }
 
       if (options?.employeeId) {
         query = query.eq('employee_id', options.employeeId);
@@ -158,6 +176,7 @@ export function useAttendanceStatsQuery(options?: {
       };
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!currentCompany?.id,
   });
 }
 

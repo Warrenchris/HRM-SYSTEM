@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { History, Clock, Coffee, Calendar, Search, Filter, Download, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCompany } from "@/contexts/CompanyContext";
 
 interface AttendanceRecord {
   id: string;
@@ -27,6 +28,7 @@ interface AttendanceRecord {
 
 export function AttendanceHistory() {
   const { user } = useAuth();
+  const { currentCompany } = useCompany();
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [filteredRecords, setFilteredRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,12 +62,18 @@ export function AttendanceHistory() {
 
       setLoading(true);
       
-      const { data, error } = await supabase
+      let query = supabase
         .from('attendance_records')
         .select('*')
         .eq('employee_id', employeeId)
         .order('clock_in_time', { ascending: false })
         .limit(50);
+
+      if (currentCompany?.id) {
+        query = query.eq('company_id', currentCompany.id);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Error fetching attendance records:', error);
@@ -80,7 +88,7 @@ export function AttendanceHistory() {
     if (employeeId) {
       fetchRecords();
     }
-  }, [employeeId]);
+  }, [employeeId, currentCompany?.id]);
 
   // Filter records based on search and status
   useEffect(() => {

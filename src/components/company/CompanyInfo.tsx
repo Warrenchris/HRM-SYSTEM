@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,31 +7,93 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Building2, Upload, Save, MapPin, Phone, Mail, Globe } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useCompany } from "@/contexts/CompanyContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export function CompanyInfo() {
+  const { currentCompany, refreshCompanies } = useCompany();
   const [companyData, setCompanyData] = useState({
-    name: "TechCorp Solutions Ltd",
-    legalName: "TechCorp Solutions Limited",
-    registrationNumber: "RC-12345678",
-    taxId: "KRA-PIN-987654321",
-    industry: "Technology",
-    foundedYear: "2018",
-    description: "Leading technology solutions provider in East Africa",
-    website: "https://techcorp.co.ke",
-    email: "info@techcorp.co.ke",
-    phone: "+254-700-123-456",
-    address: "TechHub Building, Westlands",
-    city: "Nairobi",
-    state: "Nairobi County",
-    country: "Kenya",
-    postalCode: "00100",
-    employeeCount: "245",
-    currency: "KES",
-    timezone: "Africa/Nairobi",
-    fiscalYearStart: "January",
+    name: "",
+    legalName: "",
+    registrationNumber: "",
+    taxId: "",
+    industry: "",
+    foundedYear: "",
+    description: "",
+    website: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    country: "",
+    postalCode: "",
+    employeeCount: "",
+    currency: "",
+    timezone: "",
+    fiscalYearStart: "",
   });
-
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchCompanyData = async () => {
+      if (!currentCompany?.id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('id', currentCompany.id)
+          .single();
+
+        if (error) throw error;
+
+        if (data) {
+          setCompanyData({
+            name: data.name || "",
+            legalName: data.legal_name || "",
+            registrationNumber: data.registration_number || "",
+            taxId: data.tax_id || "",
+            industry: data.industry || "",
+            foundedYear: data.founded_year || "",
+            description: data.description || "",
+            website: data.website || "",
+            email: data.email || "",
+            phone: data.phone || "",
+            address: data.address || "",
+            city: data.city || "",
+            state: data.state || "",
+            country: data.country || "",
+            postalCode: data.postal_code || "",
+            employeeCount: data.employee_count?.toString() || "",
+            currency: data.currency || "",
+            timezone: data.timezone || "",
+            fiscalYearStart: data.fiscal_year_start || "",
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching company data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load company information",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCompanyData();
+  }, [currentCompany?.id]);
+
+  if (loading) {
+    return <div className="p-4">Loading company information...</div>;
+  }
+
+  if (!currentCompany) {
+    return <div className="p-4">No company selected</div>;
+  }
 
   const industries = [
     "Technology", "Finance", "Healthcare", "Education", "Manufacturing",
@@ -54,11 +116,52 @@ export function CompanyInfo() {
     setCompanyData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
-    toast({
-      title: "Company Information Updated",
-      description: "Your company information has been saved successfully",
-    });
+  const handleSave = async () => {
+    if (!currentCompany?.id) return;
+
+    try {
+      const { error } = await supabase
+        .from('companies')
+        .update({
+          name: companyData.name,
+          legal_name: companyData.legalName,
+          registration_number: companyData.registrationNumber,
+          tax_id: companyData.taxId,
+          industry: companyData.industry,
+          founded_year: companyData.foundedYear,
+          description: companyData.description,
+          website: companyData.website,
+          email: companyData.email,
+          phone: companyData.phone,
+          address: companyData.address,
+          city: companyData.city,
+          state: companyData.state,
+          country: companyData.country,
+          postal_code: companyData.postalCode,
+          employee_count: parseInt(companyData.employeeCount) || null,
+          currency: companyData.currency,
+          timezone: companyData.timezone,
+          fiscal_year_start: companyData.fiscalYearStart,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', currentCompany.id);
+
+      if (error) throw error;
+
+      await refreshCompanies();
+
+      toast({
+        title: "Company Information Updated",
+        description: "Your company information has been saved successfully",
+      });
+    } catch (error) {
+      console.error('Error saving company data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save company information",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleLogoUpload = () => {

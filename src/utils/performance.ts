@@ -15,23 +15,6 @@ export const preloadImages = async (urls: string[]): Promise<void[]> => {
   return Promise.all(urls.map(preloadImage));
 };
 
-// Bundle size analyzer
-export const logBundleInfo = () => {
-  if (process.env.NODE_ENV === 'development') {
-    const scripts = document.querySelectorAll('script[src]');
-    let totalSize = 0;
-    
-    scripts.forEach(script => {
-      const src = script.getAttribute('src');
-      if (src && !src.startsWith('http')) {
-        console.log(`Script: ${src}`);
-      }
-    });
-    
-    console.log(`Total scripts: ${scripts.length}`);
-  }
-};
-
 // Memory usage monitor
 export const logMemoryUsage = () => {
   if (process.env.NODE_ENV === 'development' && 'memory' in performance) {

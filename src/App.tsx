@@ -9,9 +9,11 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RoleBasedRoute } from "@/components/auth/RoleBasedRoute";
 import { OptimizedLayout } from "@/components/layouts/OptimizedLayout";
 import { EmployeeLayout } from "@/components/layouts/EmployeeLayout";
-import { Suspense, lazy, useState, useEffect } from "react";
+import { Suspense, lazy } from "react";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 // Supabase access elsewhere uses `src/integrations/supabase/client`
+
+// Initialize React Query client
 
 // Lazy load all pages for better performance
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -33,7 +35,6 @@ const Company = lazy(() => import("./pages/Company"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Landing = lazy(() => import("./pages/Landing"));
 const LandingLogin = lazy(() => import("./pages/LandingLogin"));
-const Onboarding = lazy(() => import("./pages/Onboarding"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Demo `Page` with direct Supabase query removed to avoid multiple clients
@@ -75,9 +76,9 @@ const App = () => (
             <ErrorBoundary>
               <Suspense fallback={<PageLoader />}>
                 <Routes>
-                {/* Public routes */}
-                <Route path="/" element={<Landing />} />
-                <Route path="/auth" element={<LandingLogin />} />
+                  {/* Public routes */}
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/auth" element={<LandingLogin />} />
                 
                 {/* Protected App Routes */}
                 <Route path="/app/*" element={
@@ -85,7 +86,7 @@ const App = () => (
                     <Routes>
                       {/* Employee-specific dashboard */}
                       <Route path="employee-dashboard" element={
-                        <RoleBasedRoute allowedRoles={['employee', 'admin', 'hr', 'manager']}>
+                        <RoleBasedRoute allowedRoles={['employee']}>
                           <EmployeeLayout />
                         </RoleBasedRoute>
                       }>
@@ -94,7 +95,7 @@ const App = () => (
 
                       {/* Admin/HR/Manager routes using OptimizedLayout */}
                       <Route path="" element={
-                        <RoleBasedRoute allowedRoles={['admin', 'hr', 'manager']}>
+                        <RoleBasedRoute allowedRoles={['owner', 'admin', 'hr', 'manager']}>
                           <OptimizedLayout />
                         </RoleBasedRoute>
                       }>
@@ -114,7 +115,6 @@ const App = () => (
                         <Route path="tickets" element={<Tickets />} />
                         <Route path="tasks" element={<Tasks />} />
                         <Route path="company" element={<Company />} />
-                        <Route path="onboarding" element={<Onboarding />} />
                         <Route path="settings" element={<Settings />} />
                         {/* demo route removed */}
                       </Route>
@@ -132,6 +132,7 @@ const App = () => (
                         <Route path="timesheets" element={<Timesheets />} />
                         <Route path="performance" element={<Performance />} />
                       </Route>
+                      {/* Onboarding route removed in favor of signup-integrated flow */}
                     </Routes>
                   </ProtectedRoute>
                 } />

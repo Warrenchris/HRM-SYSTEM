@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useCompany } from '@/contexts/CompanyContext';
 import { useToast } from '@/hooks/use-toast';
 
 interface GPSLocation {
@@ -30,6 +31,7 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { currentCompany } = useCompany();
 
   // Create a stable dependency key for the provided date so we only refetch
   // when the calendar day changes, not on every render that creates a new Date
@@ -43,7 +45,7 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
       setRecords([]);
     }
   // Depend on the day key instead of the raw Date object reference
-  }, [employeeId, dateKey]);
+  }, [employeeId, dateKey, currentCompany?.id]);
 
   const fetchRecords = async () => {
     if (!employeeId) {
@@ -60,6 +62,10 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
         .select('*')
         .eq('employee_id', employeeId)
         .order('clock_in_time', { ascending: false });
+
+      if (currentCompany?.id) {
+        query = query.eq('company_id', currentCompany.id);
+      }
 
       if (date) {
         const startOfDay = new Date(date);
@@ -94,26 +100,25 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
     try {
       console.log('clockIn called with employeeId:', employeeId);
       
-      // Get current user's company_id
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-        .single();
-
-      if (profileError) {
-        console.error('Profile error:', profileError);
-      }
-
-      // If no company_id, try to get it from the employee record
-      let companyId = profile?.company_id;
+      // Resolve company_id from context (preferred) or fallback to profile/employee
+      let companyId = currentCompany?.id as string | undefined;
       if (!companyId) {
-        const { data: employeeData } = await supabase
-          .from('employees')
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
           .select('company_id')
-          .eq('id', employeeId)
+          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
           .single();
-        companyId = employeeData?.company_id;
+        if (!profileError) {
+          companyId = profile?.company_id;
+        }
+        if (!companyId) {
+          const { data: employeeData } = await supabase
+            .from('employees')
+            .select('company_id')
+            .eq('id', employeeId)
+            .single();
+          companyId = employeeData?.company_id;
+        }
       }
 
       const clockInData: any = {
@@ -175,8 +180,19 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
 
   const clockOut = async (recordId: string, location?: string, notes?: string, gpsLocation?: GPSLocation) => {
     try {
+      const nowIso = new Date().toISOString();
+
+      // Fetch existing record to compute totals accurately
+      const { data: existing, error: fetchError } = await supabase
+        .from('attendance_records')
+        .select('*')
+        .eq('id', recordId)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+
       const clockOutData: any = {
-        clock_out_time: new Date().toISOString(),
+        clock_out_time: nowIso,
         clock_out_location: location,
         notes,
         status: 'clocked_out'
@@ -186,6 +202,27 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
         clockOutData.clock_out_latitude = gpsLocation.latitude;
         clockOutData.clock_out_longitude = gpsLocation.longitude;
         clockOutData.clock_out_gps_timestamp = gpsLocation.timestamp.toISOString();
+      }
+
+      // Compute total_hours and break_duration (in hours) if we have the record
+      if (existing?.clock_in_time) {
+        const now = new Date(nowIso).getTime();
+        const clockInMs = new Date(existing.clock_in_time).getTime();
+
+        let breakMinutes = Number(existing.break_duration || 0) * 60; // stored as hours
+        if (existing.break_start_time && !existing.break_end_time) {
+          const breakStartMs = new Date(existing.break_start_time).getTime();
+          if (!isNaN(breakStartMs)) {
+            breakMinutes += Math.max(0, (now - breakStartMs) / 60000);
+          }
+        }
+
+        const workedMinutes = Math.max(0, (now - clockInMs) / 60000 - breakMinutes);
+        const totalHours = parseFloat((workedMinutes / 60).toFixed(2));
+        const normalizedBreakHours = parseFloat((breakMinutes / 60).toFixed(2));
+
+        clockOutData.total_hours = totalHours;
+        clockOutData.break_duration = normalizedBreakHours;
       }
 
       const { error } = await supabase
@@ -243,10 +280,32 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
 
   const endBreak = async (recordId: string) => {
     try {
+      const nowIso = new Date().toISOString();
+
+      // Fetch the record to compute accumulated break_duration
+      const { data: existing, error: fetchError } = await supabase
+        .from('attendance_records')
+        .select('break_start_time, break_duration')
+        .eq('id', recordId)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+
+      let newBreakDurationHours = Number(existing?.break_duration || 0);
+      if (existing?.break_start_time) {
+        const breakStartMs = new Date(existing.break_start_time).getTime();
+        const nowMs = new Date(nowIso).getTime();
+        if (!isNaN(breakStartMs)) {
+          const deltaMinutes = Math.max(0, (nowMs - breakStartMs) / 60000);
+          newBreakDurationHours = parseFloat((newBreakDurationHours + deltaMinutes / 60).toFixed(2));
+        }
+      }
+
       const { error } = await supabase
         .from('attendance_records')
         .update({
-          break_end_time: new Date().toISOString(),
+          break_end_time: nowIso,
+          break_duration: newBreakDurationHours,
           status: 'clocked_in'
         })
         .eq('id', recordId);

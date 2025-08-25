@@ -25,6 +25,8 @@ import {
   useRecentActivitiesQuery,
 } from "@/hooks/queries/useDashboardQueries";
 
+import { CompanyHeader } from "@/components/dashboard/CompanyHeader";
+
 export default function Dashboard() {
   // Use optimized queries with caching
   const { data: employeeStats, isLoading: statsLoading } = useEmployeeStatsQuery();
@@ -90,13 +92,19 @@ export default function Dashboard() {
   const recentActivities = activitiesData;
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here's what's happening in your organization.</p>
-        </div>
+    <div className="min-h-screen flex flex-col">
+      <header className="w-full bg-card border-b sticky top-0 z-50">
+        <CompanyHeader />
+      </header>
+      <main className="flex-1 bg-background">
+        <div className="container mx-auto py-6">
+          <div className="space-y-6">
+          {/* Page Header */}
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+              <p className="text-muted-foreground">Welcome back! Here's what's happening in your organization.</p>
+            </div>
         <div className="flex gap-3">
           <Button asChild variant="outline" className="hover-scale">
             <Link to="/app/attendance">
@@ -398,6 +406,9 @@ export default function Dashboard() {
           </div>
         </CardContent>
       </Card>
-    </div>
+            </div>
+          </div>
+        </main>
+      </div>
   );
 }

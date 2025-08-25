@@ -39,6 +39,9 @@ interface CompanyContextType {
   switchCompany: (companyId: string) => Promise<void>;
   refreshCompanies: () => Promise<void>;
   needsOnboarding: boolean;
+  inviteUser: (email: string, role: 'admin' | 'hr' | 'manager' | 'member') => Promise<void>;
+  acceptInvitation: (invitationId: string) => Promise<boolean>;
+  getPendingInvitations: () => Promise<{ id: string; email: string; role: string; companyName: string }[]>;
 }
 
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
@@ -171,6 +174,63 @@ export function CompanyProvider({ children }: CompanyProviderProps) {
     }
   }, [user, authLoading]);
 
+  const inviteUser = async (email: string, role: 'admin' | 'hr' | 'manager' | 'member') => {
+    if (!currentCompany) throw new Error('No company selected');
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase.rpc(
+      'invite_user_to_company',
+      { email, role, company_id: currentCompany.id }
+    );
+
+    if (error) throw error;
+    return data;
+  };
+
+  const acceptInvitation = async (invitationId: string) => {
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase.rpc(
+      'accept_company_invitation',
+      { invitation_id: invitationId }
+    );
+
+    if (error) throw error;
+
+    if (data) {
+      await refreshCompanies();
+    }
+
+    return data;
+  };
+
+  const getPendingInvitations = async () => {
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+      .from('company_invitations')
+      .select(`
+        id,
+        email,
+        role,
+        companies (
+          name
+        )
+      `)
+      .eq('email', user.email)
+      .eq('status', 'pending')
+      .gt('expires_at', new Date().toISOString());
+
+    if (error) throw error;
+
+    return data?.map(invitation => ({
+      id: invitation.id,
+      email: invitation.email,
+      role: invitation.role,
+      companyName: invitation.companies.name
+    })) || [];
+  };
+
   const value: CompanyContextType = {
     currentCompany,
     userCompanies,
@@ -178,7 +238,10 @@ export function CompanyProvider({ children }: CompanyProviderProps) {
     loading,
     switchCompany,
     refreshCompanies,
-    needsOnboarding
+    needsOnboarding,
+    inviteUser,
+    acceptInvitation,
+    getPendingInvitations
   };
 
   return (

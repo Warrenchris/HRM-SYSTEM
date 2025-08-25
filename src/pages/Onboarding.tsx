@@ -45,15 +45,107 @@ export default function Onboarding() {
     billingCycle: "monthly"
   });
 
-  const industries: string[] = [];
+  const industries: string[] = [
+    "Technology",
+    "Finance",
+    "Healthcare",
+    "Education",
+    "Manufacturing",
+    "Retail",
+    "Construction",
+    "Agriculture",
+    "Transportation",
+    "Energy",
+    "Telecommunications",
+    "Hospitality",
+    "Real Estate",
+    "Media & Entertainment",
+    "Government",
+    "Nonprofit",
+    "Professional Services",
+    "Logistics",
+    "Pharmaceuticals",
+    "Mining",
+    "Food & Beverage",
+    "Insurance",
+    "Banking",
+    "Consulting",
+    "E-commerce",
+    "Aerospace",
+    "Automotive",
+    "Chemicals",
+    "Utilities",
+    "Other",
+  ];
 
-  const countries: string[] = [];
+  const countries: string[] = [
+    "Kenya",
+    "United States",
+    "United Kingdom",
+    "Canada",
+    "Germany",
+    "France",
+    "Italy",
+    "Spain",
+    "Netherlands",
+    "Sweden",
+    "Norway",
+    "Denmark",
+    "Finland",
+    "Ireland",
+    "Portugal",
+    "Switzerland",
+    "Belgium",
+    "Austria",
+    "Poland",
+    "Czech Republic",
+    "Hungary",
+    "Romania",
+    "Greece",
+    "Turkey",
+    "Russia",
+    "India",
+    "China",
+    "Japan",
+    "South Korea",
+    "Singapore",
+    "Malaysia",
+    "Philippines",
+    "Indonesia",
+    "Vietnam",
+    "Thailand",
+    "United Arab Emirates",
+    "Saudi Arabia",
+    "Qatar",
+    "South Africa",
+    "Nigeria",
+    "Ghana",
+    "Ethiopia",
+    "Uganda",
+    "Tanzania",
+    "Rwanda",
+    "Morocco",
+    "Egypt",
+    "Brazil",
+    "Mexico",
+    "Argentina",
+    "Chile",
+    "Colombia",
+    "Peru",
+    "Australia",
+    "New Zealand",
+  ];
 
   const handleInputChange = (field: keyof CompanyData, value: string) => {
     setCompanyData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleCreateCompany = async () => {
+    if (!user) {
+      toast.error("You must be logged in to create a company");
+      return;
+    }
+
     if (!companyData.name.trim()) {
       toast.error("Company name is required");
       return;
@@ -66,17 +158,37 @@ export default function Onboarding() {
 
     setLoading(true);
     try {
-      // Call the database function to create company and assign owner
-      const { data, error: functionError } = await supabase.rpc(
-        'create_company_with_owner',
-        {
+      // Try latest signature first (with selected_plan_id, company_email)
+      let newCompanyId: string | null = null;
+      const { data, error: v2Error } = await supabase.rpc('create_company_with_owner', {
+        company_name: companyData.name,
+        company_display_name: companyData.display_name || companyData.name,
+        selected_plan_id: companyData.selectedPlanId || null,
+        company_email: companyData.email || user.email
+      });
+
+      if (!v2Error && data) {
+        newCompanyId = data as unknown as string;
+      } else {
+        // Fallback to older signature (user_email)
+        const { data: dataV1, error: v1Error } = await supabase.rpc('create_company_with_owner', {
           company_name: companyData.name,
           company_display_name: companyData.display_name || companyData.name,
-          selected_plan_id: companyData.selectedPlanId
-        }
-      );
+          user_email: companyData.email || user.email
+        });
 
-      if (functionError) throw functionError;
+        if (!v1Error && dataV1) {
+          newCompanyId = dataV1 as unknown as string;
+        } else {
+          // Final fallback: minimal args
+          const { data: dataMinimal, error: minimalError } = await supabase.rpc('create_company_with_owner', {
+            company_name: companyData.name,
+            company_display_name: companyData.display_name || companyData.name,
+          });
+          if (minimalError || !dataMinimal) throw v2Error || v1Error || minimalError;
+          newCompanyId = dataMinimal as unknown as string;
+        }
+      }
 
       // Update company details
       const { error: updateError } = await supabase
@@ -90,7 +202,7 @@ export default function Onboarding() {
           phone: companyData.phone,
           email: companyData.email
         })
-        .eq('id', data);
+        .eq('id', newCompanyId);
 
       if (updateError) throw updateError;
 

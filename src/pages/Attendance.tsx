@@ -9,6 +9,7 @@ import { AttendanceHistory } from "@/components/attendance/AttendanceHistory";
 import { AttendanceCalendar } from "@/components/attendance/AttendanceCalendar";
 import { AttendanceReports } from "@/components/attendance/AttendanceReports";
 import { AttendanceApprovals } from "@/components/attendance/AttendanceApprovals";
+import { CompanyAttendanceOverview } from "@/components/attendance/CompanyAttendanceOverview";
 import { Clock, MapPin, Calendar, History, BarChart3, CheckCircle } from "lucide-react";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
 import { useTodayAttendance } from "@/hooks/useAttendanceData";
@@ -151,6 +152,12 @@ export default function Attendance() {
                   Approvals
                 </TabsTrigger>
               )}
+              {canApprove && (
+                <TabsTrigger value="company" className="flex items-center gap-1 sm:gap-2">
+                  <History className="h-3 w-3 sm:h-4 sm:w-4" />
+                  Company
+                </TabsTrigger>
+              )}
             </TabsList>
           </div>
 
@@ -182,6 +189,13 @@ export default function Attendance() {
             <TabsContent value="approvals">
               <ErrorBoundary>
                 <AttendanceApprovals />
+              </ErrorBoundary>
+            </TabsContent>
+          )}
+          {canApprove && (
+            <TabsContent value="company">
+              <ErrorBoundary>
+                <CompanyAttendanceOverview />
               </ErrorBoundary>
             </TabsContent>
           )}

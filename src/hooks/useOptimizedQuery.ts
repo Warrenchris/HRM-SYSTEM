@@ -28,7 +28,6 @@ export function useDebouncedQuery<TData = unknown, TError = unknown>(
     ...options,
     staleTime: 5 * 60 * 1000, // 5 minutes for search results
     gcTime: 10 * 60 * 1000, // 10 minutes retention
-    enabled: options.enabled !== false, // Ensure it can be disabled
   }), [options, delay]);
 
   return useQuery(debouncedOptions);

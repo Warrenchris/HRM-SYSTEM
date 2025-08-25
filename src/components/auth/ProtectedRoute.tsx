@@ -61,10 +61,23 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       }
     };
 
-    const handleRedirect = (userRole: string) => {
-      // If employee is trying to access root path, redirect to employee dashboard
-      if (userRole === 'employee' && (location.pathname === '/app' || location.pathname === '/app/' || location.pathname === '/app/dashboard')) {
-        navigate('/app/employee-dashboard', { replace: true });
+    const handleRedirect = async (userRole: string) => {
+      // Get user profile for role detection
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id, role')
+        .eq('user_id', user.id)
+        .single();
+
+      const currentRole = profile?.role || userRole;
+
+      // Redirect to appropriate dashboard based on role
+      if (location.pathname === '/app' || location.pathname === '/app/' || location.pathname === '/app/dashboard') {
+        if (currentRole === 'employee') {
+          navigate('/app/employee-dashboard', { replace: true });
+        } else if (location.pathname !== '/app/dashboard') {
+          navigate('/app/dashboard', { replace: true });
+        }
       }
     };
 

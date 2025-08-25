@@ -54,6 +54,8 @@ interface TaskData {
   overdueTasks: number;
 }
 
+import { CompanyHeader } from "./CompanyHeader";
+
 export function EmployeeDashboard() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
@@ -290,20 +292,26 @@ export function EmployeeDashboard() {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            Welcome back, {profile?.employee?.first_name || 'Employee'}!
-          </h1>
-          <p className="text-muted-foreground">
-            {profile?.employee?.position} • {profile?.employee?.department}
-          </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Here's your personal dashboard overview
-          </p>
-        </div>
+    <div className="min-h-screen flex flex-col">
+      <header className="w-full bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 border-b">
+        <CompanyHeader />
+      </header>
+      <main className="flex-1">
+        <div className="container mx-auto py-6">
+          <div className="space-y-6">
+          {/* Welcome Header */}
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">
+                Welcome back, {profile?.employee?.first_name || 'Employee'}!
+              </h1>
+              <p className="text-muted-foreground">
+                {profile?.employee?.position} • {profile?.employee?.department}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Here's your personal dashboard overview
+              </p>
+            </div>
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="capitalize">
             {profile?.role || 'Employee'}
@@ -485,14 +493,17 @@ export function EmployeeDashboard() {
               <span>{leave.usedLeave}/{leave.totalLeave} days</span>
             </div>
             <Progress value={(leave.usedLeave / leave.totalLeave) * 100} className="h-2" />
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Payslip Section */}
-      <div id="payslip-section">
-        <PayslipSection />
-      </div>
+        {/* Payslip Section */}
+        <div id="payslip-section">
+          <PayslipSection />
+        </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

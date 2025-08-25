@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, Building2, Users, Clock, Shield, TrendingUp, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { PlanSelector } from "@/components/subscription/PlanSelector";
 
 export default function LandingLogin() {
   const [isLoading, setIsLoading] = useState(false);
@@ -22,11 +23,35 @@ export default function LandingLogin() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  // Signup onboarding states
+  const [signupStep, setSignupStep] = useState<1 | 2>(1);
+  const [companyName, setCompanyName] = useState("");
+  const [companyDisplayName, setCompanyDisplayName] = useState("");
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
+
   // Check if user is already logged in
   useEffect(() => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
+        // If there is pending onboarding saved from a previous signup, try creating the company now
+        const pending = localStorage.getItem("pendingCompanyOnboarding");
+        if (pending) {
+          try {
+            const payload = JSON.parse(pending) as {
+              email: string;
+              company: { name: string; display_name: string; selectedPlanId?: string; billingCycle?: "monthly" | "yearly"; company_email?: string };
+            };
+            if (payload?.company?.name) {
+              await tryCreateCompany(payload.company);
+            }
+          } catch (e) {
+            // ignore JSON parse errors
+          } finally {
+            localStorage.removeItem("pendingCompanyOnboarding");
+          }
+        }
         navigate("/app");
       }
     };
@@ -85,6 +110,19 @@ export default function LandingLogin() {
       return;
     }
 
+    if (signupStep === 1) {
+      // Move to company onboarding step
+      setSignupStep(2);
+      setIsLoading(false);
+      return;
+    }
+
+    if (!companyName.trim()) {
+      setError("Company name is required.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const redirectUrl = `${window.location.origin}/app`;
       
@@ -105,21 +143,70 @@ export default function LandingLogin() {
         return;
       }
 
-      toast({
-        title: "Account created!",
-        description: "Please check your email to confirm your account.",
-      });
+      // Try to create company immediately if session is available (dev) else store for after email confirmation
+      const { data: sessionData } = await supabase.auth.getSession();
+      const companyPayload = {
+        name: companyName,
+        display_name: companyDisplayName || companyName,
+        selectedPlanId,
+        billingCycle,
+        company_email: email,
+      };
+
+      if (sessionData.session) {
+        await tryCreateCompany(companyPayload);
+        toast({ title: "Account and company created!", description: "Redirecting to your dashboard." });
+        navigate("/app");
+      } else {
+        localStorage.setItem("pendingCompanyOnboarding", JSON.stringify({ email, company: companyPayload }));
+        toast({
+          title: "Account created!",
+          description: "Check your email to confirm your account. We'll finish company setup after you sign in.",
+        });
+        // Clear account fields but keep UI on sign-in
+        setEmail("");
+        setPassword("");
+        setConfirmPassword("");
+      }
       
-      // Clear form
-      setEmail("");
-      setPassword("");
-      setConfirmPassword("");
+      // Clear company fields
+      setCompanyName("");
+      setCompanyDisplayName("");
+      setSelectedPlanId("");
     } catch (error) {
       setError("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
+
+  async function tryCreateCompany(company: { name: string; display_name: string; selectedPlanId?: string; billingCycle?: "monthly" | "yearly"; company_email?: string }) {
+    // Attempt different RPC signatures based on what's available
+    // Signature v2 with selected_plan_id and company_email
+    const { data, error: v2Error } = await supabase.rpc('create_company_with_owner', {
+      company_name: company.name,
+      company_display_name: company.display_name,
+      selected_plan_id: company.selectedPlanId || null,
+      company_email: company.company_email || email,
+    });
+    if (!v2Error && data) return data as string;
+
+    // Fallback v1 with user_email
+    const { data: dataV1, error: v1Error } = await supabase.rpc('create_company_with_owner', {
+      company_name: company.name,
+      company_display_name: company.display_name,
+      user_email: company.company_email || email,
+    });
+    if (!v1Error && dataV1) return dataV1 as string;
+
+    // Minimal fallback
+    const { data: dataMinimal, error: minimalError } = await supabase.rpc('create_company_with_owner', {
+      company_name: company.name,
+      company_display_name: company.display_name,
+    });
+    if (minimalError) throw minimalError;
+    return dataMinimal as string;
+  }
 
   const features: Array<{icon: any; title: string; description: string}> = [];
 
@@ -258,70 +345,111 @@ export default function LandingLogin() {
                     
                     <TabsContent value="signup" className="space-y-4">
                       <form onSubmit={handleSignUp} className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="signup-email">Email Address</Label>
-                          <Input
-                            id="signup-email"
-                            type="email"
-                            placeholder="you@company.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                            disabled={isLoading}
-                            className="h-11"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="signup-password">Password</Label>
-                          <div className="relative">
-                            <Input
-                              id="signup-password"
-                              type={showPassword ? "text" : "password"}
-                              placeholder="Create a password"
-                              value={password}
-                              onChange={(e) => setPassword(e.target.value)}
-                              required
-                              disabled={isLoading}
-                              className="h-11 pr-10"
+                        {/* Step 1: Account details */}
+                        {signupStep === 1 && (
+                          <>
+                            <div className="space-y-2">
+                              <Label htmlFor="signup-email">Email Address</Label>
+                              <Input
+                                id="signup-email"
+                                type="email"
+                                placeholder="you@company.com"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                                disabled={isLoading}
+                                className="h-11"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="signup-password">Password</Label>
+                              <div className="relative">
+                                <Input
+                                  id="signup-password"
+                                  type={showPassword ? "text" : "password"}
+                                  placeholder="Create a password"
+                                  value={password}
+                                  onChange={(e) => setPassword(e.target.value)}
+                                  required
+                                  disabled={isLoading}
+                                  className="h-11 pr-10"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute right-0 top-0 h-11 px-3 hover:bg-transparent"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                  disabled={isLoading}
+                                >
+                                  {showPassword ? (
+                                    <EyeOff className="h-4 w-4" />
+                                  ) : (
+                                    <Eye className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="confirm-password">Confirm Password</Label>
+                              <Input
+                                id="confirm-password"
+                                type={showPassword ? "text" : "password"}
+                                placeholder="Confirm your password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                                disabled={isLoading}
+                                className="h-11"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {/* Step 2: Company onboarding */}
+                        {signupStep === 2 && (
+                          <>
+                            <div className="space-y-2">
+                              <Label htmlFor="company-name">Company Name *</Label>
+                              <Input
+                                id="company-name"
+                                value={companyName}
+                                onChange={(e) => setCompanyName(e.target.value)}
+                                placeholder="Enter company name"
+                                disabled={isLoading}
+                                className="h-11"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="company-display">Display Name</Label>
+                              <Input
+                                id="company-display"
+                                value={companyDisplayName}
+                                onChange={(e) => setCompanyDisplayName(e.target.value)}
+                                placeholder="Company display name"
+                                disabled={isLoading}
+                                className="h-11"
+                              />
+                            </div>
+                            <PlanSelector
+                              selectedPlanId={selectedPlanId}
+                              onPlanSelect={(planId) => setSelectedPlanId(planId)}
+                              billingCycle={billingCycle}
+                              onBillingCycleChange={(cycle) => setBillingCycle(cycle)}
                             />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="absolute right-0 top-0 h-11 px-3 hover:bg-transparent"
-                              onClick={() => setShowPassword(!showPassword)}
-                              disabled={isLoading}
-                            >
-                              {showPassword ? (
-                                <EyeOff className="h-4 w-4" />
-                              ) : (
-                                <Eye className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="confirm-password">Confirm Password</Label>
-                          <Input
-                            id="confirm-password"
-                            type={showPassword ? "text" : "password"}
-                            placeholder="Confirm your password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            required
-                            disabled={isLoading}
-                            className="h-11"
-                          />
-                        </div>
-                        
+                          </>
+                        )}
+
                         {error && (
                           <Alert variant="destructive">
                             <AlertDescription>{error}</AlertDescription>
                           </Alert>
                         )}
-                        
+
                         <Button type="submit" className="w-full h-11 text-base" disabled={isLoading}>
-                          {isLoading ? "Creating account..." : "Create Your Account"}
+                          {isLoading
+                            ? signupStep === 1 ? "Next..." : "Creating account..."
+                            : signupStep === 1 ? "Continue to Company Setup" : "Create Account & Company"}
                         </Button>
                       </form>
                     </TabsContent>

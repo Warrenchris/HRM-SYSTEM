@@ -99,9 +99,39 @@ export function useOverviewMetricsQuery(timeRange: string = 'last-30-days') {
 
       const avgPerformance = performanceData && performanceData.length > 0
         ? performanceData.reduce((sum, review) => sum + (review.overall_rating || 0), 0) / performanceData.length
-        : 4.2; // Default fallback
+        : 0;
 
-      // Get previous period performance for change calculation
+      // Get attendance rate for the period
+      const { data: attendanceData, error: attendanceError } = await supabase
+        .from('attendance_records')
+        .select('status, clock_in_time')
+        .gte('clock_in_time', startDate.toISOString())
+        .lte('clock_in_time', today.toISOString());
+
+      if (attendanceError) throw attendanceError;
+
+      const totalRecords = attendanceData?.length || 0;
+      const presentRecords = attendanceData?.filter(record => record.status === 'clocked_in' || record.status === 'clocked_out').length || 0;
+      const attendanceRate = totalRecords > 0 ? (presentRecords / totalRecords) * 100 : 0;
+
+      // Get previous period attendance for comparison
+      const { data: previousAttendanceData, error: previousAttendanceError } = await supabase
+        .from('attendance_records')
+        .select('status, clock_in_time')
+        .gte('clock_in_time', previousStartDate.toISOString())
+        .lt('clock_in_time', startDate.toISOString());
+
+      if (previousAttendanceError) throw previousAttendanceError;
+
+      const previousTotalRecords = previousAttendanceData?.length || 0;
+      const previousPresentRecords = previousAttendanceData?.filter(record => record.status === 'clocked_in' || record.status === 'clocked_out').length || 0;
+      const previousAttendanceRate = previousTotalRecords > 0 ? (previousPresentRecords / previousTotalRecords) * 100 : 0;
+
+      const attendanceChange = previousAttendanceRate > 0 
+        ? `${((attendanceRate - previousAttendanceRate) / previousAttendanceRate * 100).toFixed(1)}% from last period`
+        : 'No previous data';
+
+      // Get performance change
       const { data: previousPerformanceData, error: previousPerformanceError } = await supabase
         .from('appraisals')
         .select('overall_rating')
@@ -113,56 +143,25 @@ export function useOverviewMetricsQuery(timeRange: string = 'last-30-days') {
 
       const previousAvgPerformance = previousPerformanceData && previousPerformanceData.length > 0
         ? previousPerformanceData.reduce((sum, review) => sum + (review.overall_rating || 0), 0) / previousPerformanceData.length
-        : 3.9;
+        : 0;
 
-      const performanceChange = avgPerformance > previousAvgPerformance
-        ? `+${(avgPerformance - previousAvgPerformance).toFixed(1)} from last period`
-        : `${(avgPerformance - previousAvgPerformance).toFixed(1)} from last period`;
+      const performanceChange = previousAvgPerformance > 0
+        ? `${((avgPerformance - previousAvgPerformance) / previousAvgPerformance * 100).toFixed(1)}% from last period`
+        : 'No previous data';
 
-      // Get attendance rate
-      const { data: attendanceData, error: attendanceError } = await supabase
-        .from('attendance_records')
-        .select('status, clock_in_time')
-        .gte('clock_in_time', startDate.toISOString())
-        .lte('clock_in_time', today.toISOString());
-
-      if (attendanceError) throw attendanceError;
-
-      const totalAttendanceRecords = attendanceData?.length || 0;
-      const presentRecords = attendanceData?.filter(record => record.status === 'clocked_in' || record.status === 'clocked_out').length || 0;
-      const attendanceRate = totalAttendanceRecords > 0 ? (presentRecords / totalAttendanceRecords) * 100 : 94.2;
-
-      // Get previous period attendance for change calculation
-      const { data: previousAttendanceData, error: previousAttendanceError } = await supabase
-        .from('attendance_records')
-        .select('status, clock_in_time')
-        .gte('clock_in_time', previousStartDate.toISOString())
-        .lt('clock_in_time', startDate.toISOString());
-
-      if (previousAttendanceError) throw previousAttendanceError;
-
-      const previousTotalRecords = previousAttendanceData?.length || 0;
-      const previousPresentRecords = previousAttendanceData?.filter(record => record.status === 'clocked_in' || record.status === 'clocked_out').length || 0;
-      const previousAttendanceRate = previousTotalRecords > 0 ? (previousPresentRecords / previousTotalRecords) * 100 : 92.1;
-
-      const attendanceChange = attendanceRate > previousAttendanceRate
-        ? `+${(attendanceRate - previousAttendanceRate).toFixed(1)}% this period`
-        : `${(attendanceRate - previousAttendanceRate).toFixed(1)}% this period`;
-
-      // Get open positions count (positions without assigned employees)
-      const { count: openPositions, error: positionsError } = await supabase
+      // Get open positions count (positions without an assigned employee)
+      const { count: openPositions, error: openPositionsError } = await supabase
         .from('organization_positions')
         .select('*', { count: 'exact', head: true })
-        .eq('is_active', true)
-        .is('employee_id', null);
+        .is('employee_id', null)
+        .eq('is_active', true);
 
-      if (positionsError) throw positionsError;
+      if (openPositionsError) throw openPositionsError;
 
-      // Get filled positions count for this period
+      // Get filled positions count for the period
       const { count: filledPositions, error: filledError } = await supabase
         .from('employees')
         .select('*', { count: 'exact', head: true })
-        .eq('status', 'active')
         .gte('join_date', startDate.toISOString())
         .lte('join_date', today.toISOString());
 
@@ -181,7 +180,10 @@ export function useOverviewMetricsQuery(timeRange: string = 'last-30-days') {
         positionsFilled,
       };
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 30 * 60 * 1000, // Increased from 10 to 30 minutes
+    gcTime: 2 * 60 * 60 * 1000, // 2 hours retention
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -213,7 +215,10 @@ export function useDepartmentDistributionQuery() {
         }))
         .sort((a, b) => b.count - a.count);
     },
-    staleTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: 60 * 60 * 1000, // Increased from 30 to 60 minutes
+    gcTime: 4 * 60 * 60 * 1000, // 4 hours retention
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -241,11 +246,27 @@ export function useMonthlyTrendsQuery(months: number = 6) {
         if (employeesError) throw employeesError;
 
         // Get attendance rate for this month
-        const { data: attendanceData, error: attendanceError } = await supabase
+        let query3 = supabase
           .from('attendance_records')
           .select('status, clock_in_time')
           .gte('clock_in_time', startOfMonth.toISOString())
           .lte('clock_in_time', endOfMonth.toISOString());
+
+        try {
+          const { data: profile } = await supabase.auth.getUser();
+          if (profile.user) {
+            const { data: prof } = await supabase
+              .from('profiles')
+              .select('company_id')
+              .eq('user_id', profile.user.id)
+              .maybeSingle();
+            if (prof?.company_id) {
+              query3 = query3.eq('company_id', prof.company_id);
+            }
+          }
+        } catch {}
+
+        const { data: attendanceData, error: attendanceError } = await query3;
 
         if (attendanceError) throw attendanceError;
 
@@ -277,7 +298,10 @@ export function useMonthlyTrendsQuery(months: number = 6) {
 
       return trends;
     },
-    staleTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: 60 * 60 * 1000, // Increased from 30 to 60 minutes
+    gcTime: 4 * 60 * 60 * 1000, // 4 hours retention
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -310,7 +334,10 @@ export function useEmployeeAnalyticsQuery() {
         employeeData: employees || [],
       };
     },
-    staleTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 30 * 60 * 1000, // Increased from 15 to 30 minutes
+    gcTime: 2 * 60 * 60 * 1000, // 2 hours retention
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -348,6 +375,9 @@ export function useAttendanceAnalyticsQuery() {
         attendanceRate: records.length > 0 ? ((records.length - lateArrivals) / records.length) * 100 : 0,
       };
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 30 * 60 * 1000, // Increased from 10 to 30 minutes
+    gcTime: 2 * 60 * 60 * 1000, // 2 hours retention
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 }
