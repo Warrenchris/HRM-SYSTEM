@@ -19,13 +19,30 @@ export function ClockInOut() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [gpsLocation, setGpsLocation] = useState<GPSLocation | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [justClockedOut, setJustClockedOut] = useState(false);
   const { user } = useAuth();
   const { employee } = useCurrentEmployee();
   const { records, loading, clockIn, clockOut, startBreak, endBreak, error: attendanceError } = useTodayAttendance(employee?.id);
   const { toast } = useToast();
   
-  const todayRecord = records[0]; // Most recent record for today
-  const clockedIn = todayRecord && !todayRecord.clock_out_time;
+  // Helpers to work with "today"
+  const isSameDay = (d1: Date, d2: Date) => {
+    return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
+  };
+
+  const now = new Date();
+  const todaysRecords = records.filter(r => isSameDay(new Date(r.clock_in_time), now));
+
+  // Determine open record for today (no clock_out_time and not explicitly clocked_out)
+  const openRecord = todaysRecords
+    .filter(r => !r.clock_out_time && r.status !== 'clocked_out')
+    .sort((a, b) => new Date(b.clock_in_time).getTime() - new Date(a.clock_in_time).getTime())[0];
+
+  // Determine the most recent record today for display
+  const todayRecord = [...todaysRecords].sort((a, b) => new Date(b.clock_in_time).getTime() - new Date(a.clock_in_time).getTime())[0];
+
+  // Consider user clocked in only if there is a current-day record in a working state
+  const clockedIn = !justClockedOut && Boolean(openRecord && (openRecord.status === 'clocked_in' || openRecord.status === 'on_break'));
   const isOnBreak = todayRecord?.status === 'on_break';
 
   // Debug logging removed to reduce console noise during renders
@@ -143,6 +160,7 @@ export function ClockInOut() {
       const result = await clockIn(employee.id, `${location.latitude}, ${location.longitude}`, 'GPS location captured', location);
       console.log('Clock in result:', result);
       if (result) {
+        setJustClockedOut(false);
         toast({
           title: "Clocked In",
           description: "Successfully clocked in with GPS location.",
@@ -163,11 +181,12 @@ export function ClockInOut() {
   };
 
   const handleClockOut = async () => {
-    if (!todayRecord) return;
+    if (!openRecord) return;
     
     try {
       const location = await getCurrentLocation();
-      await clockOut(todayRecord.id, `${location.latitude}, ${location.longitude}`, 'GPS location captured', location);
+      const ok = await clockOut(openRecord.id, `${location.latitude}, ${location.longitude}`, 'GPS location captured', location);
+      if (ok) setJustClockedOut(true);
       toast({
         title: "Clocked Out",
         description: "Successfully clocked out with GPS location.",
@@ -179,19 +198,20 @@ export function ClockInOut() {
         variant: "destructive",
       });
       // Still allow clock out without GPS
-      await clockOut(todayRecord.id, "Location unavailable", "GPS location failed");
+      const ok = await clockOut(openRecord.id, "Location unavailable", "GPS location failed");
+      if (ok) setJustClockedOut(true);
     }
   };
 
   const handleStartBreak = () => {
-    if (todayRecord) {
-      startBreak(todayRecord.id);
+    if (openRecord) {
+      startBreak(openRecord.id);
     }
   };
 
   const handleEndBreak = () => {
-    if (todayRecord) {
-      endBreak(todayRecord.id);
+    if (openRecord) {
+      endBreak(openRecord.id);
     }
   };
 

@@ -123,25 +123,17 @@ export function CompanyInfo() {
       const { error } = await supabase
         .from('companies')
         .update({
+          // Only update columns that exist in schema
           name: companyData.name,
-          legal_name: companyData.legalName,
-          registration_number: companyData.registrationNumber,
-          tax_id: companyData.taxId,
-          industry: companyData.industry,
-          founded_year: companyData.foundedYear,
           description: companyData.description,
+          industry: companyData.industry,
           website: companyData.website,
           email: companyData.email,
           phone: companyData.phone,
           address: companyData.address,
-          city: companyData.city,
-          state: companyData.state,
           country: companyData.country,
-          postal_code: companyData.postalCode,
-          employee_count: parseInt(companyData.employeeCount) || null,
           currency: companyData.currency,
           timezone: companyData.timezone,
-          fiscal_year_start: companyData.fiscalYearStart,
           updated_at: new Date().toISOString()
         })
         .eq('id', currentCompany.id);

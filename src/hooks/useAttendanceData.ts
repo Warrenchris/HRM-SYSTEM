@@ -61,7 +61,9 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
         .from('attendance_records')
         .select('*')
         .eq('employee_id', employeeId)
-        .order('clock_in_time', { ascending: false });
+        // Prefer latest updates first to avoid stale open records dominating
+        .order('updated_at', { ascending: false, nullsFirst: false })
+        .order('clock_in_time', { ascending: false, nullsFirst: false });
 
       if (currentCompany?.id) {
         query = query.eq('company_id', currentCompany.id);
@@ -232,12 +234,26 @@ export function useAttendanceRecords(employeeId?: string, date?: Date) {
 
       if (error) throw error;
 
+      // Optimistically update local state so UI reflects clock-out immediately
+      setRecords(prev => prev.map(r => (
+        r.id === recordId
+          ? {
+              ...r,
+              ...clockOutData,
+              // Ensure status is set explicitly to clocked_out and clock_out_time present
+              status: 'clocked_out',
+              clock_out_time: clockOutData.clock_out_time || nowIso
+            }
+          : r
+      )));
+
       toast({
         title: "Clocked Out",
         description: "Successfully clocked out for today.",
       });
 
-      fetchRecords();
+      // Ensure the next consumers see the server-updated record before we return
+      await fetchRecords();
       return true;
     } catch (err) {
       toast({

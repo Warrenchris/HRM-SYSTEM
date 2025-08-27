@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useObjectivesQuery } from "@/hooks/queries/usePerformanceQueries";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Goal {
   id: string;
@@ -43,6 +44,7 @@ export function GoalTracking() {
   const [goalPriority, setGoalPriority] = useState("");
   const [dueDate, setDueDate] = useState<Date>();
   const { toast } = useToast();
+  const [role, setRole] = useState<"employee" | "manager" | "hr" | "admin" | "ceo" | "owner" | null>(null);
 
   const { data: objectives = [] } = useObjectivesQuery();
   const goals: Goal[] = (objectives || []).map((o) => ({
@@ -60,6 +62,23 @@ export function GoalTracking() {
   }));
 
   const employees = ["John Doe", "Jane Smith", "Mike Johnson", "Emily Brown"];
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .single();
+        setRole((profile?.role as any) || 'employee');
+      } catch (e) {
+        setRole('employee');
+      }
+    };
+    fetchRole();
+  }, []);
+
+  const canManagePerformance = role === 'manager' || role === 'hr' || role === 'admin' || role === 'ceo' || role === 'owner';
 
   const getCategoryColor = (category: Goal["category"]) => {
     switch (category) {
@@ -99,6 +118,7 @@ export function GoalTracking() {
   };
 
   const handleCreateGoal = () => {
+    if (!canManagePerformance) return;
     if (!goalTitle || !goalCategory || !goalPriority || !dueDate) {
       toast({
         title: "Missing Information",
@@ -163,13 +183,14 @@ export function GoalTracking() {
                   ))}
                 </SelectContent>
               </Select>
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    Add Goal
-                  </Button>
-                </DialogTrigger>
+              {canManagePerformance && (
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      Add Goal
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent className="max-w-2xl">
                   <DialogHeader>
                     <DialogTitle>Create New Goal</DialogTitle>
@@ -264,7 +285,8 @@ export function GoalTracking() {
                     </div>
                   </div>
                 </DialogContent>
-              </Dialog>
+                </Dialog>
+              )}
             </div>
           </div>
         </CardHeader>

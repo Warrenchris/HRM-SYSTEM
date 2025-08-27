@@ -44,6 +44,7 @@ export function PerformanceAppraisals() {
   const [employees, setEmployees] = useState<any[]>([]);
   const queryClient = useQueryClient();
   const { data: fetchedAppraisals = [], isLoading: loading } = useAppraisalsQuery();
+  const [role, setRole] = useState<"employee" | "manager" | "hr" | "admin" | "ceo" | "owner" | null>(null);
   
   // Schedule appraisal form state
   const [scheduleForm, setScheduleForm] = useState({
@@ -58,6 +59,22 @@ export function PerformanceAppraisals() {
   useEffect(() => {
     fetchEmployees();
   }, []);
+  useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .single();
+        setRole((profile?.role as any) || 'employee');
+      } catch (e) {
+        setRole('employee');
+      }
+    };
+    fetchRole();
+  }, []);
+
+  const canManagePerformance = role === 'manager' || role === 'hr' || role === 'admin' || role === 'ceo' || role === 'owner';
 
   const fetchEmployees = async () => {
     try {
@@ -98,6 +115,7 @@ export function PerformanceAppraisals() {
   });
 
   const handleStartAppraisal = async (appraisalId: string, employeeName: string) => {
+    if (!canManagePerformance) return;
     try {
       const { error } = await supabase
         .from('appraisals')
@@ -128,6 +146,7 @@ export function PerformanceAppraisals() {
 
   const handleCompleteAppraisal = async () => {
     if (!selectedAppraisal) return;
+    if (!canManagePerformance) return;
     
     if (selectedRating === 0) {
       toast({
@@ -175,6 +194,7 @@ export function PerformanceAppraisals() {
 
   const handleSaveDraft = async () => {
     if (!selectedAppraisal) return;
+    if (!canManagePerformance) return;
 
     try {
       const { error } = await supabase
@@ -206,6 +226,7 @@ export function PerformanceAppraisals() {
   };
 
   const handleScheduleAppraisal = async () => {
+    if (!canManagePerformance) return;
     if (!scheduleForm.employeeId || !scheduleForm.appraiserId || !scheduleForm.dueDate || !scheduleForm.appraisalPeriod) {
       toast({
         title: "Missing Information",
@@ -303,6 +324,7 @@ export function PerformanceAppraisals() {
                 <SelectItem value="overdue">Overdue</SelectItem>
               </SelectContent>
             </Select>
+            {canManagePerformance && (
             <Dialog open={showScheduleDialog} onOpenChange={setShowScheduleDialog}>
               <DialogTrigger asChild>
                 <Button>
@@ -418,6 +440,7 @@ export function PerformanceAppraisals() {
                 </div>
               </DialogContent>
             </Dialog>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -958,26 +981,29 @@ export function PerformanceAppraisals() {
                              <Separator className="my-6" />
                              
                              <div className="flex justify-between">
-                               {selectedAppraisal.status === "pending" && (
+                               {canManagePerformance && selectedAppraisal.status === "pending" && (
                                  <Button 
                                    onClick={() => handleStartAppraisal(selectedAppraisal.id, selectedAppraisal.employeeName)}
                                  >
                                    Start Appraisal
                                  </Button>
                                )}
-                               {selectedAppraisal.status === "in-progress" && (
+                               {canManagePerformance && selectedAppraisal.status === "in-progress" && (
                                  <Button onClick={handleCompleteAppraisal}>
                                    Complete Appraisal
                                  </Button>
                                )}
+                               {canManagePerformance && (
                                <Button variant="outline" onClick={handleSaveDraft}>
                                  Save Draft
                                </Button>
+                               )}
                              </div>
                            </Tabs>
                          )}
                       </DialogContent>
                     </Dialog>
+                    {canManagePerformance && (
                     <Button 
                       variant="outline" 
                       size="sm"
@@ -985,6 +1011,7 @@ export function PerformanceAppraisals() {
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>

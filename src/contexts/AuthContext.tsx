@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 // Removed systemLogger - logging disabled for performance
+import { logSystemActivity, LogActions, ResourceTypes } from "@/utils/logging";
 
 interface AuthContextType {
   user: User | null;
@@ -25,7 +26,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Authentication events handled
+        // Log authentication events
+        try {
+          if (event === 'SIGNED_IN' && session?.user) {
+            await logSystemActivity({
+              action: LogActions.LOGIN,
+              resourceType: ResourceTypes.USER,
+              resourceId: session.user.id,
+              details: { event }
+            });
+          }
+          if (event === 'SIGNED_OUT') {
+            await logSystemActivity({
+              action: LogActions.LOGOUT,
+              resourceType: ResourceTypes.USER,
+              details: { event }
+            });
+          }
+        } catch (e) {
+          // Best-effort logging; do not block auth flow
+          console.warn('Auth event logging failed', e);
+        }
       }
     );
 

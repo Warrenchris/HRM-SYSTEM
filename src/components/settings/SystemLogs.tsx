@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Download, Eye, Filter, RefreshCw } from "lucide-react";
+import { Download, Eye, Filter, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
+import { Input } from "@/components/ui/input";
+import { getActivityDescription } from "@/utils/logging";
 
 interface SystemLog {
   id: string;
@@ -18,29 +20,138 @@ interface SystemLog {
   details: any;
   ip_address: unknown;
   user_agent: string | null;
-  severity: string;
+  severity: 'info' | 'warning' | 'error' | 'critical';
   created_at: string;
+}
+
+interface UserInfo {
+  name: string;
+  email: string;
 }
 
 export function SystemLogs() {
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasAccess, setHasAccess] = useState<boolean>(true);
   const [selectedSeverity, setSelectedSeverity] = useState<string>("all");
   const [selectedResourceType, setSelectedResourceType] = useState<string>("all");
+  const [selectedTimeRange, setSelectedTimeRange] = useState<string>("24h");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [userMap, setUserMap] = useState<Record<string, UserInfo>>({});
   const { toast } = useToast();
+  
+  const ITEMS_PER_PAGE = 20;
 
   useEffect(() => {
     fetchLogs();
-  }, [selectedSeverity, selectedResourceType]);
+  }, [selectedSeverity, selectedResourceType, selectedTimeRange, page, searchQuery]);
+
+  useEffect(() => {
+    // Only subscribe if the user has access to view logs
+    if (!hasAccess) return;
+    const subscription = supabase
+      .channel('system_logs_changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'system_logs' 
+      }, () => {
+        fetchLogs();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, [hasAccess]);
+
+  // Check access once on mount
+  useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_current_user_role');
+        if (error) {
+          console.error('Error checking user role:', error);
+          setHasAccess(false);
+          setLoading(false);
+          return;
+        }
+        const isAdmin = (data as unknown as string) === 'admin';
+        setHasAccess(isAdmin);
+        if (!isAdmin) {
+          setLoading(false);
+        } else {
+          fetchLogs();
+        }
+      } catch (e) {
+        console.error('Unexpected error checking access:', e);
+        setHasAccess(false);
+        setLoading(false);
+      }
+    };
+    checkAccess();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchLogs = async () => {
+    if (!hasAccess) return;
     setLoading(true);
     try {
+      // Calculate time range
+      const now = new Date();
+      let startDate = new Date();
+      switch (selectedTimeRange) {
+        case '1h':
+          startDate = new Date(now.getTime() - 60 * 60 * 1000);
+          break;
+        case '24h':
+          startDate = subDays(now, 1);
+          break;
+        case '7d':
+          startDate = subDays(now, 7);
+          break;
+        case '30d':
+          startDate = subDays(now, 30);
+          break;
+        default:
+          startDate = subDays(now, 1); // Default to 24h
+      }
+
+      // Count total records for pagination
+      const countQuery = supabase
+        .from("system_logs")
+        .select('id', { count: 'exact' })
+        .gte('created_at', startDate.toISOString());
+
+      if (selectedSeverity !== "all") {
+        countQuery.eq("severity", selectedSeverity);
+      }
+
+      if (selectedResourceType !== "all") {
+        countQuery.eq("resource_type", selectedResourceType);
+      }
+
+      if (searchQuery) {
+        const term = searchQuery.replace(/[,]/g, "");
+        countQuery.or(`action.ilike.%${term}%,resource_type.ilike.%${term}%,details::text.ilike.%${term}%`);
+      }
+
+      const { count, error: countError } = await countQuery;
+      
+      if (countError) throw countError;
+      
+      setTotalPages(Math.ceil((count || 0) / ITEMS_PER_PAGE));
+
+      // Fetch paginated logs
+      // First get the logs
       let query = supabase
         .from("system_logs")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(100);
+        .gte('created_at', startDate.toISOString())
+        .range((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE - 1);
 
       if (selectedSeverity !== "all") {
         query = query.eq("severity", selectedSeverity);
@@ -50,16 +161,47 @@ export function SystemLogs() {
         query = query.eq("resource_type", selectedResourceType);
       }
 
-      const { data, error } = await query;
+      if (searchQuery) {
+        const term = searchQuery.replace(/[,]/g, "");
+        query = query.or(`action.ilike.%${term}%,resource_type.ilike.%${term}%,details::text.ilike.%${term}%`);
+      }
 
-      if (error) throw error;
-      setLogs(data || []);
-    } catch (error) {
+      const { data: logs, error: fetchError } = await query;
+      
+      if (fetchError) throw fetchError;
+
+      // Then get user info for these logs if there are user_ids
+      const userIds = Array.from(new Set(logs.map(log => log.user_id).filter(Boolean)));
+      
+      if (userIds.length > 0) {
+        const { data: users, error: userError } = await supabase
+          .from('profiles')
+          .select('user_id, employees(first_name, last_name, email)')
+          .in('user_id', userIds);
+
+        if (userError) {
+          console.error('Error fetching user profiles:', userError);
+        } else if (users) {
+          const userMap = users.reduce((acc: Record<string, any>, user) => {
+            if (user.employees) {
+              acc[user.user_id] = {
+                name: `${user.employees.first_name} ${user.employees.last_name}`,
+                email: user.employees.email
+              };
+            }
+            return acc;
+          }, {});
+          setUserMap(userMap);
+        }
+      }
+
+      setLogs(logs || []);
+    } catch (error: any) {
       console.error("Error fetching system logs:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to fetch system logs",
+        description: `Failed to fetch system logs${error?.message ? `: ${error.message}` : ''}`,
       });
     } finally {
       setLoading(false);
@@ -165,6 +307,26 @@ export function SystemLogs() {
             </SelectContent>
           </Select>
 
+          <Select value={selectedTimeRange} onValueChange={setSelectedTimeRange}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Time Range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1h">Last Hour</SelectItem>
+              <SelectItem value="24h">Last 24h</SelectItem>
+              <SelectItem value="7d">Last 7 Days</SelectItem>
+              <SelectItem value="30d">Last 30 Days</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Input
+            type="search"
+            placeholder="Search logs..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-64"
+          />
+
           <div className="flex gap-2 ml-auto">
             <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
@@ -226,17 +388,22 @@ export function SystemLogs() {
                     </TableCell>
                     <TableCell>{getSeverityBadge(log.severity)}</TableCell>
                     <TableCell>
-                      <div className="max-w-xs truncate">
-                        {log.details && typeof log.details === 'object' ? (
-                          <span className="text-sm text-muted-foreground">
-                            {Object.entries(log.details).map(([key, value]) => 
-                              `${key}: ${value}`
-                            ).join(", ")}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">
-                            {log.details || "No details"}
-                          </span>
+                      <div className="max-w-xs space-y-1">
+                        {userMap[log.user_id || ''] && (
+                          <div className="text-sm font-medium">
+                            {userMap[log.user_id || ''].name}
+                          </div>
+                        )}
+                        <div className="text-sm text-muted-foreground">
+                          {getActivityDescription(log.action, log.resource_type, log.details)}
+                        </div>
+                        {log.details && typeof log.details === 'object' && (
+                          <div className="text-xs text-muted-foreground font-mono mt-1">
+                            {Object.entries(log.details)
+                              .filter(([key]) => key !== 'message')
+                              .map(([key, value]) => `${key}: ${value}`)
+                              .join(", ")}
+                          </div>
                         )}
                       </div>
                     </TableCell>
@@ -248,8 +415,28 @@ export function SystemLogs() {
         </div>
 
         {logs.length > 0 && (
-          <div className="text-sm text-muted-foreground text-center">
-            Showing latest {logs.length} log entries
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-muted-foreground">
+              Page {page} of {totalPages}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>

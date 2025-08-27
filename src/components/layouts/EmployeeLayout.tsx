@@ -4,6 +4,7 @@ import { AppHeader } from '@/components/navigation/AppHeader';
 import { PerformanceMonitor } from '@/components/performance/PerformanceMonitor';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, Home } from 'lucide-react';
+import { RouteLogger } from '@/components/navigation/RouteLogger';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 
 // Simple layout for employees without sidebar
@@ -68,6 +69,7 @@ export const EmployeeLayout = memo(() => {
         
         <main className="flex-1 overflow-y-auto bg-muted/30 p-3 sm:p-4 md:p-6">
           <div className="max-w-full">
+            <RouteLogger />
             <Outlet />
           </div>
         </main>

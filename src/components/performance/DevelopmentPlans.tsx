@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,10 +15,10 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useDevelopmentPlanMilestonesQuery, useDevelopmentPlansQuery } from "@/hooks/queries/usePerformanceQueries";
-import { supabase } from "@/integrations/supabase/client";
 import { useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentEmployee } from "@/hooks/useCurrentEmployee";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DevelopmentPlan {
   id: string;
@@ -52,6 +52,7 @@ export function DevelopmentPlans() {
 
   const queryClient = useQueryClient();
   const { employee } = useCurrentEmployee();
+  const [role, setRole] = useState<"employee" | "manager" | "hr" | "admin" | "ceo" | "owner" | null>(null);
   const { data: planRows = [] } = useDevelopmentPlansQuery();
   const planIds = useMemo(() => planRows.map(p => p.id), [planRows]);
   const { data: milestoneRows = [] } = useDevelopmentPlanMilestonesQuery(planIds);
@@ -84,6 +85,23 @@ export function DevelopmentPlans() {
 
   const employees: string[] = [];
 
+  useEffect(() => {
+    const fetchRole = async () => {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .single();
+        setRole((profile?.role as any) || 'employee');
+      } catch (e) {
+        setRole('employee');
+      }
+    };
+    fetchRole();
+  }, []);
+
+  const canManagePerformance = role === 'manager' || role === 'hr' || role === 'admin' || role === 'ceo' || role === 'owner';
+
   const getCategoryColor = (category: DevelopmentPlan["category"]) => {
     switch (category) {
       case "technical":
@@ -111,6 +129,7 @@ export function DevelopmentPlans() {
   };
 
   const handleCreatePlan = async () => {
+    if (!canManagePerformance) return;
     if (!planTitle || !planCategory || !planPriority || !targetDate) {
       toast({
         title: "Missing Information",
@@ -208,6 +227,7 @@ export function DevelopmentPlans() {
                   ))}
                 </SelectContent>
               </Select>
+              {canManagePerformance && (
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="flex items-center gap-2">
@@ -323,6 +343,7 @@ export function DevelopmentPlans() {
                   </div>
                 </DialogContent>
               </Dialog>
+              )}
             </div>
           </div>
         </CardHeader>

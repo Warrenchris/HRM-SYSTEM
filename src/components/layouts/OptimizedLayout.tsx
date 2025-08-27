@@ -4,6 +4,7 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/navigation/AppSidebar';
 import { AppHeader } from '@/components/navigation/AppHeader';
 import { PerformanceMonitor } from '@/components/performance/PerformanceMonitor';
+import { RouteLogger } from '@/components/navigation/RouteLogger';
 
 // Memoized sidebar component
 const MemoizedSidebar = memo(AppSidebar);
@@ -32,6 +33,7 @@ export const OptimizedLayout = memo(() => {
             
             <main className={layoutStyles.main}>
               <div className={layoutStyles.wrapper}>
+                <RouteLogger />
                 <Outlet />
               </div>
             </main>
